@@ -7,7 +7,7 @@ foreach([
  'users'=>"id VARCHAR(64) PRIMARY KEY,role VARCHAR(30),status VARCHAR(30),is_deleted INT DEFAULT 0,full_name VARCHAR(100),first_name VARCHAR(50),middle_name VARCHAR(50),last_name VARCHAR(50),email VARCHAR(100),grade_section VARCHAR(100)",
  'school_years'=>"id VARCHAR(64) PRIMARY KEY,year_start INT,year_end INT,is_deleted INT DEFAULT 0,q1_start VARCHAR(20),q1_end VARCHAR(20),q2_start VARCHAR(20),q2_end VARCHAR(20),q3_start VARCHAR(20),q3_end VARCHAR(20),q4_start VARCHAR(20),q4_end VARCHAR(20)",
  'subjects'=>"id VARCHAR(64) PRIMARY KEY,name VARCHAR(100),code VARCHAR(50),status VARCHAR(30),is_deleted INT DEFAULT 0,curriculum_metadata LONGTEXT",
- 'sections'=>"id VARCHAR(64) PRIMARY KEY,name VARCHAR(100),subject VARCHAR(100),subjects LONGTEXT,teacher VARCHAR(100),teachers LONGTEXT,students LONGTEXT,school_year VARCHAR(30),status VARCHAR(30),is_deleted INT DEFAULT 0",
+ 'sections'=>"id VARCHAR(64) PRIMARY KEY,name VARCHAR(100),subject VARCHAR(100),subjects LONGTEXT,teacher VARCHAR(100),teachers LONGTEXT,students LONGTEXT,school_year VARCHAR(30),status VARCHAR(30),is_deleted INT DEFAULT 0,days VARCHAR(100) DEFAULT 'Mon, Tue, Wed, Thu, Fri, Sat, Sun',daily_schedules LONGTEXT",
  'academic_records'=>"record_key VARCHAR(64) PRIMARY KEY,record_type VARCHAR(30),subject_id VARCHAR(64),section_id VARCHAR(64),student_id VARCHAR(64),item_id VARCHAR(64),payload LONGTEXT,actor_id VARCHAR(64)",
  'audit_logs'=>"id INT AUTO_INCREMENT PRIMARY KEY,user_id VARCHAR(64),action VARCHAR(255),ip_address VARCHAR(100),user_agent VARCHAR(255)",
  'audit_log_context'=>"audit_id INT,payload LONGTEXT"
@@ -78,3 +78,12 @@ attendanceImport($pdo,$teacher,['subjectId'=>'attcheck-subject','section'=>'attc
 $after=attendanceSnapshot($pdo,$teacher)['scopes'][0];check($after['drafts'][academicDay()]['statuses']['attcheck-two']==='absent','Import preserves unrelated private changes');check(empty($after['days'][academicDay()]['statuses']['attcheck-two']),'Unrelated draft remains unpublished');
 echo "PASS database drafts, device restore, private editor scope, batch publication, future rejection and atomic rollback.\n";
 echo "PASS temporary-table integration: draft rejection, acknowledged submit, own-student privacy, unmarked preserved, admin report sync, resubmission, teacher assignment, read-only student. No real rows changed.\n";
+
+$pdo->exec("UPDATE sections SET days='Tue, Wed, Thu, Fri'");
+check(attendanceScheduledWeekdays(['days'=>'Tue, Wed, Thu, Fri'])===[2,3,4,5],'Four scheduled weekdays');
+check(attendanceScheduledWeekdays(['days'=>'Mon, Tue','daily_schedules'=>'[{"day":"Mon","active":false},{"day":"Wed","active":true}]'])===[3],'Active daily schedule overrides days');
+check(!attendanceIsScheduled(['days'=>'Tue, Wed, Thu, Fri'],'2026-10-24'),'Weekend excluded');
+$off=['subjectId'=>'attcheck-subject','section'=>'attcheck-section','date'=>'2026-10-24','statuses'=>['attcheck-one'=>'P'],'submitted'=>true];
+foreach([false,true] as $draft){$rejected=false;try{attendanceSubmit($pdo,$teacher,$off,$draft);}catch(InvalidArgumentException $e){$rejected=true;}check($rejected,'Nonscheduled submit and draft rejected');}
+$rejected=false;try{attendanceImport($pdo,$teacher,['subjectId'=>'attcheck-subject','section'=>'attcheck-section','days'=>['2026-10-24'=>['attcheck-one'=>'P']]]);}catch(InvalidArgumentException $e){$rejected=true;}check($rejected,'Nonscheduled import rejected');
+echo "Schedule validation passed\n";

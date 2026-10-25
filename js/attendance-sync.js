@@ -3,6 +3,8 @@
     'use strict';
     const key='sigma-attendance-records-v1', queue=new Map();
     let pending=null,readyFor='',encoded='',saving=null,timer,revision=0;
+    const schedules=new Map();
+    const scheduled=(section,subject,date)=>{const days=schedules.get(norm(section)+'::'+norm(subject));return !!days?.includes(new Date(date+'T00:00:00Z').getUTCDay());};
     const actor=()=>window.SigmaDatabase?.currentUser()||{};
     const normalize=record=>({...record,statuses:Object.fromEntries(Object.entries(record.statuses||{}).map(([id,status])=>[id,({present:'P',absent:'A',late:'L',excused:'E'})[status]||status]))});
     const norm=value=>String(value||'').replace(/^grade\s*\d+\s*[-–]?\s*/i,'').replace(/[-_]+/g,' ').replace(/\s*&\s*/g,' and ').trim().toLowerCase();
@@ -14,12 +16,14 @@
         let local={};try{local=JSON.parse(localStorage.getItem(draftKey)||'{}');}catch(_){}
         for(const scope of result.scopes||[]){
             const canonical=`${scope.section}::${scope.subject}`;
-            records[canonical]=Object.fromEntries(Object.entries(scope.days||{}).filter(([,day])=>day.submitted===true).map(([date,day])=>[date,normalize(day)]));
-            drafts[canonical]=Object.fromEntries(Object.entries(scope.drafts||{}).map(([date,day])=>[date,normalize(day)]));
+            schedules.set(norm(scope.section)+'::'+norm(scope.subject),scope.weekdays||[]);
+            if(scope.subjectId)schedules.set(norm(scope.section)+'::'+norm(scope.subjectId),scope.weekdays||[]);
+            records[canonical]=Object.fromEntries(Object.entries(scope.days||{}).filter(([date,day])=>day.submitted===true&&scheduled(scope.section,scope.subject,date)).map(([date,day])=>[date,normalize(day)]));
+            drafts[canonical]=Object.fromEntries(Object.entries(scope.drafts||{}).filter(([date])=>scheduled(scope.section,scope.subject,date)).map(([date,day])=>[date,normalize(day)]));
             if(String(actor().role).toLowerCase()!=='student')for(const [oldKey,days]of Object.entries(local)){
                 const [section,subject]=oldKey.split('::');if(norm(section)!==norm(scope.section)||norm(subject)!==norm(scope.subject))continue;
                 for(const [date,day]of Object.entries(days||{})){
-                    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!day?.statuses)continue;
+                    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!day?.statuses||!scheduled(scope.section,scope.subject,date))continue;
                     // Only unsynced changes can supersede the database snapshot.
                     if(day._pending||(!readyFor&&!records[canonical][date]&&!drafts[canonical][date])){
                         drafts[canonical][date]={...day,_pending:true};
@@ -44,7 +48,7 @@
     async function flush(){
         if(saving){await saving;if(queue.size)return flush();return;}
         saving=(async()=>{for(const [id,entry]of queue){
-            if(entry.owner!==String(actor().id)){queue.delete(id);continue;}
+            if(entry.owner!==String(actor().id)||(schedules.has(norm(entry.input.section)+'::'+norm(entry.input.subjectId))&&!scheduled(entry.input.section,entry.input.subjectId,entry.input.date))){queue.delete(id);continue;}
             const result=await window.SigmaDatabase.request('attendance',{data:{...entry.input,action:'draft'},autoReconnect:false,foreground:false});
             if(!result.success)throw Error(result.error||'Draft could not be saved.');
             revision++;encoded='';if(queue.get(id)!==entry)continue;queue.delete(id);
@@ -61,7 +65,7 @@
         revision++;encoded='';return result;
     }
     async function discard(input){await flush();const result=await window.SigmaDatabase.request('attendance',{data:{...input,action:'discard-draft'},autoReconnect:false});if(!result.success)throw Error(result.error);encoded='';}
-    window.SigmaAttendance={refresh,submit,saveDraft:enqueue,flush,discard,ready:()=>readyFor===String(actor().id)};
+    window.SigmaAttendance={isScheduled:scheduled,refresh,submit,saveDraft:enqueue,flush,discard,ready:()=>readyFor===String(actor().id)};
     const sync=()=>flush().then(refresh).catch(error=>console.warn('Attendance sync:',error.message));
     window.addEventListener('focus',sync);window.addEventListener('online',sync);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync();});

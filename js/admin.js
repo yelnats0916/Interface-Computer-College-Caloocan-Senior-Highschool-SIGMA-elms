@@ -1698,12 +1698,12 @@ window.getAttendanceReportRows = function (dateRange) {
 
         // Find matching dates that have actual attendance statuses recorded
         const matchingDates = Object.keys(classroomData || {}).filter(d => {
-            if (!config.isMatch(d)) return false;
+            if (!config.isMatch(d) || !window.SigmaAttendance?.isScheduled(cleanSec,cleanSubj,d)) return false;
             const dayEntry = classroomData[d];
             return dayEntry && dayEntry.submitted === true && dayEntry.statuses && typeof dayEntry.statuses === 'object';
         });
 
-        if (matchingDates.length === 0 && classroomData.submitted === true && classroomData.date && classroomData.statuses && config.isMatch(classroomData.date)) {
+        if (matchingDates.length === 0 && classroomData.submitted === true && classroomData.date && classroomData.statuses && config.isMatch(classroomData.date) && window.SigmaAttendance?.isScheduled(cleanSec,cleanSubj,classroomData.date)) {
             matchingDates.push(classroomData.date);
         }
 

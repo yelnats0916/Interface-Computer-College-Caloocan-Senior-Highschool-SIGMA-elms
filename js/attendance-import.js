@@ -19,7 +19,7 @@
         const dates = datesBetween(from, to), workbook = XLSX.utils.book_new();
         const published = Object.fromEntries((window.getSubmittedAttendanceDays?.(context.section, context.subject) || []).map(record => [record.date, record.statuses]));
         for (const month of monthsFor(dates)) {
-            const columns = dates.filter(date => date.startsWith(month) && (includeNonSchool || (!blank && Object.values(published[date] || {}).some(value => code(value))) || ![0,6].includes(new Date(date+'T00:00:00Z').getUTCDay()))).map(date => ({dateStr:date,label:date.slice(5).replace('-', '/'),dayNum:Number(date.slice(8))}));
+            const columns = dates.filter(date => date.startsWith(month) && (includeNonSchool || (context.weekdays||[]).includes(new Date(date+'T00:00:00Z').getUTCDay()))).map(date => ({dateStr:date,label:date.slice(5).replace('-', '/'),dayNum:Number(date.slice(8))}));
             if (!columns.length) continue;
             const students = context.students.map(student => ({...student,fullName:student.name}));
             const quarters=(context.quarters||[]).filter(q=>q.start<=columns.at(-1).dateStr&&q.end>=columns[0].dateStr);
@@ -117,6 +117,7 @@
                     const mark = code(raw);
                     if (!mark) throw Error(`Use P, A, L, or E in ${sheetName}, ${address}.`);
                     if (column.date > context.today) throw Error(`Attendance cannot be submitted for a future date: ${column.date}.`);
+                    if (!(context.weekdays||[]).includes(new Date(column.date+'T00:00:00Z').getUTCDay())) throw Error(`Attendance is not scheduled on ${column.date}. Leave that cell blank.`);
                     days[column.date] ||= {}; days[column.date][id] = mark; values[column.date] = mark;
                 }
                 sheetRows.push({id,name:student.name,values});

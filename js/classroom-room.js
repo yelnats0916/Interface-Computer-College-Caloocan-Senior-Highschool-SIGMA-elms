@@ -1931,6 +1931,17 @@
         const part = type => parts.find(item => item.type === type).value;
         return `${part('year')}-${part('month')}-${part('day')}`;
     }
+    let attendanceShowAllDays = false;
+    const scheduledAttendanceDate = (date, section = getActiveRoomSectionName(), subject = getActiveRoomSubjectName()) => window.SigmaAttendance?.isScheduled(section, subject, date) === true;
+    window.openAttendanceDayFilter = function(button) {
+        document.getElementById('attendance-day-filter')?.remove();
+        const menu=document.createElement('div');menu.id='attendance-day-filter';menu.className='attendance-transfer-menu';menu.setAttribute('popover','auto');
+        menu.innerHTML=['Scheduled Days','All Days'].map((label,index)=>`<button type="button" data-all="${index}" aria-pressed="${attendanceShowAllDays===!!index}"><i class="fa-solid ${attendanceShowAllDays===!!index?'fa-check':'fa-calendar-days'}" aria-hidden="true"></i>${label}</button>`).join('');
+        document.body.append(menu);menu.showPopover();
+        const rect=button.getBoundingClientRect();menu.style.left=Math.max(8,Math.min(rect.left,innerWidth-menu.offsetWidth-8))+'px';menu.style.top=Math.min(rect.bottom+6,innerHeight-menu.offsetHeight-8)+'px';
+        menu.querySelectorAll('button').forEach(option=>option.onclick=()=>{attendanceShowAllDays=option.dataset.all==='1';menu.remove();expandedAttendanceCol=-1;renderClassroomAttendanceTab();});
+        menu.addEventListener('toggle',()=>{if(!menu.matches(':popover-open'))menu.remove();});
+    };
     window.isFutureAttendanceDate = date => typeof date === 'string' && date > getTodayLocalDateString();
 
     function normalizeAttendanceTokens(str) {
@@ -2103,7 +2114,7 @@
             excuses = dateString;
             dateString = getTodayLocalDateString();
         }
-        if (window.isFutureAttendanceDate?.(dateString)) return;
+        if (window.isFutureAttendanceDate?.(dateString) || !scheduledAttendanceDate(dateString)) return;
         if (!excuses) {
             excuses = getCurrentAttendanceExcuses(dateString);
         }
@@ -2207,7 +2218,7 @@
 
     function pendingAttendanceDays() {
         const {data} = findAttendanceClassroomRecord(getActiveRoomSectionName(),getActiveRoomSubjectName());
-        return Object.entries(data||{}).filter(([date,day])=>/^\d{4}-\d{2}-\d{2}$/.test(date)&&!window.isFutureAttendanceDate?.(date)&&day?.submitted!==true&&Object.values(day?.statuses||{}).some(Boolean)).map(([date])=>date).sort();
+        return Object.entries(data||{}).filter(([date,day])=>/^\d{4}-\d{2}-\d{2}$/.test(date)&&!window.isFutureAttendanceDate?.(date)&&scheduledAttendanceDate(date)&&day?.submitted!==true&&Object.values(day?.statuses||{}).some(Boolean)).map(([date])=>date).sort();
     }
     window.submitDailyAttendance = async function(dateString) {
         if(isStudentAttendancePortal()||window._sigmaAttendanceSubmitting)return;
@@ -2264,7 +2275,7 @@
     };
     window.getSubmittedAttendanceDays = function(section, subject) {
         const data = findAttendanceClassroomRecord(section, subject, true).data;
-        return Object.entries(data).filter(([date,record])=>/^\d{4}-\d{2}-\d{2}$/.test(date) && record?.submitted === true && record.statuses && Object.values(record.statuses).some(Boolean))
+        return Object.entries(data).filter(([date,record])=>/^\d{4}-\d{2}-\d{2}$/.test(date) && scheduledAttendanceDate(date,section,subject) && record?.submitted === true && record.statuses && Object.values(record.statuses).some(Boolean))
             .sort(([a],[b])=>a.localeCompare(b)).map(([date,record])=>({...record,date,statuses:record.statuses}));
     };
     window.viewDailyAttendance = function(dateString) {
@@ -2332,7 +2343,7 @@
     window.attendanceEditSnapshots = window.attendanceEditSnapshots || {};
 
     window.enableDailyAttendanceEdit = function (dateString) {
-        if (isStudentAttendancePortal() || window.isFutureAttendanceDate?.(dateString)) return;
+        if (isStudentAttendancePortal() || window.isFutureAttendanceDate?.(dateString) || !scheduledAttendanceDate(dateString)) return;
         if (!dateString) return;
         window.attendanceEditSnapshots = window.attendanceEditSnapshots || {};
         const currentStatuses = getCurrentAttendanceStatuses(dateString);
@@ -2540,7 +2551,8 @@
 
     function slideToBesideStudentCol(slider, day, smooth = true) {
         if (!slider) return;
-        const dayTh = slider.querySelector(`thead th.day-col[data-day="${day}"]`);
+        const headers=Array.from(slider.querySelectorAll('thead th.day-col[data-day]'));
+        const dayTh = slider.querySelector(`thead th.day-col[data-day="${day}"]`) || headers.sort((a,b)=>Math.abs(Number(a.dataset.day)-day)-Math.abs(Number(b.dataset.day)-day))[0];
         if (!dayTh) return;
 
         const summaryTh = slider.querySelector('thead th.attendance-summary-th--l');
@@ -2551,7 +2563,7 @@
         // Use date-column widths, independent of the sticky header's current position.
         // Repeated initial/layout alignment must converge on one fixed scroll target.
         const precedingWidth = Array.from(slider.querySelectorAll('thead th.day-col[data-day]'))
-            .filter(header => Number(header.dataset.day) < Number(day))
+            .filter(header => Number(header.dataset.day) < Number(dayTh.dataset.day))
             .reduce((width, header) => width + header.getBoundingClientRect().width / zoomFactor, 0);
         const maxScroll = Math.max(0, slider.scrollWidth - slider.clientWidth);
         const perfectTarget = Math.min(maxScroll, Math.max(0, Math.round(precedingWidth)));
@@ -2570,7 +2582,8 @@
 
     function slideAttendanceDayIntoView(slider, day, smooth = true) {
         if (!slider) return;
-        const dayTh = slider.querySelector(`thead th.day-col[data-day="${day}"]`);
+        const headers=Array.from(slider.querySelectorAll('thead th.day-col[data-day]'));
+        const dayTh = slider.querySelector(`thead th.day-col[data-day="${day}"]`) || headers.sort((a,b)=>Math.abs(Number(a.dataset.day)-day)-Math.abs(Number(b.dataset.day)-day))[0];
         if (!dayTh) return;
 
         const stickyTh = slider.querySelector('thead th.attendance-summary-th--l') || slider.querySelector('thead th.student-name-col');
@@ -2679,6 +2692,7 @@
         const scope = `${window.SigmaDatabase?.currentUser?.()?.id || ''}::${secName}::${subjName}`;
         if (scope !== attendanceViewportScope) {
             attendanceViewportScope = scope;
+            attendanceShowAllDays = false;
             const today = new Date();
             attendanceViewingYear = today.getFullYear();
             attendanceViewingMonth = today.getMonth();
@@ -2701,6 +2715,7 @@
 
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const daysInMonth = new Date(attendanceViewingYear, attendanceViewingMonth + 1, 0).getDate();
+        const visibleAttendanceDays = Array.from({length:daysInMonth},(_,i)=>i+1).filter(day=>attendanceShowAllDays || scheduledAttendanceDate(`${attendanceViewingYear}-${String(attendanceViewingMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`));
         const todayNow = new Date(getTodayLocalDateString() + 'T00:00:00');
         const isCurrentMonth = (todayNow.getMonth() === attendanceViewingMonth && todayNow.getFullYear() === attendanceViewingYear);
         const todayDay = todayNow.getDate();
@@ -2744,11 +2759,12 @@
         }
 
         // Build Daily Attendance Breakdown (System Summary)
-        const activeDay = (expandedAttendanceCol !== -1)
+        let activeDay = (expandedAttendanceCol !== -1)
             ? expandedAttendanceCol
             : ((attendanceSelectedDay !== -1)
                 ? attendanceSelectedDay
                 : (isCurrentMonth ? todayDay : 1));
+        if (!visibleAttendanceDays.includes(activeDay)) activeDay=visibleAttendanceDays.filter(day=>day<=activeDay).pop() || visibleAttendanceDays[0] || 1;
         const activeLocalDateStr = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(activeDay).padStart(2, '0')}`;
         const activeDateObj = new Date(attendanceViewingYear, attendanceViewingMonth, activeDay);
         const activeDateFormatted = activeDateObj.toLocaleDateString('en-US', {
@@ -2878,12 +2894,12 @@
             if(!isEditing)actionButtonHtml=`<button type="button" class="attendance-action-btn attendance-action-btn--submit" onclick="window.submitDailyAttendance('${activeLocalDateStr}')"><span>${pendingDates.length>1?`Submit (${pendingDates.length} Days)`:'Submit'}</span></button>`;
             savedNoticeParagraphHtml=`<p class="text-[11px] sm:text-xs text-black-fade">${pendingDates.length} day(s) with draft attendance. Submit to publish the recorded marks.</p>`;
         }
-        if (window.isFutureAttendanceDate(activeLocalDateStr)&&!pendingDates.length) { savedNoticeParagraphHtml = ''; actionButtonHtml = ''; }
+        if ((window.isFutureAttendanceDate(activeLocalDateStr)||!scheduledAttendanceDate(activeLocalDateStr))&&!pendingDates.length) { savedNoticeParagraphHtml = ''; actionButtonHtml = ''; }
 
         let html = `
             <div class="attendance-monthly-card">
                 <div class="attendance-monthly-header flex items-center justify-between w-full relative px-3 py-2 sm:px-4 sm:py-3 border-b border-slate-100 bg-white">
-                    <div class="w-8 sm:w-24 shrink-0"></div>
+                    <div class="w-8 sm:w-24 shrink-0"><button type="button" onclick="window.openAttendanceDayFilter(this)" class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 inline-flex items-center justify-center" title="Filter attendance days" aria-label="Filter attendance days"><i class="fa-solid fa-sliders" aria-hidden="true"></i></button></div>
                     <div class="relative inline-flex items-center gap-1 sm:gap-2">
                         <button type="button" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer" onclick="window.navAttendanceMonth(-1)" title="Previous Month" aria-label="Previous Month">
                             <i class="fa-solid fa-chevron-left text-[11px] sm:text-xs text-black"></i>
@@ -2931,13 +2947,12 @@
                                         <span class="attendance-summary-label-full">Late</span><span class="attendance-summary-label-short">L</span>
                                     </th>
                                 ` : ''}
-                                ${Array.from({ length: daysInMonth }, (_, i) => {
-                                    const day = i + 1;
+                                ${visibleAttendanceDays.map(day => {
                                     const date = new Date(attendanceViewingYear, attendanceViewingMonth, day);
                                     const m = String(date.getMonth() + 1).padStart(2, '0');
                                     const d = String(date.getDate()).padStart(2, '0');
                                     const label = `${m}/${d}`;
-                                    const isFuture = window.isFutureAttendanceDate(`${attendanceViewingYear}-${m}-${d}`);
+                                    const isFuture = window.isFutureAttendanceDate(`${attendanceViewingYear}-${m}-${d}`) || !scheduledAttendanceDate(`${attendanceViewingYear}-${m}-${d}`);
                                     const isExpanded = expandedAttendanceCol === day && !isFuture;
                                     const isToday = (todayNow.getDate() === day && isCurrentMonth);
                                     const isSelected = (attendanceSelectedDay === day);
@@ -2998,7 +3013,7 @@
                             </td>
                         ` : ''}`;
 
-                for (let d = 1; d <= daysInMonth; d++) {
+                for (const d of visibleAttendanceDays) {
                     const dayData = dailyStatuses[d] || {};
                     const localDateString = dayData.dateStr || `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                     const currentStatuses = dayData.statuses || getCurrentAttendanceStatuses(localDateString);
@@ -3015,7 +3030,7 @@
                         }
                     }
                     const statusClass = status ? `status-${status.toLowerCase()}` : '';
-                    const isFuture = window.isFutureAttendanceDate(localDateString);
+                    const isFuture = window.isFutureAttendanceDate(localDateString) || !scheduledAttendanceDate(localDateString);
                     const isExpanded = expandedAttendanceCol === d && !isFuture;
                     const stId = (student.id || student.uid || '').replace(/'/g, "\\'");
 
@@ -3211,7 +3226,7 @@
 
     window.toggleAttendanceExpansion = function (day) {
         const date = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        if (window.isFutureAttendanceDate?.(date)) return;
+        if (window.isFutureAttendanceDate?.(date) || !scheduledAttendanceDate(date)) return;
         if (attendanceScrollAnimationId) {
             cancelAnimationFrame(attendanceScrollAnimationId);
             attendanceScrollAnimationId = null;
@@ -3239,7 +3254,7 @@
             event.preventDefault();
             event.stopPropagation();
         }
-        if (window.isFutureAttendanceDate?.(dateString)) return;
+        if (window.isFutureAttendanceDate?.(dateString) || !scheduledAttendanceDate(dateString)) return;
         if (dateString && typeof dateString === 'string' && dateString.includes('-')) {
             const pDay = parseInt(dateString.split('-')[2], 10);
             if (!isNaN(pDay)) attendanceSelectedDay = pDay;
@@ -3652,12 +3667,12 @@
                                     </div>
                                 </label>
                                 <fieldset id="attendance-export-school-days" class="hidden border border-slate-200 rounded-xl p-4 space-y-3">
-                                    <legend class="px-2 text-sm font-semibold">Non-school days</legend>
+                                    <legend class="px-2 text-sm font-semibold">Dates</legend>
                                     <div class="flex flex-col lg:flex-row gap-3 lg:gap-8">
-                                    <label class="flex items-center gap-3 cursor-pointer text-sm"><input type="radio" name="attendance-export-non-school" onchange="window.updateAttendanceExportOptionUI()" value="exclude" checked class="accent-[#15803d]">Exclude non-school days</label>
-                                    <label class="flex items-center gap-3 cursor-pointer text-sm"><input type="radio" name="attendance-export-non-school" onchange="window.updateAttendanceExportOptionUI()" value="include" class="accent-[#15803d]">Include non-school days</label>
+                                    <label class="flex items-center gap-3 cursor-pointer text-sm"><input type="radio" name="attendance-export-non-school" onchange="window.updateAttendanceExportOptionUI()" value="exclude" checked class="accent-[#15803d]">Scheduled Days</label>
+                                    <label class="flex items-center gap-3 cursor-pointer text-sm"><input type="radio" name="attendance-export-non-school" onchange="window.updateAttendanceExportOptionUI()" value="include" class="accent-[#15803d]">All Days</label>
                                     </div>
-                                    <p id="attendance-export-school-days-description" class="text-xs text-black-fade">Excludes Saturdays and Sundays. Unrecorded school days remain blank.</p>
+                                    <p id="attendance-export-school-days-description" class="text-xs text-black-fade">Includes scheduled class dates. Unrecorded dates remain blank.</p>
                                 </fieldset>
                                 <label class="export-scope-option flex items-start gap-4 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all hover:bg-slate-50" id="export-option-month-active-label">
                                     <input type="radio" name="attendance-export-scope" value="month-active" class="mt-1 w-5 h-5 text-[#15803d] focus:ring-[#15803d] accent-[#15803d] cursor-pointer shrink-0" onchange="window.updateAttendanceExportOptionUI()" />
@@ -3701,8 +3716,8 @@
         const includeNonSchool = document.querySelector('input[name="attendance-export-non-school"]:checked')?.value === 'include';
         const description = document.getElementById('attendance-export-school-days-description');
         if (description) description.textContent = includeNonSchool
-            ? 'Includes Saturdays and Sundays. Unrecorded days remain blank.'
-            : 'Excludes Saturdays and Sundays. Unrecorded school days remain blank.';
+            ? 'Includes all dates. Nonscheduled dates remain blank.'
+            : 'Includes scheduled class dates. Unrecorded dates remain blank.';
 
         const monthSelected = document.querySelector('input[name="attendance-export-scope"]:checked')?.value === 'month';
         document.getElementById('attendance-export-school-days')?.classList.toggle('hidden', !monthSelected);
@@ -3887,7 +3902,8 @@
         if (window._attendancePdfExporting) return;
         window._attendancePdfExporting = true;
         try {
-            const { data } = findAttendanceClassroomRecord(section, subject);
+            await window.SigmaAttendance?.refresh(true);
+            const data = Object.fromEntries(window.getSubmittedAttendanceDays(section,subject).map(day=>[day.date,day]));
             const students = (getAttendanceStudents(section, subject) || []).slice().sort((a, b) => String(a.name || a.fullName || '').localeCompare(String(b.name || b.fullName || '')));
             if (!students.length) { window.showToastNotification?.('No students available for this section and subject.', 'warning'); return; }
             const dates = Object.keys(data).filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date) && config.isMatch(date));
@@ -4019,7 +4035,7 @@
                     const dateStr = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                     if (document.querySelector('input[name="attendance-export-non-school"]:checked')?.value !== 'include') {
                         const weekday = new Date(attendanceViewingYear, attendanceViewingMonth, d).getDay();
-                        if ((weekday === 0 || weekday === 6) && !dateHasAnyStudentAttendance(dateStr)) continue;
+                        if (!scheduledAttendanceDate(dateStr)) continue;
                     }
                     datesToExport.push({
                         dateStr: dateStr,

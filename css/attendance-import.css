@@ -130,3 +130,5 @@ html body #attendance-export-modal .attendance-import-month .sigma-quarter-dropd
  html body #attendance-export-modal .attendance-import-month>summary{height:36px!important;min-height:36px!important;font-size:12px!important}
  .attendance-import-table{touch-action:pan-x pan-y}
 }
+
+@media(max-width:639px){#attendance-day-filter.attendance-transfer-menu{width:160px;padding:6px;border-radius:12px}#attendance-day-filter button{min-height:38px;padding:8px 10px;gap:10px;font-size:12px;line-height:18px}}

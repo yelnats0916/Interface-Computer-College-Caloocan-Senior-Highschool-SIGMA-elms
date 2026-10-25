@@ -1,6 +1,27 @@
 <?php
 require_once __DIR__.'/academic_evidence.php';
 
+/** The assignment's active meeting days are authoritative for every attendance path. */
+function attendanceScheduledWeekdays(array $section): array {
+    $names=['sun','mon','tue','wed','thu','fri','sat'];$days=[];
+    $daily=gradeList($section['daily_schedules']??'');
+    if($daily){
+        foreach($daily as $row)if(is_array($row)&&!empty($row['active'])){
+            $index=array_search(strtolower(substr(trim((string)($row['day']??$row['fullDay']??'')),0,3)),$names,true);
+            if($index!==false)$days[]=$index;
+        }
+    }else{
+        $text=strtolower((string)($section['days']??''));
+        if(trim($text)==='')$text=strtolower((string)($section['schedule']??''));
+        if(preg_match('/mon(?:day)?\s*[-–]\s*fri(?:day)?/u',$text))$days=[1,2,3,4,5];
+        else foreach($names as $index=>$name)if(preg_match('/\b'.$name.'(?:day|sday|nesday|rsday|urday)?\b/',$text))$days[]=$index;
+    }
+    return array_values(array_unique($days));
+}
+function attendanceIsScheduled(array $section,string $date): bool {
+    return in_array((int)(new DateTimeImmutable($date,new DateTimeZone('Asia/Manila')))->format('w'),attendanceScheduledWeekdays($section),true);
+}
+
 /** Resolve the section's school year, retaining its last started quarter through a break. */
 function attendanceAcademicContext(array $years,array $section,string $date,array $record=[]): array {
     $label=(string)($record['schoolYear']??$section['school_year']??'');
@@ -33,6 +54,7 @@ function attendanceSubmit(PDO $db,array $actor,array $input,bool $draft=false): 
     $date=(string)($input['date']??'');
     $parsed=DateTimeImmutable::createFromFormat('!Y-m-d',$date,new DateTimeZone('Asia/Manila'));
     if(!$parsed||$parsed->format('Y-m-d')!==$date||$date>academicDay())throw new InvalidArgumentException('Choose a valid attendance date.');
+    if(!attendanceIsScheduled($section,$date))throw new InvalidArgumentException('Choose a scheduled class date for attendance.');
     $students=$db->query("SELECT * FROM users WHERE is_deleted=0 AND LOWER(status)='active' AND LOWER(role)='student'")->fetchAll(PDO::FETCH_ASSOC);
     $statuses=[];$excuses=[];
     foreach($input['statuses']??[] as $key=>$value){
@@ -67,6 +89,7 @@ function attendanceSnapshot(PDO $db,array $actor): array {
             !(academicAdmin($actor)||(academicRole($actor)==='teacher'&&academicTeacher($section,$actor,$subject))))continue;
         $q=$db->prepare("SELECT item_id,payload FROM academic_records WHERE subject_id=? AND section_id=? AND record_type='attendance'");$q->execute([$subject['id'],$section['id']]);$days=[];
         foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row){
+            if(!attendanceIsScheduled($section,(string)$row['item_id']))continue;
             $record=json_decode($row['payload'],true)?:[];
             if(($record['submitted']??false)!==true)continue;
             if($student){$id=(string)$actor['id'];$record['statuses']=array_intersect_key($record['statuses']??[],[$id=>true]);$record['excuses']=array_intersect_key($record['excuses']??[],[$id=>true]);unset($record['submittedBy']);}
@@ -75,7 +98,8 @@ function attendanceSnapshot(PDO $db,array $actor): array {
         }
         $drafts=[];
         if(!$student){$q=$db->prepare("SELECT item_id,payload FROM academic_records WHERE subject_id=? AND section_id=? AND record_type='attendance_draft' AND student_id=?");$q->execute([$subject['id'],$section['id'],(string)$actor['id']]);foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row)$drafts[$row['item_id']]=json_decode($row['payload'],true)?:[];}
-        $scopes[]=['section'=>$section['name'],'subject'=>$subject['name'],'days'=>$days,'drafts'=>$drafts];
+        $drafts=array_filter($drafts,fn($date)=>attendanceIsScheduled($section,(string)$date),ARRAY_FILTER_USE_KEY);
+        $scopes[]=['section'=>$section['name'],'subject'=>$subject['name'],'subjectId'=>$subject['id'],'weekdays'=>attendanceScheduledWeekdays($section),'days'=>$days,'drafts'=>$drafts];
     }
     return ['success'=>true,'userId'=>(string)$actor['id'],'scopes'=>$scopes];
 }
@@ -95,7 +119,7 @@ function attendanceImportContext(PDO $db,array $actor,array $input): array {
     }
     usort($students,fn($a,$b)=>strnatcasecmp($a['name'],$b['name']));
     $quarters=[];foreach([1,2,3,4] as $q)$quarters[]=['quarter'=>$q,'start'=>$year['q'.$q.'_start'],'end'=>$year['q'.$q.'_end']];
-    return ['section'=>$section,'subject'=>$subject,'context'=>['section'=>$section['name'],'subject'=>$subject['name'],'schoolYear'=>$academic['schoolYear'],'start'=>$year['q1_start'],'end'=>$year['q4_end'],'today'=>academicDay(),'students'=>$students,'quarters'=>$quarters]];
+    return ['section'=>$section,'subject'=>$subject,'context'=>['section'=>$section['name'],'subject'=>$subject['name'],'subjectId'=>$subject['id'],'weekdays'=>attendanceScheduledWeekdays($section),'schoolYear'=>$academic['schoolYear'],'start'=>$year['q1_start'],'end'=>$year['q4_end'],'today'=>academicDay(),'students'=>$students,'quarters'=>$quarters]];
 }
 
 /** Nonblank imported cells are patches. Validate the whole workbook before writing any day. */
@@ -108,6 +132,7 @@ function attendanceImport(PDO $db,array $actor,array $input): array {
     foreach($days as $date=>$marks){
         $parsed=DateTimeImmutable::createFromFormat('!Y-m-d',(string)$date);
         if(!$parsed||$parsed->format('Y-m-d')!==$date||$date<$context['start']||$date>$context['end']||$date>$context['today'])throw new InvalidArgumentException('Attendance dates must be within this school year and cannot be in the future.');
+        if(!attendanceIsScheduled($section,(string)$date))throw new InvalidArgumentException('Attendance can only be imported for scheduled class dates: '.$date.'.');
         if(!is_array($marks)||count($marks)>count($roster))throw new InvalidArgumentException('Invalid attendance roster.');
         $old=academicRead($db,'attendance',$subject,$section,'',$date)??[];
         $previous[$date]=$old;$clean[$date]=[];
