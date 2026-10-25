@@ -89,7 +89,7 @@ assert.ok(phpHeader.includes('../js/page-skeleton.js'), 'php/includes/header.php
 
 for (const phpPage of ['php/admin.php', 'php/teacher.php', 'php/student.php']) {
     const php = fs.readFileSync(path.join(__dirname, '..', phpPage), 'utf8');
-    assert.ok(php.includes("require_once __DIR__ . \"/includes/header.php\""), `${phpPage} includes header.php`);
+    assert.ok(php.includes("Location: ../") || php.includes("require_once __DIR__ . \"/includes/header.php\""), `${phpPage} delegates to canonical HTML or includes header.php`);
 }
 console.log('PASS: PHP portals parity with page-skeleton verified');
 

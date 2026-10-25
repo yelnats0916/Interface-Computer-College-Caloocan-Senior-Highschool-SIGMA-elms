@@ -16,7 +16,7 @@
 
     function revealInitial(force = false) {
         // Refreshes in all tabs retain the same shimmer until session verification ends.
-        if (document.documentElement.hasAttribute('data-sigma-session-shimmer')) return;
+        if (typeof document.documentElement?.hasAttribute === 'function' && document.documentElement.hasAttribute('data-sigma-session-shimmer')) return;
         if (initialDismissed) {
             document.documentElement.classList.remove('sigma-initial-loading');
             return;
@@ -222,11 +222,35 @@
         if (clean.startsWith('assessment') || clean.startsWith('assignment')) {
             return { sectionId: 'section-assessments,section-assignments', layout: 'assessments' };
         }
-        if (clean.startsWith('user') || clean.startsWith('profile')) {
-            return { sectionId: 'user-profile-view,users-view', layout: 'generic' };
+        if (clean.includes('section') || clean.includes('school-section') || clean.includes('school_section')) {
+            return { sectionId: 'school-sections-view', layout: 'table' };
+        }
+        if (clean.includes('subject') || clean.includes('school-subject') || clean.includes('school_subject')) {
+            return { sectionId: 'school-subjects-view', layout: 'table' };
+        }
+        if (clean.includes('school-year') || clean.includes('school_year') || clean === 'school-year') {
+            return { sectionId: 'school-year-view', layout: 'generic' };
+        }
+        if (clean.includes('school-profile') || clean.includes('school_profile') || clean === 'school-profile') {
+            return { sectionId: 'school-profile-view', layout: 'generic' };
+        }
+        if (clean.includes('audit-ai') || clean === 'audit-logs' || clean === 'nav-audit-logs') {
+            return { sectionId: 'audit-ai-view', layout: 'table' };
+        }
+        if (clean.includes('audit-activity')) {
+            return { sectionId: 'audit-activity-view', layout: 'table' };
+        }
+        if (clean.includes('audit-auth')) {
+            return { sectionId: 'audit-auth-view', layout: 'table' };
+        }
+        if (clean.includes('audit-notification')) {
+            return { sectionId: 'audit-notifications-view', layout: 'table' };
+        }
+        if (clean.startsWith('user') || clean.startsWith('profile') || clean.includes('account')) {
+            return { sectionId: 'users-view,user-profile-view', layout: 'table' };
         }
         if (clean.startsWith('setting')) {
-            return { sectionId: 'user-settings-view', layout: 'generic' };
+            return { sectionId: 'settings-security-view,settings-branding-view,settings-integrations-view,settings-gdrive-view,settings-recaptcha-view,settings-ai-view,settings-limits-view,user-settings-view', layout: 'generic' };
         }
         // Unknown routes belong to the portal router, never to a guessed lesson page.
         return null;
@@ -242,6 +266,7 @@
         if (clean === 'section-attendance' || clean === 'reports-attendance-view') return 'attendance';
         if (clean === 'section-materials' || clean === 'resources-view') return 'materials';
         if (clean === 'section-assessments' || clean === 'section-assignments') return 'assessments';
+        if (clean === 'school-sections-view' || clean === 'school-subjects-view' || clean === 'users-view' || clean.startsWith('audit-')) return 'table';
         return 'generic';
     }
 
@@ -707,15 +732,44 @@
 `;
         }
 
+        if (layout === 'table') {
+            return `
+<div class="sigma-content-skeleton sigma-skeleton-table p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto font-['Inter']" data-sigma-skeleton="table">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        ${Array.from({ length: 4 }).map(() => `
+        <div class="sigma-card sigma-skeleton-card min-h-[96px] rounded-[20px] p-5 space-y-2.5">
+            <div class="sigma-skeleton-block h-3.5 w-24 rounded-lg"></div>
+            <div class="sigma-skeleton-block h-7 w-16 rounded-xl"></div>
+        </div>
+        `).join('')}
+    </div>
+    <div class="sigma-table sigma-skeleton-card sigma-card min-h-[460px] rounded-[20px] p-5 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div class="sigma-skeleton-block h-9 w-64 rounded-xl"></div>
+            <div class="flex items-center gap-3">
+                <div class="sigma-skeleton-block h-9 w-28 rounded-xl"></div>
+                <div class="sigma-skeleton-block h-9 w-28 rounded-xl"></div>
+            </div>
+        </div>
+        <div class="space-y-3">
+            ${Array.from({ length: 6 }).map(() => `
+            <div class="sigma-skeleton-block h-12 w-full rounded-xl"></div>
+            `).join('')}
+        </div>
+    </div>
+</div>
+`;
+        }
+
         return `
 <div class="sigma-content-skeleton sigma-skeleton-generic p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto font-['Inter']" data-sigma-skeleton="generic">
     <div class="sigma-card sigma-skeleton-card min-h-[100px] rounded-[20px] p-6 space-y-3">
         <div class="sigma-skeleton-block h-7 w-56 rounded-lg"></div>
-        <div class="sigma-skeleton-block h-4 w-80 rounded"></div>
+        <div class="sigma-skeleton-block h-4 w-80 rounded-lg"></div>
     </div>
     <div class="sigma-card sigma-skeleton-card min-h-[460px] rounded-[20px] p-6 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div class="sigma-skeleton-block h-5 w-40 rounded"></div>
+            <div class="sigma-skeleton-block h-5 w-40 rounded-lg"></div>
             <div class="sigma-skeleton-block h-9 w-32 rounded-xl"></div>
         </div>
         <div class="space-y-3">
@@ -784,8 +838,6 @@
 
     function mountEarlyHashSkeleton() {
         try {
-            // Admin routing also checks permissions. Do not activate sections before it runs.
-            if (document.documentElement.classList.contains('sigma-hash-navigating')) return;
             if (typeof window === 'undefined' || !window.location || typeof document === 'undefined' || typeof document.getElementById !== 'function') {
                 return;
             }
@@ -839,9 +891,7 @@
     } catch (_) {}
 
     if (typeof setTimeout === 'function') {
-        setTimeout(revealInitial, 150);
-        setTimeout(() => revealInitial(true), 350);
-        // A stalled optional dependency must not leave the entire shell masked.
+        // A stalled optional dependency must not leave the entire shell masked indefinitely.
         setTimeout(() => revealInitial(true), 3000);
     }
     if (document.readyState === 'loading') {

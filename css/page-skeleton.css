@@ -32,6 +32,30 @@ html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main
     visibility: hidden !important;
 }
 
+html.sigma-initial-loading body :is(#main-content, #admin-main, #sidebar) i::before {
+    visibility: hidden !important;
+    color: transparent !important;
+}
+
+html:is(.sigma-initial-loading,[data-sigma-session-shimmer]) body #admin-home-right-rail :is(h3, .academic-calendar-heading, button, span, a, p) {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    border-color: transparent !important;
+}
+
+html:is(.sigma-initial-loading,[data-sigma-session-shimmer]) body #sidebar :is(.nav-link, .nav-sublink, a, button, div, span, i):is(.active, [aria-current="page"]) {
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+html:is(.sigma-initial-loading,[data-sigma-session-shimmer]) body #sidebar :is(.nav-link, .nav-sublink, a, button, div, span, i):is(.active, [aria-current="page"]) * {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
 html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) input:not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *, [data-sigma-loading="exclude"], [data-sigma-loading="exclude"] *))::placeholder {
     color: transparent !important;
 }
@@ -49,7 +73,7 @@ html.sigma-initial-loading body :is(header, #student-header, #admin-header, #tea
 }
 
 html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(h1,h2,h3,h4,h5,p,i,.full-label,.short-label,.sidebar-label,.rail-label):not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *, .header-panel *, [data-sigma-loading="exclude"] *)) {
-    border-radius: 4px !important;
+    border-radius: 6px !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -288,6 +312,9 @@ html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
     .home-dashboard-card,
     .home-dashboard-group,
     .home-overview-card,
+    .pinned-calendar-card,
+    #admin-pinned-calendar-card,
+    #admin-online-now-card,
     .sigma-interactive-metric-card,
     .pocket-card,
     .announcement-card,
@@ -358,6 +385,9 @@ html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
     .home-dashboard-card,
     .home-dashboard-group,
     .home-overview-card,
+    .pinned-calendar-card,
+    #admin-pinned-calendar-card,
+    #admin-online-now-card,
     .sigma-interactive-metric-card,
     .pocket-card,
     .announcement-card,
@@ -418,6 +448,9 @@ html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
     .home-dashboard-card,
     .home-dashboard-group,
     .home-overview-card,
+    .pinned-calendar-card,
+    #admin-pinned-calendar-card,
+    #admin-online-now-card,
     .sigma-interactive-metric-card,
     .pocket-card,
     .announcement-card,
@@ -574,6 +607,9 @@ html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
     .home-dashboard-card,
     .home-dashboard-group,
     .home-overview-card,
+    .pinned-calendar-card,
+    #admin-pinned-calendar-card,
+    #admin-online-now-card,
     .announcement-card,
     .sigma-announcement-card,
     .announcement-composer-trigger-card,
@@ -688,6 +724,9 @@ html.sigma-initial-loading body :is(header, #student-header, #admin-header, #tea
     .sigma-card,
     .home-dashboard-card,
     .home-overview-card,
+    .pinned-calendar-card,
+    #admin-pinned-calendar-card,
+    #admin-online-now-card,
     .announcement-card,
     .home-feed-card,
     .post-card,
@@ -800,7 +839,12 @@ html.sigma-initial-loading body :is(#noti-badge,#mobile-noti-badge,.mobile-subba
 .sigma-skeleton-surface { background: var(--sigma-skeleton-base); }
 .sigma-skeleton[hidden] { display: none !important; }
 .sigma-skeleton-top { display: flex; gap: 16px; align-items: center; height: 72px; border-bottom: 1px solid #e2e8f0; }
-.sigma-skeleton-block { position: relative; overflow: hidden; background: var(--sigma-skeleton-base); border-radius: 4px; }
+.sigma-skeleton-block { position: relative; overflow: hidden; background: var(--sigma-skeleton-base); border-radius: 8px; }
+.sigma-skeleton-block.rounded-lg { border-radius: 8px !important; }
+.sigma-skeleton-block.rounded-xl { border-radius: 12px !important; }
+.sigma-skeleton-block.rounded-2xl { border-radius: 16px !important; }
+.sigma-skeleton-block.rounded-full { border-radius: 9999px !important; }
+.sigma-skeleton-block.rounded-md { border-radius: 6px !important; }
 .sigma-skeleton-block::after {
     content: '' !important;
     display: block !important;
@@ -1101,7 +1145,7 @@ html.sigma-initial-loading body :is(#student-header, #teacher-header, #admin-hea
 }
 
 /* Content skeleton panels match Home page skeleton panels (Image 5 / media_1791854380009_415f9a6b.png) */
-.sigma-content-skeleton :is(.sigma-skeleton-card, .sigma-skeleton-panel, .sigma-card, .topic-card, .assessment-material-main-card, .home-feed-card, .home-dashboard-card, .home-dashboard-group, .home-overview-card, .pocket-card, .sigma-announcements-empty-state, .sigma-empty-state, .gwa-card, .sigma-table, .welcome-panel, .classroom-room-hero-banner),
+.sigma-content-skeleton :is(.sigma-skeleton-card, .sigma-skeleton-panel, .sigma-card, .topic-card, .assessment-material-main-card, .home-feed-card, .home-dashboard-card, .home-dashboard-group, .home-overview-card, .pinned-calendar-card, #admin-pinned-calendar-card, #admin-online-now-card, .pocket-card, .sigma-announcements-empty-state, .sigma-empty-state, .gwa-card, .sigma-table, .welcome-panel, .classroom-room-hero-banner),
 .sigma-skeleton-card {
     position: relative !important;
     overflow: hidden !important;
@@ -1133,11 +1177,11 @@ html.sigma-initial-loading body :is(#student-header, #teacher-header, #admin-hea
     box-shadow: none !important;
 }
 
-.sigma-content-skeleton :is(.sigma-skeleton-card, .sigma-skeleton-panel, .sigma-card, .topic-card, .assessment-material-main-card, .home-feed-card, .home-dashboard-card, .home-dashboard-group, .home-overview-card, .pocket-card, .sigma-announcements-empty-state, .sigma-empty-state, .gwa-card, .sigma-table, .welcome-panel, .classroom-room-hero-banner) > * {
+.sigma-content-skeleton :is(.sigma-skeleton-card, .sigma-skeleton-panel, .sigma-card, .topic-card, .assessment-material-main-card, .home-feed-card, .home-dashboard-card, .home-dashboard-group, .home-overview-card, .pinned-calendar-card, #admin-pinned-calendar-card, #admin-online-now-card, .pocket-card, .sigma-announcements-empty-state, .sigma-empty-state, .gwa-card, .sigma-table, .welcome-panel, .classroom-room-hero-banner) > * {
     visibility: hidden !important;
 }
 
-.sigma-content-skeleton :is(.sigma-skeleton-card, .sigma-skeleton-panel, .sigma-card, .topic-card, .assessment-material-main-card, .home-feed-card, .home-dashboard-card, .home-dashboard-group, .home-overview-card, .pocket-card, .sigma-announcements-empty-state, .sigma-empty-state, .gwa-card, .sigma-table, .welcome-panel, .classroom-room-hero-banner)::after,
+.sigma-content-skeleton :is(.sigma-skeleton-card, .sigma-skeleton-panel, .sigma-card, .topic-card, .assessment-material-main-card, .home-feed-card, .home-dashboard-card, .home-dashboard-group, .home-overview-card, .pinned-calendar-card, #admin-pinned-calendar-card, #admin-online-now-card, .pocket-card, .sigma-announcements-empty-state, .sigma-empty-state, .gwa-card, .sigma-table, .welcome-panel, .classroom-room-hero-banner)::after,
 .sigma-content-skeleton :is(.sigma-feed-tab-btn, [data-announcement-tab], .sigma-filter-pill)::after,
 .sigma-skeleton-card::after,
 .sigma-content-skeleton .sigma-skeleton-block::after {

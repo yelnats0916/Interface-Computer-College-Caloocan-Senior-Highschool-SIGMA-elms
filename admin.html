@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" translate="no">
+<html lang="en" translate="no" class="sigma-initial-loading">
 
 <head>
     <meta charset="UTF-8">
@@ -243,6 +243,7 @@
     <script>
         (function () {
             try {
+                document.documentElement.classList.add('sigma-initial-loading');
                 var hash = (window.location.hash || '').replace(/^#/, '').trim();
                 var saved = !hash ? JSON.parse(sessionStorage.getItem('sigma-admin-active-tab') || 'null') : null;
                 var dashboard = hash ? ['dashboard', 'home', 'nav-dashboard'].includes(hash)
@@ -252,15 +253,40 @@
                     style.id = 'early-dashboard-style';
                     style.textContent = '#dashboard-view { display: block !important; }';
                 } else {
-                    // The router owns route resolution. Never reveal a guessed page during startup.
                     document.documentElement.classList.add('sigma-hash-navigating');
                     style.id = 'sigma-early-hash-style';
-                    style.textContent = 'html.sigma-hash-navigating #content-sections .dynamic-section, html.sigma-hash-navigating .dynamic-section { display: none !important; }' +
-                        'html.sigma-hash-navigating .dynamic-section { visibility: hidden !important; }' +
-                        'html.sigma-hash-navigating #admin-main::before { content: \"\"; display:block; margin:32px; height:300px; border:1px solid #e2e8f0; border-radius:20px; background:linear-gradient(#e8edf2 0 0) 24px 28px / 40% 22px no-repeat,linear-gradient(#eef2f6 0 0) 24px 78px / calc(100% - 48px) 48px no-repeat,linear-gradient(#eef2f6 0 0) 24px 142px / calc(100% - 48px) 48px no-repeat,linear-gradient(#eef2f6 0 0) 24px 206px / calc(100% - 48px) 48px no-repeat,#fff; }' +
-                        '@media(max-width:639px){html.sigma-hash-navigating #admin-main::before{margin:16px;height:280px;border-radius:14px}}' +
-                        '.sigma-hash-navigating #nav-context-text, .sigma-hash-navigating #header-brand-title { visibility: hidden !important; }' +
-                        '.sigma-hash-navigating #sidebar #nav-dashboard.active { background: transparent !important; color: inherit !important; box-shadow: none !important; }' +
+                    var h = hash.toLowerCase();
+                    var targetSel = (h.indexOf('classroom') === 0) ? '#classroom-detail-view'
+                        : (h.indexOf('topic-content') === 0 || h.indexOf('topic_content') === 0) ? '#section-topic-content'
+                        : (h.indexOf('topic-detail') === 0 || h.indexOf('topic_detail') === 0 || h.indexOf('topic:') === 0) ? '#section-topic-detail'
+                        : (h.indexOf('curriculum') === 0) ? '#section-curriculum-page'
+                        : (h.indexOf('section') >= 0) ? '#school-sections-view'
+                        : (h.indexOf('subject') >= 0) ? '#school-subjects-view'
+                        : (h.indexOf('year') >= 0) ? '#school-year-view'
+                        : (h.indexOf('school-profile') >= 0 || h.indexOf('school_profile') >= 0) ? '#school-profile-view'
+                        : (h.indexOf('user') >= 0 || h.indexOf('account') >= 0) ? '#users-view'
+                        : (h.indexOf('profile') >= 0) ? '#user-profile-view'
+                        : (h.indexOf('settings-security') >= 0) ? '#settings-security-view'
+                        : (h.indexOf('settings-branding') >= 0) ? '#settings-branding-view'
+                        : (h.indexOf('settings-integrations') >= 0) ? '#settings-integrations-view'
+                        : (h.indexOf('settings-gdrive') >= 0 || h.indexOf('gdrive') >= 0) ? '#settings-gdrive-view'
+                        : (h.indexOf('settings-recaptcha') >= 0 || h.indexOf('recaptcha') >= 0) ? '#settings-recaptcha-view'
+                        : (h.indexOf('settings-ai') >= 0 || h.indexOf('ai-settings') >= 0) ? '#settings-ai-view'
+                        : (h.indexOf('settings-limits') >= 0 || h.indexOf('limits') >= 0) ? '#settings-limits-view'
+                        : (h.indexOf('setting') >= 0) ? '#settings-security-view'
+                        : (h.indexOf('attendance') >= 0 || h.indexOf('calendar') >= 0) ? '#section-attendance, #reports-attendance-view'
+                        : (h.indexOf('grade') >= 0 || h.indexOf('analytics') >= 0) ? '#school-grades-view, #reports-performance-view'
+                        : (h.indexOf('resource') >= 0) ? '#resources-view'
+                        : (h.indexOf('audit-ai') >= 0 || h === 'nav-audit-logs' || h === 'audit-logs') ? '#audit-ai-view'
+                        : (h.indexOf('audit-activity') >= 0) ? '#audit-activity-view'
+                        : (h.indexOf('audit-auth') >= 0) ? '#audit-auth-view'
+                        : (h.indexOf('audit-notification') >= 0) ? '#audit-notifications-view'
+                        : '#school-sections-view';
+                    var rule = targetSel.split(',').map(function(sel) { return '.sigma-hash-navigating ' + sel.trim(); }).join(', ');
+                    style.textContent = '.sigma-hash-navigating #dashboard-view { display: none !important; }\n' +
+                        rule + ' { display: block !important; }\n' +
+                        '.sigma-hash-navigating #nav-context-text, .sigma-hash-navigating #header-brand-title { visibility: hidden !important; }\n' +
+                        '.sigma-hash-navigating #sidebar #nav-dashboard.active { background: transparent !important; color: inherit !important; box-shadow: none !important; }\n' +
                         '.sigma-hash-navigating #sidebar #nav-dashboard.active .sidebar-rail-icon, .sigma-hash-navigating #sidebar #nav-dashboard.active i, .sigma-hash-navigating #sidebar #nav-dashboard.active span { color: inherit !important; background: transparent !important; }';
                 }
                 document.head.appendChild(style);
@@ -1034,7 +1060,7 @@
                     <div class="dashboard-grid">
                         <!-- 1. Left Section (3/12) - Sticky Metrics Rail -->
                         <div class="lg:col-span-3 mt-2 home-sticky-rail home-sticky-rail--left">
-                            <div id="dashboard-metrics-container" data-sigma-loading="exclude"
+                            <div id="dashboard-metrics-container"
                                 class="max-h-[calc(100vh-106px)] overflow-y-auto pr-2 pb-8">
                                     <div class="sigma-pending-content" role="status" aria-label="Loading dashboard cards"><span class="sigma-dot-spinner" data-sigma-auto-spinner aria-hidden="true"></span></div>
                                 <!-- Dynamic live templates rendered via pocket-card.js -->
@@ -6005,7 +6031,7 @@
                             <div class="space-y-2">
                                 <div class="flex flex-wrap items-center justify-between gap-2">
                                     <label for="batch-user-file-input" class="text-xs sm:text-sm font-bold text-black capitalize tracking-normal ml-0.5">Import User Accounts File <span class="text-red-500">*</span></label>
-                                    <div id="batch-template-buttons-group" class="flex flex-wrap items-center gap-2">
+                                    <div id="batch-template-buttons-group" class="flex flex-wrap items-center gap-2">
                                         <button type="button" onclick="window.downloadBatchUserTemplate('xlsx')"
                                             class="sigma-btn sigma-btn-white sigma-btn-md gap-2.5 shrink-0 cursor-pointer">
                                             <i class="fa-solid fa-file-excel text-[#15803d]"></i>
@@ -6091,7 +6117,7 @@
                             <span id="batch-user-save-label">Create Accounts</span>
                             <i class="fa-solid fa-circle-notch fa-spin hidden ml-1" id="batch-user-save-loading"></i>
                         </button>
-
+
                         <button type="button" id="batch-user-add-another-btn" onclick="window.resetBatchUserModal()"
                             class="sigma-btn sigma-btn-secondary sigma-btn-md hidden gap-2 cursor-pointer font-['Inter']" style="display: none !important;">
                             <i class="fa-solid fa-users text-xs"></i>
