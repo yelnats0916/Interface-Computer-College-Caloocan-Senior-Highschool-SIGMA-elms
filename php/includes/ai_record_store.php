@@ -138,7 +138,7 @@ function aiRecordLogs(PDO $db, bool $exportAll = false): array {
 /** Dashboard data contains no prompts, replies, account identities, or conversation titles. */
 function aiRecordUsage(PDO $db): array {
     $rows=[];
-    foreach($db->query('SELECT id,payload FROM ai_logs WHERE is_deleted=0 ORDER BY created_at DESC LIMIT 2000')->fetchAll(PDO::FETCH_ASSOC) as $row){
+    foreach($db->query('SELECT id,payload FROM ai_logs ORDER BY created_at DESC')->fetchAll(PDO::FETCH_ASSOC) as $row){
         $log=json_decode($row['payload'],true);if(!is_array($log))continue;
         $summary=array_intersect_key($log,array_flip(['id','generationId','feature','provider','model','status','timestamp','usageExcluded']));
         $summary['id']=$row['id'];

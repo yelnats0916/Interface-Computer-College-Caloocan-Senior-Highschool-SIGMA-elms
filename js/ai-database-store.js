@@ -3,7 +3,7 @@
     const states = new Map(), pending = new Map();
     const failures = new Set();
     const offline = new Set();
-    let logs = [], logReady = false, importing = null, logLoad = null, logRefreshing = false;
+    let logs = [], usageLogs = [], lastLogRead = 0, logReady = false, importing = null, logLoad = null, logRefreshing = false;
     let logStatus = 'loading', logError = '';
     let retryNotBefore = 0;
     const importedLogs = new Set();
@@ -117,7 +117,7 @@
                 const result = await request('ai_records', { action: 'logs', ...(canRead ? {} : {view:'usage'}) }, true);
                 if (!canRead && result.usageOnly !== true) throw new Error('Usage summary is temporarily unavailable.');
                 if (!Array.isArray(result.logs)) throw new Error('Invalid AI activity response.');
-                logs = result.logs; logReady = true; logStatus = 'ready';
+                logs = result.logs; usageLogs = Array.isArray(result.usageLogs) ? result.usageLogs : result.logs; lastLogRead = Date.now(); logReady = true; logStatus = 'ready';
             } catch (error) {
                 logStatus = 'error'; logError = error.name === 'TimeoutError' || error.name === 'AbortError'
                     ? 'AI activity could not be loaded because the server is busy. Please retry shortly.' : error.message;
@@ -183,7 +183,7 @@
         logsReady: () => logReady,
         getLogStatus: () => ({ state: actor() ? logStatus : 'signed-out', error: logError, refreshing: logRefreshing }),
         getLogs: () => logReady && window.canViewAuditLog?.('ai') !== false ? logs.filter(log => !log.isDeleted) : [],
-        getUsageLogs: () => logReady ? logs.filter(log => !log.isDeleted) : [],
+        getUsageLogs: () => logReady ? usageLogs : [],
         async record(log) {
             await request('ai_records', { action: 'save_log', log });
             if (location.pathname.toLowerCase().includes('admin')) await reloadLogs();
@@ -213,6 +213,13 @@
         // AI records have their own loading state and must not block the dashboard.
         initialize().catch(console.error);
     }
+    function refreshSharedUsage() {
+        if (document.visibilityState !== 'visible' || !actor() || !location.pathname.toLowerCase().includes('admin') || !adminLogViewActive() || Date.now()-lastLogRead<5000) return;
+        reloadLogs().catch(() => {});
+    }
+    window.addEventListener('focus', refreshSharedUsage);
+    document.addEventListener('visibilitychange', refreshSharedUsage);
+    setInterval(refreshSharedUsage, 30000);
     window.addEventListener('online', () => { retryNotBefore = 0; initialize(); });
     window.addEventListener('hashchange', () => initialize());
     window.addEventListener('sigma:database-session-ready', () => { retryNotBefore = 0; initialize(); });

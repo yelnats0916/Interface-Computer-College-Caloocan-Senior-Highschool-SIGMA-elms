@@ -108,7 +108,7 @@ try {
         // Only the new cards need insertion; aiAnalyticsState retains the historical records.
         saveAiAnalyticsState($db,$aiActor['id'],$input['kind'],['cards'=>$result['cards'],'usedProvider'=>true,'lastAnalyzed'=>(int)(microtime(true)*1000)],$saved['revision']);
     }
-    if($result['cards'])saveAiLog($db,['id'=>$result['generationId'],'userId'=>(string)$aiActor['id'],'feature'=>$feature,'timestamp'=>$now,
+    saveAiLog($db,['id'=>$result['generationId'],'userId'=>(string)$aiActor['id'],'feature'=>$feature,'timestamp'=>$now,
         'prompt'=>($feature==='grade_insights'?($snapshot['scope']==='subject'?'Subject Grades: ':'Class Grades: '):'Learning Insights: ').implode(', ',array_unique(array_merge(...array_map(fn($a)=>array_column($a['records'],'subject'),$snapshot['areas'])))),
         'gradeEvidenceKey'=>is_string($input['gradeEvidenceKey']??null)?substr($input['gradeEvidenceKey'],0,32000):'',
         'response'=>json_encode($result['cards']), 'model'=>$result['model'],'provider'=>$result['provider'],'keyId'=>$result['keyId'],'keyLabel'=>$result['keyLabel'],'generationId'=>$result['generationId'],'status'=>$result['status'],

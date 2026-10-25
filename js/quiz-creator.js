@@ -4660,7 +4660,7 @@ window.executeAIQuestionGeneration = async function () {
         try {
             const user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
             const uploadedFileName = currentAIGenFile?.name || '';
-            if (user.id || user.uid) window.SigmaAiLogs?.record({
+            if (!result.logSaved && (user.id || user.uid)) window.SigmaAiLogs?.record({
                 userId: String(user.id || user.uid),
                 feature: 'quiz',
                 model: result.model,
