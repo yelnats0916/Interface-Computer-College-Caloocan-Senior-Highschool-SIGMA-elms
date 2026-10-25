@@ -12774,6 +12774,9 @@ window.showAdminClassroom = function (sectionName, subjectName, initialTab = 'ro
     window.currentClassroomSectionName = effectiveSection;
     window.currentClassroomSubject = effectiveSubject;
     window.currentClassroomKey = `${effectiveSection}::${effectiveSubject}`;
+    // Read the same authorized, submitted attendance as the assigned teacher.
+    window.SigmaAttendance?.refresh().catch(error => console.warn('Attendance refresh:', error.message));
+
 
     try {
         localStorage.setItem('sigma-active-classroom-section', effectiveSection);

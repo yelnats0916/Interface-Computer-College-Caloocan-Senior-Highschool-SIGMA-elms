@@ -1917,6 +1917,7 @@
     let expandedAttendanceCol = -1;
     let attendanceSelectedDay = -1;
     let attendanceLastScrollLeft = -1;
+    let attendanceViewportScope = null;
     let isAttendanceStudentColExpanded = false;
 
     let attendanceCalendarPopupMode = 'days';
@@ -2666,7 +2667,21 @@
     function renderClassroomAttendanceTab(shouldSlide = false) {
         if (isStudentAttendancePortal()) return;
         const container = document.getElementById('detail-section-attendance');
-        if (!container) return;
+        if (!container || !container.getClientRects().length) return;
+
+        const secName = getActiveRoomSectionName();
+        const subjName = getActiveRoomSubjectName();
+        const scope = `${window.SigmaDatabase?.currentUser?.()?.id || ''}::${secName}::${subjName}`;
+        if (scope !== attendanceViewportScope) {
+            attendanceViewportScope = scope;
+            const today = new Date();
+            attendanceViewingYear = today.getFullYear();
+            attendanceViewingMonth = today.getMonth();
+            expandedAttendanceCol = -1;
+            attendanceSelectedDay = -1;
+            attendanceLastScrollLeft = -1;
+        }
+        if (shouldSlide) attendanceLastScrollLeft = -1;
 
         const oldSlider = container.querySelector('.attendance-grid-container');
         const isFreshOpen = attendanceLastScrollLeft === -1;
@@ -2675,8 +2690,6 @@
             attendanceLastScrollLeft = currentScrollLeft;
         }
 
-        const secName = getActiveRoomSectionName();
-        const subjName = getActiveRoomSubjectName();
         const rawStudents = getAttendanceStudents(secName, subjName);
         const students = (Array.isArray(rawStudents) ? rawStudents.slice() : [])
             .sort((a, b) => String(a.name || a.fullName || '').localeCompare(String(b.name || b.fullName || '')));
