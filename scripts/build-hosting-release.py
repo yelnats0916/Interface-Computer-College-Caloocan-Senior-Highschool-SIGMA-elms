@@ -16,7 +16,7 @@ def build(destination: Path, runtime_path: str):
                  'viewer.html', 'terms.html', 'privacy.html', 'time-picker-component.html']:
         files['public/' + name] = (ROOT / name).read_bytes()
     for folder, extensions in {
-        'js': {'.js'}, 'css': {'.css'}, 'image': {'.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif', '.ico'},
+        'js': {'.js'}, 'js/vendor/fonts': {'.ttf', '.txt'}, 'css': {'.css'}, 'image': {'.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif', '.ico'},
         'assets': {'.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif', '.ico', '.woff', '.woff2', '.ttf'},
         'php/api': {'.php'}, 'php/includes': {'.php'}, 'php/workers': {'.php'},
         'php/image': {'.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif', '.ico'},

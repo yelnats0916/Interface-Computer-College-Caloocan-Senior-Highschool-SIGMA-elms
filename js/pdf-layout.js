@@ -12,7 +12,7 @@
             if (!window.jspdf?.jsPDF) await script('js/vendor/jspdf.umd.min.js?v=3.0.3');
             if (!window.jspdf.jsPDF.API.autoTable) await script('js/vendor/jspdf.plugin.autotable.min.js?v=5.0.2');
             return Promise.all(['Regular', 'Bold'].map(async style => {
-                const response = await fetch('js/vendor/fonts/NotoSans-' + style + '.ttf');
+                const response = await fetch('js/vendor/fonts/NotoSans-' + style + '.ttf?v=20261025_pdf_fonts_v251');
                 if (!response.ok) throw new Error('Unable to load PDF fonts. Please try again.');
                 const bytes = new Uint8Array(await response.arrayBuffer());
                 let binary = '';
