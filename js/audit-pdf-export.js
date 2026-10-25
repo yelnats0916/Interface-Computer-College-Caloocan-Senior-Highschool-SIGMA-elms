@@ -235,9 +235,6 @@
                     <!-- Modal Header -->
                     <header class="sigma-modal-header">
                         <h2 class="sigma-modal-title">Export Audit Logs</h2>
-                        <button type="button" class="sigma-btn sigma-btn-white" data-close aria-label="Close export" style="opacity: 0; pointer-events: none;">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
                     </header>
 
                     <!-- Segmented Navigation Header -->
@@ -453,7 +450,6 @@
 
                     <!-- Pinned Footer -->
                     <footer class="sigma-modal-footer">
-                        <button type="button" class="sigma-btn sigma-btn-white sigma-btn-md" data-close>Cancel</button>
                         <div class="flex items-center gap-2">
                             <button type="button" class="sigma-btn sigma-btn-white sigma-btn-md" data-action="step-toggle">
                                 <span data-step-btn-text>Review Records</span>
@@ -994,7 +990,8 @@
 
         document.body.append(modal);
         reload();
-        userInput.focus();
+        modal.scrollTop = 0;
+        modal.querySelector('.audit-modal-exit-btn').focus({preventScroll:true});
     };
 
     function init() {

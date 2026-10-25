@@ -11,24 +11,26 @@
     z-index: 100000;
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(4px);
+    background: #f8fafc !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     overflow-x: hidden;
     overflow-y: auto;
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 24px 16px;
+    justify-content: flex-start;
+    flex-direction: column;
+    padding: 0 !important;
     box-sizing: border-box;
 }
 
 #audit-pdf-export .sigma-modal-shell {
     width: 100% !important;
-    max-width: 920px !important;
-    margin: auto !important;
+    max-width: 1024px !important;
+    margin: 0 auto !important;
     display: flex !important;
     flex-direction: column !important;
-    min-height: 0 !important;
+    min-height: 100dvh !important;
     max-height: none !important;
     overflow: visible !important;
     position: relative !important;
@@ -37,13 +39,15 @@
 
 #audit-pdf-export .sigma-modal-panel {
     background: #ffffff !important;
-    border-radius: 24px !important;
-    border: 1px solid #e2e8f0 !important;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important;
-    overflow: hidden !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    border-left: 1px solid #e2e8f0 !important;
+    border-right: 1px solid #e2e8f0 !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05) !important;
+    overflow: visible !important;
     display: flex !important;
     flex-direction: column !important;
-    min-height: 0 !important;
+    min-height: 100dvh !important;
     width: 100% !important;
     box-sizing: border-box !important;
 }
@@ -52,7 +56,7 @@
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
-    padding: 20px 32px !important;
+    padding: 32px 40px 24px !important;
     border-bottom: 1px solid #f1f5f9 !important;
     background: #ffffff !important;
     flex-shrink: 0 !important;
@@ -60,9 +64,9 @@
 }
 
 #audit-pdf-export .sigma-modal-title {
-    font-size: 22px !important;
+    font-size: 24px !important;
     font-weight: 700 !important;
-    color: #0f172a !important;
+    color: #000 !important;
     margin: 0 !important;
     letter-spacing: -0.015em !important;
     font-family: 'Inter', sans-serif !important;
@@ -91,9 +95,9 @@
     background-color: rgba(226, 232, 240, 0.8) !important;
 }
 
-/* Modal body: NO INNER SCROLLBAR! */
+/* The full-page overlay owns scrolling, matching the shared export forms. */
 #audit-pdf-export .sigma-modal-body {
-    padding: 24px 32px !important;
+    padding: 32px 40px !important;
     overflow-x: hidden !important;
     overflow-y: visible !important;
     flex: 1 1 auto !important;
@@ -107,11 +111,14 @@
 
 #audit-pdf-export .sigma-modal-footer {
     display: flex !important;
-    justify-content: space-between !important;
+    justify-content: flex-end !important;
     align-items: center !important;
-    padding: 18px 32px !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    margin-top: auto !important;
+    padding: 24px 40px !important;
     border-top: 1px solid #e2e8f0 !important;
-    background: #f8fafc !important;
+    background: #fff !important;
     flex-shrink: 0 !important;
     gap: 12px !important;
 }
@@ -448,8 +455,8 @@ html body #audit-pdf-export .audit-export-direction .sigma-quarter-dropdown-menu
     }
     #audit-pdf-export .sigma-modal-panel {
         border-radius: 0 !important;
-        min-height: 100vh !important;
-        height: 100vh !important;
+        min-height: 100dvh !important;
+        height: auto !important;
     }
     #audit-pdf-export .audit-modal-exit-btn {
         top: 12px !important;
@@ -465,7 +472,7 @@ html body #audit-pdf-export .audit-export-direction .sigma-quarter-dropdown-menu
     }
     #audit-pdf-export .sigma-modal-body {
         padding: 16px 20px !important;
-        overflow-y: auto !important;
+        overflow-y: visible !important;
     }
     #audit-pdf-export .sigma-modal-footer {
         padding: 14px 20px !important;
@@ -522,3 +529,9 @@ html body #audit-pdf-export .audit-export-direction .sigma-quarter-dropdown-menu
         line-height: 18px !important;
     }
 }
+
+/* Only the selected export step participates in the form layout. */
+#audit-pdf-export .sigma-modal-body.hidden{display:none!important}
+#audit-pdf-export .sigma-modal-footer>div{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+
+#audit-pdf-export input[name="user"]{padding-left:40px!important}
