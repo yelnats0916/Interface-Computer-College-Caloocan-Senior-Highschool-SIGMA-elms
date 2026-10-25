@@ -1927,12 +1927,11 @@
     let attendanceScrollAnimationId = null;
 
     function getTodayLocalDateString() {
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const d = String(now.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
+        const parts = new Intl.DateTimeFormat('en-US', {timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+        const part = type => parts.find(item => item.type === type).value;
+        return `${part('year')}-${part('month')}-${part('day')}`;
     }
+    window.isFutureAttendanceDate = date => typeof date === 'string' && date > getTodayLocalDateString();
 
     function normalizeAttendanceTokens(str) {
         return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim().split(/\s+/).filter(Boolean);
@@ -2104,6 +2103,7 @@
             excuses = dateString;
             dateString = getTodayLocalDateString();
         }
+        if (window.isFutureAttendanceDate?.(dateString)) return;
         if (!excuses) {
             excuses = getCurrentAttendanceExcuses(dateString);
         }
@@ -2205,7 +2205,7 @@
     window.saveCurrentAttendanceStatuses = saveCurrentAttendanceStatuses;
 
     window.submitDailyAttendance = async function (dateString) {
-        if (isStudentAttendancePortal()) return;
+        if (isStudentAttendancePortal() || window.isFutureAttendanceDate?.(dateString)) return;
         if (!dateString) return;
         const statuses = getCurrentAttendanceStatuses(dateString);
         const excuses = getCurrentAttendanceExcuses(dateString);
@@ -2371,7 +2371,7 @@
     window.attendanceEditSnapshots = window.attendanceEditSnapshots || {};
 
     window.enableDailyAttendanceEdit = function (dateString) {
-        if (isStudentAttendancePortal()) return;
+        if (isStudentAttendancePortal() || window.isFutureAttendanceDate?.(dateString)) return;
         if (!dateString) return;
         window.attendanceEditSnapshots = window.attendanceEditSnapshots || {};
         const currentStatuses = getCurrentAttendanceStatuses(dateString);
@@ -2736,7 +2736,7 @@
 
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const daysInMonth = new Date(attendanceViewingYear, attendanceViewingMonth + 1, 0).getDate();
-        const todayNow = new Date();
+        const todayNow = new Date(getTodayLocalDateString() + 'T00:00:00');
         const isCurrentMonth = (todayNow.getMonth() === attendanceViewingMonth && todayNow.getFullYear() === attendanceViewingYear);
         const todayDay = todayNow.getDate();
         const BLANK_ATTENDANCE_COLS_COUNT = 24;
@@ -2751,7 +2751,7 @@
 
             for (let d = 1; d <= daysInMonth; d++) {
                 const localDateString = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const currentStatuses = getCurrentAttendanceStatuses(localDateString);
+                const currentStatuses = window.isFutureAttendanceDate(localDateString) ? {} : getCurrentAttendanceStatuses(localDateString);
                 dailyStatuses[d] = { dateStr: localDateString, statuses: currentStatuses };
 
                 if (isAttendanceStudentColExpanded) {
@@ -2908,6 +2908,8 @@
             `;
         }
 
+        if (window.isFutureAttendanceDate(activeLocalDateStr)) { savedNoticeParagraphHtml = ''; actionButtonHtml = ''; }
+
         let html = `
             <div class="attendance-monthly-card">
                 <div class="attendance-monthly-header flex items-center justify-between w-full relative px-3 py-2 sm:px-4 sm:py-3 border-b border-slate-100 bg-white">
@@ -2965,10 +2967,11 @@
                                     const m = String(date.getMonth() + 1).padStart(2, '0');
                                     const d = String(date.getDate()).padStart(2, '0');
                                     const label = `${m}/${d}`;
-                                    const isExpanded = expandedAttendanceCol === day;
+                                    const isFuture = window.isFutureAttendanceDate(`${attendanceViewingYear}-${m}-${d}`);
+                                    const isExpanded = expandedAttendanceCol === day && !isFuture;
                                     const isToday = (todayNow.getDate() === day && isCurrentMonth);
                                     const isSelected = (attendanceSelectedDay === day);
-                                    return `<th class="day-col ${isExpanded ? 'is-expanded' : ''} ${isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''}" data-day="${day}" onclick="window.toggleAttendanceExpansion(${day})"><span class="attendance-th-date">${label}</span></th>`;
+                                    return `<th class="day-col ${isExpanded ? 'is-expanded' : ''} ${isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''}" data-day="${day}" ${isFuture ? 'aria-disabled="true" style="cursor:default"' : `onclick="window.toggleAttendanceExpansion(${day})"`}><span class="attendance-th-date">${label}</span></th>`;
                                 }).join('')}
                                 ${Array.from({ length: BLANK_ATTENDANCE_COLS_COUNT }, () => `<th class="day-col blank-col"></th>`).join('')}
                             </tr>
@@ -3042,13 +3045,14 @@
                         }
                     }
                     const statusClass = status ? `status-${status.toLowerCase()}` : '';
-                    const isExpanded = expandedAttendanceCol === d;
+                    const isFuture = window.isFutureAttendanceDate(localDateString);
+                    const isExpanded = expandedAttendanceCol === d && !isFuture;
                     const stId = (student.id || student.uid || '').replace(/'/g, "\\'");
 
                     html += `
                         <td class="day-col ${isExpanded ? 'is-expanded' : ''} ${!isExpanded && status ? 'status-' + status.toLowerCase() : ''}">
                             <div class="attendance-day-cell ${isExpanded ? 'is-expanded' : ''} ${statusClass}" 
-                                 onclick="${!isExpanded ? `window.toggleAttendanceExpansion(${d})` : ''}">
+                                 ${isFuture ? 'aria-disabled="true" style="cursor:default"' : ''} onclick="${!isExpanded && !isFuture ? `window.toggleAttendanceExpansion(${d})` : ''}">
                                 ${isExpanded ? `
                                     <div class="attendance-opt-container">
                                         <button class="attendance-opt-btn p-btn ${status === 'P' ? 'active' : ''}" onclick="window.setAttendanceStatus('${displayName.replace(/'/g, "\\'")}', '${localDateString}', 'P', event, '${stId}')">P</button>
@@ -3236,6 +3240,8 @@
     };
 
     window.toggleAttendanceExpansion = function (day) {
+        const date = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        if (window.isFutureAttendanceDate?.(date)) return;
         if (attendanceScrollAnimationId) {
             cancelAnimationFrame(attendanceScrollAnimationId);
             attendanceScrollAnimationId = null;
@@ -3263,6 +3269,7 @@
             event.preventDefault();
             event.stopPropagation();
         }
+        if (window.isFutureAttendanceDate?.(dateString)) return;
         if (dateString && typeof dateString === 'string' && dateString.includes('-')) {
             const pDay = parseInt(dateString.split('-')[2], 10);
             if (!isNaN(pDay)) attendanceSelectedDay = pDay;
