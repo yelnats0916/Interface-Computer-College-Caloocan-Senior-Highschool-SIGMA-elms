@@ -82,3 +82,7 @@
  #attendance-export-modal.attendance-import .attendance-import-dropzone strong{color:#b45309}
  #attendance-export-modal.attendance-import .attendance-import-dropzone{min-height:220px;border-radius:16px;padding:18px}
 }
+
+#attendance-export-modal.attendance-import .attendance-import-loading{display:flex;align-items:center;justify-content:center;width:100%;min-height:clamp(240px,45vh,480px);box-sizing:border-box}
+#attendance-export-modal.attendance-import .attendance-import-loading .sigma-dot-spinner{--sigma-loader-size:56px}
+@media(max-width:767px){#attendance-export-modal.attendance-import .attendance-import-loading{min-height:clamp(200px,40vh,360px)}#attendance-export-modal.attendance-import .attendance-import-loading .sigma-dot-spinner{--sigma-loader-size:32px}}

@@ -42,3 +42,12 @@ i.fa-spinner.fa-spin::before,i.fa-circle-notch.fa-spin::before { content:none!im
     .sigma-table-loading-row .sigma-content-loading-state { min-height:130px; padding:20px 12px; }
     .sigma-table-loading-row .sigma-dot-spinner { --sigma-loader-size:28px; }
 }
+
+/* Keep the initial teacher route covered until its own navigation is restored. */
+#teacher-route-loader{display:none}
+html.sigma-teacher-route-pending #main-content>#content-sections{visibility:hidden!important}
+html.sigma-teacher-route-pending #teacher-route-loader{position:absolute;inset:0 0 auto;z-index:100;display:flex;align-items:center;justify-content:center;height:calc(100dvh - 120px);background:#fff}
+html.sigma-teacher-route-pending body #teacher-route-loader .sigma-dot-spinner{--sigma-loader-size:56px;visibility:visible!important;animation:sigma-dots-turn 1s steps(8,end) infinite!important}
+@media(max-width:767px){html.sigma-teacher-route-pending #teacher-route-loader{height:calc(100dvh - 150px)}html.sigma-teacher-route-pending body #teacher-route-loader .sigma-dot-spinner{--sigma-loader-size:32px}}
+
+html.sigma-teacher-route-pending .sigma-skeleton{display:none!important}

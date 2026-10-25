@@ -42,7 +42,7 @@
     <script>
         (function() {
             try {
-                document.documentElement.classList.add('sigma-initial-loading');
+                document.documentElement.classList.add('sigma-initial-loading', 'sigma-teacher-route-pending');
                 var hash = (window.location.hash || '').replace(/^#/, '').trim();
                 if (!hash || hash === 'dashboard' || hash === 'home') {
                     var s = document.createElement('style');
@@ -72,7 +72,7 @@
     <link rel="stylesheet" href="css/page-skeleton.css?v=20261022_navbar_shimmer_v41">
     <script src="js/database-client.js?v=20261025_data_loading_v237"></script>
     <script src="js/material-limits.js?v=20261023_upload_limits_v115"></script>
-<link rel="stylesheet" href="css/content-loading.css?v=20261025_stable_loading_v239">
+<link rel="stylesheet" href="css/content-loading.css?v=20261025_route_loading_v261">
 <script src="js/content-loading.js?v=20261025_attendance_submit_v240"></script>
 <script src="js/tab-session.js?v=20261025_session_exit_v221"></script>
     <script src="js/live-reload-lifecycle.js?v=20261017_table_dropdowns_v2"></script>
@@ -80,7 +80,7 @@
     <link rel="stylesheet" href="css/release-panel.css?v=20261021_selection_container_alignment_v31">
     <link rel="stylesheet" href="css/retry-links.css?v=20261022_retry_v1">
     <link rel="stylesheet" href="css/maintenance.css?v=20261024_maintenance_notices_v162">
-<link rel="stylesheet" href="css/attendance-import.css?v=20261025_attendance_colors_v260">
+<link rel="stylesheet" href="css/attendance-import.css?v=20261025_import_loading_v261">
 </head>
 
 <body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed teacher-portal">
@@ -534,6 +534,7 @@
     <!-- ═══ LAYOUT WRAPPER ═══════════════════════════════════════ -->
     <div id="layout-wrapper" class="flex-1 flex flex-col min-w-0">
         <main id="main-content" class="flex-1 relative">
+            <div id="teacher-route-loader" role="status" aria-label="Loading page"><span class="sigma-dot-spinner" aria-hidden="true"></span></div>
             <div id="content-sections" class="w-full min-h-full">
 
                 <!-- Global Full-Page Search Results View -->
@@ -1522,7 +1523,7 @@
     <script src="js/announcements.js?v=20261024_maintenance_notices_v162"></script>
     <link rel="stylesheet" href="css/date-range-export.css?v=20261025_attendance_quarters_v252">
 <script src="js/date-range-export.js?v=20261025_export_shell_v250"></script>
-<script src="js/attendance-import.js?v=20261025_attendance_flow_v257"></script>
+<script src="js/attendance-import.js?v=20261025_import_loading_v261"></script>
 <script src="js/pdf-layout.js?v=20261025_pdf_fonts_v251"></script>
 <script src="js/attendance-pdf.js?v=20261025_attendance_quarters_v252"></script>
     <script src="js/quiz-creator.js?v=20261025_pdf_layout_v227"></script>
@@ -1537,7 +1538,7 @@
     <script src="js/assessments-page.js?v=20261021_database_foundation_v5"></script>
     <script src="js/time-picker-dial.js?v=20261017_table_dropdowns_v2"></script>
     <script src="js/release-workspace.js?v=20261021_footer_button_count_v32"></script>
-    <script src="js/teacher.js?v=20261025_attendance_handlers_v259"></script>
+    <script src="js/teacher.js?v=20261025_route_loading_v261"></script>
 <script src="js/teacher-classroom-sync.js?v=20261024_student_classes_v201"></script>
     <script src="js/teacher-grade-insights.js?v=20261022_live_learning_v20"></script>
     <script src="js/teacher-analytics.js?v=20261022_quiet_insights_v32"></script>

@@ -26639,8 +26639,9 @@ const wwDisplay = (wwPct !== null && wwPct !== undefined) ? `${(Number(wwPct) * 
         }
     };
 
-    // Finally initialize navigation history
+    // Restore the requested route before revealing the initial page content.
     setupNavigationHistory();
+    document.documentElement.classList.remove('sigma-teacher-route-pending');
 
 
     /**
