@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const source=fs.readFileSync('js/classroom-room.js','latin1');
 const start=source.indexOf('    function buildAttendanceWorksheet('),end=source.indexOf('    // =========================================================================',source.indexOf('    window.executeAttendanceExport = async'));
-const students=[{id:'1001',name:'Student One'},{id:'1002',name:'Student Two'}];
+const students=[{id:'1001',name:'Student One'},{id:'1002',name:'Student Two'},{id:'1003',name:'Unmarked Student'}];
 const published={
  '2026-09-30':{submitted:true,statuses:{1001:'L'}},
  '2026-10-23':{submitted:true,statuses:{1001:'P',1002:'A'}},
@@ -26,6 +26,11 @@ async function run(scope,{fail=false,portal='teacher'}={}) {
  if(scope==='month'){assert(!header.includes('10/03'),'Unrecorded weekends remain excluded');assert.equal(header.filter(h=>/^10\//.test(h)).length,24);}
  if(scope==='month-active')assert.equal(header.filter(h=>/^10\//.test(h)).length,3);
  assert.equal(one.slice(-4).join(','),scope==='all'?'2,0,1,1':scope==='q2'?'2,0,0,0':'2,0,0,1');
+ const unmarked=rows.find(r=>r[2]==='1003');assert.equal(unmarked.slice(-4).join(','),',,,','Unmarked student totals remain blank');
+ const absent=rows.find(r=>r[1]==='All Total Absent'),present=rows.find(r=>r[1]==='All Total Present');
+ assert.equal(absent[header.indexOf('10/24')],0,'Recorded date displays a numeric zero for no absences');
+ assert.equal(present[header.indexOf('10/24')],1);
+ if(scope==='month')assert.equal(absent[header.indexOf('10/22')],'','Unrecorded date totals stay blank');
  console.log('PASS fresh submitted XLSX, weekend marks, draft exclusion, totals:',portal,scope);
 }
 (async()=>{for(const portal of ['teacher','admin'])for(const scope of ['month','month-active','all','q2'])await run(scope,{portal});await run('month',{fail:true});console.log('PASS refresh failure prevents stale download and restores button');})().catch(e=>{console.error(e);process.exitCode=1;});

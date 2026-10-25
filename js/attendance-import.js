@@ -31,13 +31,20 @@
             // Retain the existing sheet layout, with totals that update as teachers enter marks.
             const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
             const header=data.findIndex(row=>norm(row[0])==='no.'&&norm(row[2])==='student id'),first=header+1,last=first+students.length-1;
+            const totalFormula = (range, mark) => {
+                const count = Object.keys(marks).map(value => `COUNTIF(${range},"${value}")`).join(',');
+                return `IF(SUM(${count})=0,"",COUNTIF(${range},"${mark}"))`;
+            };
             students.forEach((_,index)=>Object.keys(marks).forEach((mark,offset)=>{
                 const r=first+index,c=3+columns.length+offset,address=XLSX.utils.encode_cell({r,c});
-                ws[address].f=`COUNTIF(${XLSX.utils.encode_cell({r,c:3})}:${XLSX.utils.encode_cell({r,c:2+columns.length})},"${mark}")`;
+                const range=`${XLSX.utils.encode_cell({r,c:3})}:${XLSX.utils.encode_cell({r,c:2+columns.length})}`;
+                ws[address].f=totalFormula(range,mark);
             }));
             Object.keys(marks).forEach((mark,offset)=>columns.forEach((_,index)=>{
                 const c=index+3,address=XLSX.utils.encode_cell({r:last+2+offset,c});
-                ws[address]={...ws[address],t:'n',v:Number(ws[address]?.v)||0,f:`COUNTIF(${XLSX.utils.encode_cell({r:first,c})}:${XLSX.utils.encode_cell({r:last,c})},"${mark}")`};
+                const range=`${XLSX.utils.encode_cell({r:first,c})}:${XLSX.utils.encode_cell({r:last,c})}`;
+                const value=ws[address]?.v ?? '';
+                ws[address]={...ws[address],t:typeof value==='number'?'n':'s',v:value,f:totalFormula(range,mark)};
             }));
             XLSX.utils.book_append_sheet(workbook, ws, month);
         }

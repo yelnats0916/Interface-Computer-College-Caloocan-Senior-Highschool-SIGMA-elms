@@ -3803,7 +3803,7 @@
                 studentRow.push(status || '');
             });
 
-            studentRow.push(totalP, totalA, totalL, totalE);
+            studentRow.push(...(totalP + totalA + totalL + totalE > 0 ? [totalP, totalA, totalL, totalE] : ["", "", "", ""]));
             sheetData.push(studentRow);
         });
 
@@ -3834,10 +3834,11 @@
                 else if (status === 'L') dayL++;
                 else if (status === 'E') dayE++;
             });
-            totalsPresentRow.push(dayP || '');
-            totalsAbsentRow.push(dayA || '');
-            totalsLateRow.push(dayL || '');
-            totalsExcusedRow.push(dayE || '');
+            const recorded = dayP + dayA + dayL + dayE > 0;
+            totalsPresentRow.push(recorded ? dayP : '');
+            totalsAbsentRow.push(recorded ? dayA : '');
+            totalsLateRow.push(recorded ? dayL : '');
+            totalsExcusedRow.push(recorded ? dayE : '');
         });
 
         totalsPresentRow.push("", "", "", "");
