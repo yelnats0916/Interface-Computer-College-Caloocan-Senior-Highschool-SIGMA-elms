@@ -35,7 +35,9 @@
 #attendance-export-modal.attendance-import .sigma-modal-footer button:disabled{opacity:.6;cursor:wait}
 #attendance-export-modal.attendance-import .sigma-modal-footer .sigma-btn-secondary{background:#fff;color:#000;border:1px solid #e2e8f0}
 @media(max-width:767px){
- .attendance-transfer-menu button{font-size:13px;padding:10px}
+ #attendance-transfer-menu.attendance-transfer-menu{width:160px;max-width:calc(100vw - 16px);padding:6px;border-radius:12px;box-shadow:0 8px 20px #0002}
+ #attendance-transfer-menu.attendance-transfer-menu button{height:38px;min-height:38px;padding:8px 10px;gap:10px;border-radius:8px;font:500 12px/18px Inter,sans-serif;white-space:nowrap}
+ #attendance-transfer-menu.attendance-transfer-menu button i{width:14px;flex:0 0 14px;font-size:12px;line-height:18px;text-align:center}
  .attendance-import-choices,.attendance-import-fields{grid-template-columns:1fr;gap:16px}
  #attendance-export-modal.attendance-import .export-scope-option{padding:18px;gap:12px;font-size:14px;line-height:20px}
  .attendance-import-fields label,.attendance-import-options legend{font-size:14px;line-height:20px}

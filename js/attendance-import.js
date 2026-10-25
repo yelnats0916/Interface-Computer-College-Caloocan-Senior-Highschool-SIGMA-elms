@@ -110,14 +110,25 @@
     window.SigmaAttendanceWorkbook = {datesBetween,workbookFor,parseWorkbook};
     const request = data => window.SigmaDatabase.request('attendance', {data,autoReconnect:false,foreground:true});
     window.openAttendanceTransferMenu = function (button) {
-        document.getElementById('attendance-transfer-menu')?.remove();
+        const previousMenu=document.getElementById('attendance-transfer-menu');previousMenu?._cleanup?.();previousMenu?.remove();
         const menu = document.createElement('div'); menu.id = 'attendance-transfer-menu'; menu.className = 'attendance-transfer-menu'; menu.setAttribute('popover','auto');
         menu.innerHTML = '<button type="button" data-import><i class="fa-solid fa-file-import"></i>Import Excel</button><button type="button" data-export><i class="fa-solid fa-file-export"></i>Export Excel</button>';
         document.body.append(menu);
-        const rect = button.getBoundingClientRect(); menu.style.left = Math.max(8, Math.min(rect.right - 200, innerWidth - 208)) + 'px'; menu.style.top = Math.min(rect.bottom + 8,innerHeight - 120) + 'px';
         if (menu.showPopover) menu.showPopover();
-        menu.querySelector('[data-import]').onclick = () => {menu.remove();window.openAttendanceImport();};
-        menu.querySelector('[data-export]').onclick = () => {menu.remove();window.openAttendanceExportModal();};
+        const position=()=>{
+            const rect=button.getBoundingClientRect(),box=menu.getBoundingClientRect(),viewport=window.visualViewport;
+            const left=viewport?.offsetLeft||0,top=viewport?.offsetTop||0,width=viewport?.width||innerWidth,height=viewport?.height||innerHeight;
+            menu.style.left=Math.max(left+8,Math.min(rect.right-box.width,left+width-box.width-8))+'px';
+            const below=rect.bottom+6;
+            menu.style.top=Math.max(top+8,Math.min(below+box.height>top+height-8?rect.top-box.height-6:below,top+height-box.height-8))+'px';
+        };
+        position();
+        const controller=new AbortController();
+        menu._cleanup=()=>controller.abort();
+        window.addEventListener('resize',position,{signal:controller.signal});document.addEventListener('scroll',position,{capture:true,passive:true,signal:controller.signal});
+        menu.addEventListener('toggle',()=>{if(!menu.matches(':popover-open')){controller.abort();menu.remove();}});
+        menu.querySelector('[data-import]').onclick = () => {controller.abort();menu.remove();window.openAttendanceImport();};
+        menu.querySelector('[data-export]').onclick = () => {controller.abort();menu.remove();window.openAttendanceExportModal();};
     };
     window.openAttendanceImport = async function () {
         if (String(window.SigmaDatabase?.currentUser()?.role || '').toLowerCase() === 'student') return;
