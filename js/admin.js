@@ -14437,7 +14437,7 @@ window.handleSectionSave = function (status, createAnother = false) {
             saveBtn.disabled = true;
             loading.classList.remove('hidden');
 
-            setTimeout(() => {
+            setTimeout(async () => {
                 if (window.guardSectionSubjectChange?.(document.getElementById('edit-section-subject')?.value || '') === false) {
                     saveBtn.disabled = false;
                     loading.classList.add('hidden');
@@ -14485,6 +14485,20 @@ window.handleSectionSave = function (status, createAnother = false) {
                     createdAt: window.currentEditingSectionCreatedAt || new Date().toISOString()
                 };
 
+                // Confirm durable storage before publishing browser state or success feedback.
+                try {
+                    if (typeof window.syncSectionToDB !== 'function' || await window.syncSectionToDB(sectionData) !== true) {
+                        saveBtn.disabled = false;
+                        loading.classList.add('hidden');
+                        return;
+                    }
+                } catch (error) {
+                    window.showToast?.(error.message || 'Unable to save the section. Please try again.', 'error');
+                    saveBtn.disabled = false;
+                    loading.classList.add('hidden');
+                    return;
+                }
+
                 const sections = getStoredJson(SECTIONS_STORAGE_KEY, []);
 
                 if (window.isEditingSection && window.currentEditingSectionId) {
@@ -14515,9 +14529,7 @@ window.handleSectionSave = function (status, createAnother = false) {
                     sections.filter(section=>String(section.id)!==String(savedRecord.id) && window.sectionAdviserGroupKey(section)===adviserEditKey).forEach(section=>window.syncSectionToDB?.(section));
                 }
                 window.sectionAdviserEdits?.delete(adviserEditKey);
-                if (typeof window.syncSectionToDB === 'function') {
-                    window.syncSectionToDB(sectionData);
-                }
+
 
                 // Update connected student and teacher user accounts with their assigned section and subject
                 try {
@@ -16939,7 +16951,11 @@ function updateSectionMetricCards() {
     let grade12 = 0;
     const uniqueRooms = new Set();
 
-    allSections.forEach(sec => {
+    const sectionGroups = new Map();
+    allSections.forEach(section => sectionGroups.set(window.sectionAdviserGroupKey(section), section));
+    const distinctSections = [...sectionGroups.values()];
+
+    distinctSections.forEach(sec => {
         const grade = String(sec.grade || sec.gradeLevel || '').toLowerCase();
         if (grade.includes('11')) grade11++;
         else if (grade.includes('12')) grade12++;
@@ -16960,8 +16976,8 @@ function updateSectionMetricCards() {
     const g11Spotlight = document.getElementById('metric-grade11-sections-spotlight');
     const g12Spotlight = document.getElementById('metric-grade12-sections-spotlight');
 
-    if (totalEl) totalEl.textContent = allSections.length;
-    if (totalSpotlight) totalSpotlight.textContent = allSections.length;
+    if (totalEl) totalEl.textContent = distinctSections.length;
+    if (totalSpotlight) totalSpotlight.textContent = distinctSections.length;
 
     if (roomsEl) roomsEl.textContent = uniqueRooms.size;
     if (roomsSpotlight) roomsSpotlight.textContent = uniqueRooms.size;
