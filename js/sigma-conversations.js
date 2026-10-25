@@ -13,6 +13,7 @@
         const accountId = String(account.uid || account.id || '');
         const prefix = accountId ? 'sigma-conversations:' + encodeURIComponent(accountId) : null;
         const batch = 8;
+        let historyPending = null, historyLoaded = false, historyError = false;
         const messageBatch = 12, messageWindow = 36;
         let transcript = [], messageStart = 0, messageEnd = 0, viewVersion = 0;
         const pendingTitles = new Set();
@@ -23,6 +24,41 @@
             if (cls) el.className = cls;
             return el;
         };
+        async function loadHistory() {
+            if (!prefix || !window.SigmaDatabase?.request) return;
+            if (historyPending) return historyPending;
+            historyError = false;
+            historyPending = window.SigmaDatabase.request('chat_conversations').then(result => {
+                const deleted = new Set(result.deletedIds || []);
+                const entries = new Map(index.map(item => [item.id, item]));
+                for (const chat of result.conversations || []) {
+                    if (!Array.isArray(chat.messages) || typeof chat.id !== 'string') continue;
+                    const previous = entries.get(chat.id);
+                    if (previous?.deletedAt && !previous.serverManaged) continue;
+                    const local = memory.get(chat.id) || read(prefix + ':chat:' + chat.id, []);
+                    // Do not replace a newer question while its response is still arriving.
+                    if (!local.length || Number(chat.updatedAt) >= Number(previous?.updatedAt || 0)) {
+                        memory.set(chat.id, chat.messages);
+                        localStorage.setItem(prefix + ':chat:' + chat.id, JSON.stringify(chat.messages));
+                    }
+                    entries.set(chat.id, { ...previous, deletedAt:null, serverManaged:true, id:chat.id, title:previous?.titleSource === 'ai' ? previous.title : chat.title, updatedAt:Math.max(chat.updatedAt, previous?.updatedAt || 0) });
+                }
+                index = [...entries.values()].map(item => deleted.has(item.id) ? {...item, deletedAt:item.deletedAt || Date.now()} : item).sort((a,b)=>b.updatedAt-a.updatedAt);
+                localStorage.setItem(prefix + ':index', JSON.stringify(index));
+                historyLoaded = true;
+            }).catch(() => { historyError = true; }).finally(() => {
+                historyPending = null;
+                if (inHistory) paintHistory();
+            });
+            if (inHistory) paintHistory();
+            return historyPending;
+        }
+        function syncVisibility(id, deleted) {
+            return window.SigmaDatabase.request('chat_conversations', {data:{action:'set_visibility',conversationId:id,deleted}}).catch(() => {
+                notice.textContent = 'Conversation change could not be saved. Please try again.'; notice.hidden = false;
+                throw new Error('Conversation update failed');
+            });
+        }
         function read(key, fallback) {
             try { return JSON.parse(localStorage.getItem(key) || 'null') || fallback; } catch { return fallback; }
         }
@@ -181,8 +217,9 @@
         }
         const day = timestamp => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(timestamp);
         let deletedId = null;
-        function softDelete(id) {
+        async function softDelete(id) {
             if (send?.disabled) return;
+            try { await syncVisibility(id, true); } catch (_) { return; }
             const previous = index;
             index = index.map(item => item.id === id ? { ...item, deletedAt: Date.now() } : item);
             try { if (prefix) localStorage.setItem(prefix + ':index', JSON.stringify(index)); }
@@ -192,7 +229,8 @@
             paintHistory();
             historyView.querySelector('.sigma-conversation-undo')?.focus({ preventScroll: true });
         }
-        function undoDelete() {
+        async function undoDelete() {
+            try { await syncVisibility(deletedId, false); } catch (_) { return; }
             const previous = index;
             index = index.map(item => item.id === deletedId ? { ...item, deletedAt: null } : item);
             try { if (prefix) localStorage.setItem(prefix + ':index', JSON.stringify(index)); }
@@ -212,6 +250,12 @@
                 historyView.append(status);
             }
             const available = index.filter(item => !item.deletedAt);
+            if (!available.length && (historyPending || !historyLoaded || historyError)) {
+                const status = node('p', historyError ? 'Could not load conversations.' : 'Loading conversations…', 'sigma-conversation-notice');
+                historyView.append(status);
+                if (historyError) { const retry = node('button', 'Try again', 'sigma-conversation-undo'); retry.onclick = loadHistory; historyView.append(retry); }
+                return;
+            }
             if (!available.length) {
                 const empty = node('div', undefined, 'sigma-conversation-empty');
                 empty.innerHTML = window.renderSigmaEmptyState({ icon: 'fa-solid fa-comments', title: 'No conversations yet', subtitle: 'Your conversations will appear here after you send a message.' });
@@ -285,7 +329,7 @@
             if (active && memory.has(active)) generateTitle(active, memory.get(active));
         });
         historyButton.addEventListener('click', () => {
-            window.recoverSigmaChatHistory?.();
+            loadHistory();
             if (send?.disabled) return;
             if (inHistory) { setView(false); showLatestMessages(); }
             else { visible = batch; paintHistory(); setView(true); historyView.scrollTop = 0; }
@@ -315,6 +359,10 @@
         });
         index.sort((a, b) => b.updatedAt - a.updatedAt);
         observe(); capture();
+        window.addEventListener('sigma:database-session-ready', loadHistory);
+        window.addEventListener('online', loadHistory);
+        window.addEventListener('sigma:chat-history-recovered', loadHistory);
+        loadHistory();
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

@@ -24,6 +24,9 @@ const root = path.join(__dirname, '..');
             await page.addScriptTag({ content: shared.slice(start, shared.indexOf('\n};', start) + 3) });
             await page.evaluate(() => {
                 sessionStorage.setItem('sigma-authenticated-user', JSON.stringify({ uid: 'user1' }));
+                window.SigmaDatabase = {request:async()=>({success:true,conversations:[],deletedIds:[]})};
+                window.createSigmaBoltIcon = () => document.createElement('span');
+                window.SigmaMessageFormat = {raw:e=>e.textContent,render:(e,text)=>{e.textContent=text;}};
                 const index = Array.from({ length: 12 }, (_, i) => ({ id: 'chat' + i, title: 'Conversation ' + i, updatedAt: Date.now() - i * 3600000 }));
                 localStorage.setItem('sigma-conversations:user1:index', JSON.stringify(index.reverse()));
                 for (const entry of index) localStorage.setItem('sigma-conversations:user1:chat:' + entry.id, JSON.stringify([
