@@ -13,6 +13,19 @@ const assert=require('node:assert/strict'),{chromium}=require('playwright');
   await page.evaluate(()=>{const b=document.querySelector('#save');b.removeAttribute('aria-busy');b.disabled=false;b.classList.remove('is-loading');b.textContent='Save Changes';});await page.locator('.sigma-action-loading').waitFor({state:'detached'});
  }
  await page.evaluate(()=>{const b=document.querySelector('#save');b.setAttribute('aria-busy','true');});await page.locator('.sigma-action-loading').waitFor();await page.locator('#save').evaluate(el=>el.remove());await page.locator('.sigma-action-loading').waitFor({state:'detached'});
+ for(const id of ['subject-split-btn-group','section-split-btn-group','export-quiz-dropdown-wrap']){
+  await page.evaluate(id=>{const group=document.createElement('div');group.id=id;group.style.cssText='display:inline-flex';group.innerHTML='<button class="main" style="padding:12px 24px">Publish</button><button class="chevron" style="padding:12px">v</button><div class="hidden"><button class="draft">Save as Draft</button></div>';document.body.append(group);},id);
+  const group=page.locator('#'+id),before=await group.boundingBox();
+  for(const action of ['.main','.draft']){
+   await group.locator(action).evaluate(el=>el.setAttribute('aria-busy','true'));
+   await page.locator('.sigma-action-loading').waitFor();assert(!await group.isVisible(),'Both split segments must hide together');
+   assert.equal(await page.locator('.sigma-action-loading').count(),1);
+   assert((await page.locator('.sigma-action-loading').boundingBox()).width>=before.width,'Loader preserves entire split control width');
+   await group.locator(action).evaluate(el=>el.removeAttribute('aria-busy'));
+   await page.locator('.sigma-action-loading').waitFor({state:'detached'});assert(await group.locator('.main').isVisible());assert(await group.locator('.chevron').isVisible());
+  }
+  await group.evaluate(el=>el.remove());
+ }
  console.log('PASS dots-only action feedback, layout, restore on failure/completion, detached cleanup, no invalid-button spinner',width);await page.close();
 }}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});
 

@@ -169,6 +169,10 @@
             return true;
         });
     }
+    function actionTarget(button) {
+        // Save segments and their menu actions share one loading state.
+        return button.closest('#subject-split-btn-group,#section-split-btn-group,#export-quiz-dropdown-wrap') || button;
+    }
     function restore(button, state) {
         state.loader.remove();
         if (state.display) button.style.setProperty('display', state.display, state.priority);
@@ -177,9 +181,11 @@
     }
     function update(button) {
         if (!button?.matches?.(selector)) return;
+        button = actionTarget(button);
         const state = active.get(button);
+        const actions = button.matches(selector) ? [button] : [...button.querySelectorAll(selector)];
         if (!button.isConnected) { if (state) restore(button, state); return; }
-        if (!busy(button)) { if (state) restore(button, state); return; }
+        if (!actions.some(busy)) { if (state) restore(button, state); return; }
         if (state || button.hidden || getComputedStyle(button).display === 'none') return;
         const rect = button.getBoundingClientRect();
         const loader = document.createElement('span');
