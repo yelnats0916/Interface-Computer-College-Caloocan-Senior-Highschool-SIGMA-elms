@@ -301,6 +301,9 @@ window.setPortalHeader = function (title, subtitle) {
         childText = String(title || 'Interface Computer College').trim();
     }
 
+    parentText = parentText.replace(/\s+in\s+context$/i, '');
+    childText = childText.replace(/\s+in\s+context$/i, '');
+
     const escapeText = (str) => {
         const div = document.createElement('div');
         div.textContent = str;

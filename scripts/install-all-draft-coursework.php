@@ -186,9 +186,14 @@ try {
             $pdo->prepare("INSERT INTO users (id, first_name, last_name, full_name, email, password, role, status, is_deleted) VALUES (?, 'Renato', 'Ramos', 'Renato Ramos', 'renato.ramos@gmail.com', 'ramos2601021', 'Teacher', 'Active', 0)")->execute([$teacherId]);
         }
 
-        $secId = 'SEC-EINSTEIN-302';
+        // 1. DELETE duplicate section SEC-EINSTEIN-302 if it exists
+        $pdo->exec("DELETE FROM sections WHERE id='SEC-EINSTEIN-302'");
 
-        // Ensure all demo student users exist with section Einstein in users table
+        // 2. Normalize "Oral Communication in Context" -> "Oral Communication" across database
+        $pdo->exec("UPDATE subjects SET name='Oral Communication' WHERE code='CORE-111-OC' OR name='Oral Communication in Context'");
+        $pdo->exec("UPDATE sections SET subject='Oral Communication' WHERE subject='Oral Communication in Context'");
+
+        // 3. Ensure student demo accounts exist with grade_section = 'Einstein'
         $demoStudents = [
             ['id' => '26010316', 'first_name' => 'Camille', 'last_name' => 'Mendoza', 'full_name' => 'Camille Torres Mendoza', 'email' => 'camille.mendoza@gmail.com', 'password' => 'mendoza26010316'],
             ['id' => '2222222', 'first_name' => 'Juan', 'last_name' => 'Dela Cruz', 'full_name' => 'Juan Abad Dela Cruz', 'email' => 'juan.delacruz@gmail.com', 'password' => 'delacruz2222222'],
@@ -208,12 +213,55 @@ try {
         }
         $pdo->prepare("UPDATE users SET grade_section='Einstein', grade_level='Grade 11' WHERE (role='Student' OR LOWER(role)='student') AND (grade_section IS NULL OR grade_section='' OR grade_section='Grade 11 - ICT A')")->execute();
 
+        // 4. Restore original subjects for any other Einstein sections that were overwritten
+        try {
+            $logs = $pdo->query("SELECT payload FROM audit_log_context WHERE payload LIKE '%Einstein%' ORDER BY audit_id ASC")->fetchAll(PDO::FETCH_ASSOC);
+            $recovered = [];
+            foreach ($logs as $logRow) {
+                $p = json_decode($logRow['payload'] ?? '{}', true);
+                if (!empty($p['sectionId']) && !empty($p['subject']) && ($p['sectionName'] ?? '') === 'Einstein') {
+                    $s = trim($p['subject']);
+                    if (strcasecmp($s, 'Oral Communication in Context') === 0) $s = 'Oral Communication';
+                    $recovered[$p['sectionId']] = $s;
+                }
+            }
+            foreach ($recovered as $rSecId => $origSubj) {
+                if ($rSecId === 'SEC-EINSTEIN-302') continue;
+                $pdo->prepare("UPDATE sections SET subject=?, subjects=? WHERE id=? AND name='Einstein'")
+                    ->execute([$origSubj, json_encode([['name' => $origSubj, 'title' => $origSubj]], JSON_UNESCAPED_UNICODE), $rSecId]);
+            }
+        } catch (Throwable $e) {}
+
+        // If multiple sections for Einstein still share 'Oral Communication', distribute them to distinct Grade 11 Core subjects
+        $dupeEinstein = $pdo->query("SELECT id, subject FROM sections WHERE name='Einstein' AND is_deleted=0 AND (subject='Oral Communication' OR subject='Oral Communication in Context' OR subject='') ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
+        if (count($dupeEinstein) > 1) {
+            $coreSubjects = [
+                'Reading and Writing Skills',
+                'General Mathematics',
+                'Earth and Life Science',
+                'Personal Development',
+                'Physical Education and Health 1',
+                'Understanding Culture, Society and Politics'
+            ];
+            // Leave index 0 as Oral Communication
+            for ($i = 1; $i < count($dupeEinstein); $i++) {
+                $assignSubj = $coreSubjects[$i - 1] ?? ('Core Subject ' . ($i + 1));
+                $pdo->prepare("UPDATE sections SET subject=?, subjects=? WHERE id=?")
+                    ->execute([$assignSubj, json_encode([['name' => $assignSubj, 'title' => $assignSubj]], JSON_UNESCAPED_UNICODE), $dupeEinstein[$i]['id']]);
+            }
+        }
+
+        // 5. Locate the canonical Einstein section for Oral Communication
+        $findOc = $pdo->query("SELECT id FROM sections WHERE name='Einstein' AND subject='Oral Communication' AND is_deleted=0 ORDER BY id ASC LIMIT 1");
+        $canonicalRow = $findOc->fetch(PDO::FETCH_ASSOC);
+        $secId = $canonicalRow ? $canonicalRow['id'] : null;
+
         $teachersJson = json_encode([
-            ['id' => '2601021', 'name' => 'Renato Ramos', 'role' => 'Teacher', 'subject' => 'Oral Communication in Context'],
-            ['id' => '1111111', 'name' => 'Maria Santos Ramos', 'role' => 'Teacher', 'subject' => 'Oral Communication in Context']
+            ['id' => '2601021', 'name' => 'Renato Ramos', 'role' => 'Teacher', 'subject' => 'Oral Communication'],
+            ['id' => '1111111', 'name' => 'Maria Santos Ramos', 'role' => 'Teacher', 'subject' => 'Oral Communication']
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $subjectsJson = json_encode([
-            ['id' => 'CORE-111-OC', 'code' => 'CORE-111-OC', 'name' => 'Oral Communication in Context', 'title' => 'Oral Communication in Context']
+            ['id' => 'CORE-111-OC', 'code' => 'CORE-111-OC', 'name' => 'Oral Communication', 'title' => 'Oral Communication']
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $studentsJson = json_encode([
             ['id' => '26010316', 'name' => 'Camille Torres Mendoza', 'email' => 'camille.mendoza@gmail.com', 'grade_section' => 'Einstein'],
@@ -238,7 +286,7 @@ try {
             `teachers` LONGTEXT NULL,
             `adviser` VARCHAR(100) NOT NULL DEFAULT 'Renato Ramos',
             `adviser_id` VARCHAR(50) NOT NULL DEFAULT '2601021',
-            `subject` VARCHAR(100) NOT NULL DEFAULT 'Oral Communication in Context',
+            `subject` VARCHAR(100) NOT NULL DEFAULT 'Oral Communication',
             `subjects` LONGTEXT NULL,
             `students` LONGTEXT NULL,
             `students_count` INT UNSIGNED NOT NULL DEFAULT 4,
@@ -250,13 +298,12 @@ try {
             `deleted_by` VARCHAR(50) NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-        $checkSec = $pdo->prepare("SELECT id FROM sections WHERE id=? OR name='Einstein'");
-        $checkSec->execute([$secId]);
-        if ($checkSec->fetch()) {
-            $pdo->prepare("UPDATE sections SET name='Einstein', grade_level='Grade 11', room='302', school_year='2026–2027', teacher='Renato Ramos', teacher_role='Teacher', teachers=?, adviser='Renato Ramos', adviser_id='2601021', subject='Oral Communication in Context', subjects=?, students=?, students_count=4, status='Deployed', is_deleted=0 WHERE id=? OR name='Einstein'")
+        if ($secId) {
+            $pdo->prepare("UPDATE sections SET name='Einstein', grade_level='Grade 11', room='302', school_year='2026–2027', teacher='Renato Ramos', teacher_role='Teacher', teachers=?, adviser='Renato Ramos', adviser_id='2601021', subject='Oral Communication', subjects=?, students=?, students_count=4, status='Deployed', is_deleted=0 WHERE id=?")
                 ->execute([$teachersJson, $subjectsJson, $studentsJson, $secId]);
         } else {
-            $pdo->prepare("INSERT INTO sections (id, name, grade_level, room, school_year, teacher, teacher_role, teachers, adviser, adviser_id, subject, subjects, students, students_count, status, is_deleted) VALUES (?, 'Einstein', 'Grade 11', '302', '2026–2027', 'Renato Ramos', 'Teacher', ?, 'Renato Ramos', '2601021', 'Oral Communication in Context', ?, ?, 4, 'Deployed', 0)")
+            $secId = 'SEC-EINSTEIN-302';
+            $pdo->prepare("INSERT INTO sections (id, name, grade_level, room, school_year, teacher, teacher_role, teachers, adviser, adviser_id, subject, subjects, students, students_count, status, is_deleted) VALUES (?, 'Einstein', 'Grade 11', '302', '2026–2027', 'Renato Ramos', 'Teacher', ?, 'Renato Ramos', '2601021', 'Oral Communication', ?, ?, 4, 'Deployed', 0)")
                 ->execute([$secId, $teachersJson, $subjectsJson, $studentsJson]);
         }
 
@@ -386,7 +433,7 @@ try {
                 'assignmentScope' => [
                     'section' => 'Einstein',
                     'subjectId' => 'CORE-111-OC',
-                    'subjectName' => 'Oral Communication in Context'
+                    'subjectName' => 'Oral Communication'
                 ],
                 'target' => [
                     'subjectId' => 'CORE-111-OC',
@@ -407,7 +454,9 @@ try {
         echo "Demonstration seeding note: " . $e->getMessage() . "\n";
     }
 
-    $pdo->commit();
+    if ($pdo->inTransaction()) {
+        $pdo->commit();
+    }
 
     // Verify all subjects in database
     $pubCount = (int)$pdo->query("SELECT COUNT(*) FROM subjects WHERE is_deleted=0 AND status='Published'")->fetchColumn();

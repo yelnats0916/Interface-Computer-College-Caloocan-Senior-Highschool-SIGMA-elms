@@ -20,7 +20,7 @@ def define(key, name, source, first, second):
         return [tuple(x.strip().split('|', 1)) for x in text.strip().splitlines() if x.strip()]
     definitions[key] = dict(name=name, source=source, units=[units(first), units(second)])
 
-define('OC', 'Oral Communication in Context', 'https://lrmds.deped.gov.ph/detail/15683', '''
+define('OC', 'Oral Communication', 'https://lrmds.deped.gov.ph/detail/15683', '''
 Communication Processes and Models|Explain how speakers construct and exchange meaning through messages, feedback, channels, and context.
 Verbal, Nonverbal, and Intercultural Communication|Interpret verbal and nonverbal cues and adapt communication respectfully across cultures.
 Functions of Communication|Compare the use of communication to regulate, socialize, motivate, inform, and express emotion.

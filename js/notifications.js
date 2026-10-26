@@ -47,7 +47,7 @@
 
     function notificationAudienceMatches(role, notif, user) {
         const norm = value => String(value || '').trim().toLowerCase().replace(/\s+/g,' ');
-        const subjectKey = value => norm(value).replace(/^grade\s*\d+\s*[-–]?\s*/i,'').replace(/^(card-|subj-)/,'').replace(/[^a-z0-9]/g,'');
+        const subjectKey = value => norm(value).replace(/^grade\s*\d+\s*[-–]?\s*/i,'').replace(/^(card-|subj-|gen-)/,'').replace(/\s*in\s*context\s*$/i, '').replace(/[^a-z0-9]/g,'');
         const userRole = norm(window.normalizeUserRole?.(user.role || user.type) || user.role || user.type);
         if (role === 'admin' ? !userRole.includes('admin') : userRole !== role) return false;
         if (notif.serverRecordId && Array.isArray(notif.recipients)) {
@@ -62,7 +62,8 @@
         if (!scope) return !notif.target?.subjectId;
         if (!scope.section || !scope.subjectId) return false;
         const subject=window.getSubjectById?.(scope.subjectId) || window.getTopicSubject?.(scope.subjectId);
-        const wanted=[scope.subjectId,scope.subjectName,subject?.name,subject?.title].map(subjectKey).filter(Boolean);
+        const aliases = (typeof window.getUnifiedSubjectAliases === 'function') ? window.getUnifiedSubjectAliases(scope.subjectId) : [];
+        const wanted=[scope.subjectId,scope.subjectName,subject?.name,subject?.title,...aliases].map(subjectKey).filter(Boolean);
         if (role === 'teacher') return (window.getTeacherAssignedSubjectsAndSections?.(user) || []).some(assignment =>
             norm(assignment.sectionName || assignment.section) === norm(scope.section)
             && [assignment.subject,assignment.subjectId,assignment.name].map(subjectKey).some(value => value && wanted.includes(value)));
