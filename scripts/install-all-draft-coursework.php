@@ -175,6 +175,200 @@ try {
         }
     }
 
+    // Ensure Section Einstein and Academic Releases for demonstration
+    try {
+        $teacherId = '2601021';
+        $findTeacher = $pdo->prepare("SELECT id FROM users WHERE id=?");
+        $findTeacher->execute([$teacherId]);
+        if ($findTeacher->fetch()) {
+            $pdo->prepare("UPDATE users SET full_name='Renato Ramos', first_name='Renato', last_name='Ramos' WHERE id=?")->execute([$teacherId]);
+        } else {
+            $pdo->prepare("INSERT INTO users (id, first_name, last_name, full_name, email, password, role, status, is_deleted) VALUES (?, 'Renato', 'Ramos', 'Renato Ramos', 'renato.ramos@gmail.com', 'ramos2601021', 'Teacher', 'Active', 0)")->execute([$teacherId]);
+        }
+
+        $secId = 'SEC-EINSTEIN-302';
+        $teachersJson = json_encode([
+            ['id' => '2601021', 'name' => 'Renato Ramos', 'role' => 'Teacher', 'subject' => 'Oral Communication in Context'],
+            ['id' => '1111111', 'name' => 'Maria Santos Ramos', 'role' => 'Teacher', 'subject' => 'Oral Communication in Context']
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $subjectsJson = json_encode([
+            ['id' => 'CORE-111-OC', 'code' => 'CORE-111-OC', 'name' => 'Oral Communication in Context', 'title' => 'Oral Communication in Context']
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $studentsJson = json_encode([
+            ['id' => '26010316', 'name' => 'Camille Torres Mendoza', 'email' => 'camille.mendoza@gmail.com', 'grade_section' => 'Einstein'],
+            ['id' => '2222222', 'name' => 'Juan Abad Dela Cruz', 'email' => 'juan.delacruz@gmail.com', 'grade_section' => 'Einstein'],
+            ['id' => '2601031', 'name' => 'Henry Wrecker Ochoa', 'email' => 'henry12@gmail.com', 'grade_section' => 'Einstein'],
+            ['id' => '2601033', 'name' => 'Amanda Suri Gao', 'email' => 'amanda67@gmail.com', 'grade_section' => 'Einstein']
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `sections` (
+            `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+            `name` VARCHAR(100) NOT NULL,
+            `grade_level` VARCHAR(20) NOT NULL DEFAULT 'Grade 11',
+            `room` VARCHAR(50) NOT NULL DEFAULT '302',
+            `school_year` VARCHAR(30) NOT NULL DEFAULT '2026–2027',
+            `start_time` VARCHAR(20) NOT NULL DEFAULT '07:30',
+            `end_time` VARCHAR(20) NOT NULL DEFAULT '17:00',
+            `days` VARCHAR(100) NOT NULL DEFAULT 'Monday, Tuesday, Wednesday, Thursday, Friday',
+            `schedule` VARCHAR(255) NOT NULL DEFAULT '',
+            `daily_schedules` LONGTEXT NULL,
+            `teacher` VARCHAR(100) NOT NULL DEFAULT 'Renato Ramos',
+            `teacher_role` VARCHAR(50) NOT NULL DEFAULT 'Teacher',
+            `teachers` LONGTEXT NULL,
+            `adviser` VARCHAR(100) NOT NULL DEFAULT 'Renato Ramos',
+            `adviser_id` VARCHAR(50) NOT NULL DEFAULT '2601021',
+            `subject` VARCHAR(100) NOT NULL DEFAULT 'Oral Communication in Context',
+            `subjects` LONGTEXT NULL,
+            `students` LONGTEXT NULL,
+            `students_count` INT UNSIGNED NOT NULL DEFAULT 4,
+            `status` VARCHAR(30) NOT NULL DEFAULT 'Deployed',
+            `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+            `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            `deleted_at` DATETIME NULL,
+            `deleted_by` VARCHAR(50) NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+        $checkSec = $pdo->prepare("SELECT id FROM sections WHERE id=? OR name='Einstein'");
+        $checkSec->execute([$secId]);
+        if ($checkSec->fetch()) {
+            $pdo->prepare("UPDATE sections SET name='Einstein', grade_level='Grade 11', room='302', school_year='2026–2027', teacher='Renato Ramos', teacher_role='Teacher', teachers=?, adviser='Renato Ramos', adviser_id='2601021', subject='Oral Communication in Context', subjects=?, students=?, students_count=4, status='Deployed', is_deleted=0 WHERE id=? OR name='Einstein'")
+                ->execute([$teachersJson, $subjectsJson, $studentsJson, $secId]);
+        } else {
+            $pdo->prepare("INSERT INTO sections (id, name, grade_level, room, school_year, teacher, teacher_role, teachers, adviser, adviser_id, subject, subjects, students, students_count, status, is_deleted) VALUES (?, 'Einstein', 'Grade 11', '302', '2026–2027', 'Renato Ramos', 'Teacher', ?, 'Renato Ramos', '2601021', 'Oral Communication in Context', ?, ?, 4, 'Deployed', 0)")
+                ->execute([$secId, $teachersJson, $subjectsJson, $studentsJson]);
+        }
+
+        // Academic evidence schema
+        $pdo->exec("CREATE TABLE IF NOT EXISTS academic_records (
+            record_key CHAR(64) PRIMARY KEY, record_type VARCHAR(24) NOT NULL,
+            subject_id VARCHAR(100) NOT NULL, section_id VARCHAR(100) NOT NULL,
+            student_id VARCHAR(50) NOT NULL DEFAULT '', item_id VARCHAR(191) NOT NULL DEFAULT '',
+            payload LONGTEXT NOT NULL, actor_id VARCHAR(50) NOT NULL,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            KEY academic_scope(subject_id,section_id,record_type), KEY academic_student(student_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+        $topicConfig = [
+            'publishAll' => true,
+            'releasedTopicIds' => [
+                'CORE-111-OC-T01', 'CORE-111-OC-T02', 'CORE-111-OC-T03', 'CORE-111-OC-T04',
+                'CORE-111-OC-T05', 'CORE-111-OC-T07', 'CORE-111-OC-T08',
+                'Communication Processes and Models', 'Verbal, Nonverbal, and Intercultural Communication',
+                'Functions of Communication', 'Speech Contexts, Styles, and Acts',
+                'Communicative Strategies', 'Speech Writing', 'Speech Delivery'
+            ],
+            'hiddenTopicIds' => [],
+            'topicSchedules' => [],
+            'topicReleaseDates' => []
+        ];
+        $learningConfig = [
+            'publishAll' => true,
+            'releasedMaterialIds' => [
+                'CORE-111-OC-T01-M01', 'CORE-111-OC-T02-M01', 'CORE-111-OC-T03-M01', 'CORE-111-OC-T04-M01',
+                'CORE-111-OC-T05-M01', 'CORE-111-OC-T07-M01', 'CORE-111-OC-T08-M01',
+                'Communication Processes and Models - Learning Guide',
+                'Verbal, Nonverbal, and Intercultural Communication - Learning Guide',
+                'Functions of Communication - Learning Guide',
+                'Speech Contexts, Styles, and Acts - Learning Guide',
+                'Communicative Strategies - Learning Guide',
+                'Speech Writing - Learning Guide',
+                'Speech Delivery - Learning Guide'
+            ],
+            'hiddenMaterialIds' => [],
+            'materialSchedules' => [],
+            'materialReleaseDates' => []
+        ];
+        $assessConfig = [
+            'publishAll' => true,
+            'releasedMaterialIds' => [
+                'CORE-111-OC-T01-M02', 'CORE-111-OC-T01-M03', 'CORE-111-OC-T01-M04', 'QZ-CORE-111-OC-T01-04-MATERIAL', 'QZ-CORE-111-OC-T01-01',
+                'CORE-111-OC-T02-M02', 'CORE-111-OC-T02-M03', 'QZ-CORE-111-OC-T02-03-MATERIAL',
+                'CORE-111-OC-T03-M02', 'QZ-CORE-111-OC-T03-02-MATERIAL',
+                'CORE-111-OC-T04-M04', 'QZ-CORE-111-OC-T04-01-MATERIAL', 'QZ-CORE-111-OC-T04-02-MATERIAL',
+                'CORE-111-OC-T05-M02', 'QZ-CORE-111-OC-T05-02-MATERIAL', 'QZ-CORE-111-OC-T05-01',
+                'CORE-111-OC-T07-M02', 'CORE-111-OC-T07-M03', 'CORE-111-OC-T07-M04', 'QZ-CORE-111-OC-T07-04-MATERIAL',
+                'CORE-111-OC-T08-M02', 'CORE-111-OC-T08-M03', 'QZ-CORE-111-OC-T08-03-MATERIAL',
+                'Structured Analysis: Communication Processes and Models',
+                'Communication Processes and Models Comprehensive Quiz',
+                'Diagnostic Activity: Communication Processes and Models',
+                'Practice Exercise: Communicative Strategies',
+                'Communicative Strategies Concept Quiz'
+            ],
+            'hiddenMaterialIds' => [],
+            'materialSchedules' => [],
+            'materialReleaseDates' => []
+        ];
+
+        $insAcademic = $pdo->prepare("INSERT INTO academic_records(record_key,record_type,subject_id,section_id,student_id,item_id,payload,actor_id) VALUES(?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE payload=VALUES(payload),actor_id=VALUES(actor_id)");
+        foreach ([
+            'topics' => $topicConfig,
+            'learning' => $learningConfig,
+            'assessments' => $assessConfig
+        ] as $cat => $cfg) {
+            $key = hash('sha256', json_encode(['release', 'CORE-111-OC', $secId, '', $cat]));
+            $insAcademic->execute([$key, 'release', 'CORE-111-OC', $secId, '', $cat, json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), $teacherId]);
+        }
+
+        // Notification records schema & seeding
+        $pdo->exec("CREATE TABLE IF NOT EXISTS notification_records (
+            id CHAR(64) NOT NULL PRIMARY KEY,
+            notification_id VARCHAR(191) NOT NULL,
+            target_role VARCHAR(16) NOT NULL,
+            actor_id VARCHAR(50) NOT NULL,
+            payload MEDIUMTEXT NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            audit_deleted TINYINT(1) NOT NULL DEFAULT 0,
+            KEY audience(target_role)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $releasedStudentAssessments = [
+            ['type' => 'Task', 'title' => 'Structured Analysis: Communication Processes and Models', 'id' => 'CORE-111-OC-T01-M03', 'topicIdx' => 0],
+            ['type' => 'Quiz', 'title' => 'Communication Processes and Models Comprehensive Quiz', 'id' => 'QZ-CORE-111-OC-T01-04-MATERIAL', 'topicIdx' => 0],
+            ['type' => 'Task', 'title' => 'Practice Exercise: Communicative Strategies', 'id' => 'CORE-111-OC-T05-M02', 'topicIdx' => 4],
+            ['type' => 'Quiz', 'title' => 'Communicative Strategies Concept Quiz', 'id' => 'QZ-CORE-111-OC-T05-02-MATERIAL', 'topicIdx' => 4],
+        ];
+        $recipientsList = [
+            ['id' => '26010316', 'name' => 'Camille Torres Mendoza', 'role' => 'Student', 'readAt' => null],
+            ['id' => '2222222', 'name' => 'Juan Abad Dela Cruz', 'role' => 'Student', 'readAt' => null],
+            ['id' => '2601031', 'name' => 'Henry Wrecker Ochoa', 'role' => 'Student', 'readAt' => null],
+            ['id' => '2601033', 'name' => 'Amanda Suri Gao', 'role' => 'Student', 'readAt' => null]
+        ];
+        foreach ($releasedStudentAssessments as $ass) {
+            $nId = 'notif_rel_init_' . md5($ass['id']);
+            $nPayload = [
+                'id' => $nId,
+                'type' => 'assessment-released',
+                'title' => 'New ' . $ass['type'] . ' Posted',
+                'body' => $ass['title'] . ' coursework is now available.',
+                'senderId' => $teacherId,
+                'senderName' => 'Renato Ramos',
+                'senderRole' => 'Teacher',
+                'senderType' => 'user',
+                'assignmentScope' => [
+                    'section' => 'Einstein',
+                    'subjectId' => 'CORE-111-OC',
+                    'subjectName' => 'Oral Communication in Context'
+                ],
+                'target' => [
+                    'subjectId' => 'CORE-111-OC',
+                    'tab' => 'assessments',
+                    'itemId' => $ass['id'],
+                    'materialTitle' => $ass['title'],
+                    'topicIdx' => $ass['topicIdx']
+                ],
+                'recipients' => $recipientsList,
+                'read' => false,
+                'timestamp' => gmdate('c')
+            ];
+            $dbRecId = hash('sha256', 'student|' . $nId . '|');
+            $pdo->prepare("INSERT INTO notification_records (id, notification_id, target_role, actor_id, payload, created_at, audit_deleted) VALUES (?, ?, 'student', ?, ?, NOW(), 0) ON DUPLICATE KEY UPDATE payload = VALUES(payload)")
+                ->execute([$dbRecId, $nId, $teacherId, json_encode($nPayload, JSON_THROW_ON_ERROR)]);
+        }
+    } catch (Throwable $e) {
+        echo "Demonstration seeding note: " . $e->getMessage() . "\n";
+    }
+
     $pdo->commit();
 
     // Verify all subjects in database

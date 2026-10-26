@@ -8,10 +8,11 @@
     const request=(data,query)=>window.SigmaDatabase.request('notifications',{...(data?{data}:{}),...(query?{query}:{})});
     const emit=()=>window.dispatchEvent(new Event('notification-logs-updated'));
     sdk.sendToRole=function(targetRole,notification){
-        if(!actor()?.id)return originalSend(targetRole,notification);
+        try{originalSend(targetRole,notification);}catch(e){}
+        if(!actor()?.id)return Promise.resolve();
         return request({action:'send',role:targetRole,notification}).then(()=>{
-            originalSend(targetRole,notification);lastRead=0;return refresh();
-        }).catch(error=>{console.warn('Notification could not be saved:',error.message);});
+            lastRead=0;return refresh();
+        }).catch(error=>{console.warn('Notification could not be saved to DB:',error.message);});
     };
     sdk.getLogs=()=>{
         if(window.canViewAuditLog?.('notifications')===false)return [];

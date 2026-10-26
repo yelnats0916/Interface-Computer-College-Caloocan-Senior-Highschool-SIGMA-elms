@@ -4963,6 +4963,7 @@ window.addSubjectTopic = function () {
         window.currentSubjectTopics = Array.isArray(window.currentSubjectTopics) ? window.currentSubjectTopics : [];
         window.currentSubjectAllTopics = Array.isArray(window.currentSubjectAllTopics) ? window.currentSubjectAllTopics : [];
 
+        let savedNewTopicItem = null;
         if (window.currentEditingTopicIndex >= 0 && window.currentEditingTopicIndex < window.currentSubjectTopics.length) {
             window._hasEditedExistingTopic = true;
             const currentItem = window.currentSubjectTopics[window.currentEditingTopicIndex];
@@ -5002,6 +5003,7 @@ window.addSubjectTopic = function () {
                 createdAt: new Date().toISOString(),
                 status: 'not-started'
             };
+            savedNewTopicItem = newItem;
 
             // Teacher topics are always appended at the bottom (below Admin topics)
             if (authorRole === 'Teacher') {
@@ -5036,6 +5038,41 @@ window.addSubjectTopic = function () {
 
         if (typeof window.syncCurrentSubjectEditorToStorage === 'function') {
             window.syncCurrentSubjectEditorToStorage();
+        }
+
+        if (window._hasAddedNewTopic && (authorRole === 'Teacher' || isTeacher) && savedNewTopicItem) {
+            try {
+                const curSubj = window.currentSubjectData || window.editingSubjectData || {};
+                const subjCode = curSubj.code || curSubj.id || window.currentSubjectCode || window.originalEditingSubjectId || '';
+                const subjName = curSubj.name || curSubj.title || subjCode;
+                const notifId = `teacher-topic-add:${subjCode}:${savedNewTopicItem.id}:${Date.now()}`;
+                const notif = {
+                    id: notifId,
+                    type: 'curriculum-update',
+                    title: `New Topic Added: ${title}`,
+                    body: `${authorName} added a new topic "${title}" to ${subjName}${activeSection ? ` (${activeSection})` : ''}.`,
+                    senderId: authorId,
+                    senderName: authorName,
+                    senderRole: 'Teacher',
+                    timestamp: new Date().toISOString(),
+                    read: false,
+                    assignmentScope: {
+                        subjectId: subjCode,
+                        subjectName: subjName,
+                        section: activeSection || ''
+                    },
+                    target: {
+                        subjectId: subjCode,
+                        tab: 'topics',
+                        itemId: savedNewTopicItem.id
+                    }
+                };
+                if (window.SigmaNotifications?.sendToRole) {
+                    window.SigmaNotifications.sendToRole('admin', notif);
+                }
+            } catch (err) {
+                console.warn('[saveTopicFromEditor] Admin notification error:', err);
+            }
         }
 
         window.currentSubjectTopicQuarter = topicQuarter;
@@ -5133,6 +5170,41 @@ window.addSubjectTopic = function () {
 
         if (typeof window.syncCurrentSubjectEditorToStorage === 'function') {
             window.syncCurrentSubjectEditorToStorage();
+        }
+
+        if ((authorRole === 'Teacher' || isTeacher) && newItem) {
+            try {
+                const curSubj = window.currentSubjectData || window.editingSubjectData || {};
+                const subjCode = curSubj.code || curSubj.id || window.currentSubjectCode || window.originalEditingSubjectId || '';
+                const subjName = curSubj.name || curSubj.title || subjCode;
+                const notifId = `teacher-topic-add:${subjCode}:${newItem.id}:${Date.now()}`;
+                const notif = {
+                    id: notifId,
+                    type: 'curriculum-update',
+                    title: `New Topic Added: ${title}`,
+                    body: `${authorName} added a new topic "${title}" to ${subjName}${activeSection ? ` (${activeSection})` : ''}.`,
+                    senderId: authorId,
+                    senderName: authorName,
+                    senderRole: 'Teacher',
+                    timestamp: new Date().toISOString(),
+                    read: false,
+                    assignmentScope: {
+                        subjectId: subjCode,
+                        subjectName: subjName,
+                        section: activeSection || ''
+                    },
+                    target: {
+                        subjectId: subjCode,
+                        tab: 'topics',
+                        itemId: newItem.id
+                    }
+                };
+                if (window.SigmaNotifications?.sendToRole) {
+                    window.SigmaNotifications.sendToRole('admin', notif);
+                }
+            } catch (err) {
+                console.warn('[saveAndAddAnotherTopic] Admin notification error:', err);
+            }
         }
 
         window.renderSubjectTopics();
@@ -10489,6 +10561,43 @@ window.addSubjectTopic = function () {
             window.syncCurrentSubjectEditorToStorage();
         }
 
+        if (authorRole === 'Teacher' || isTeacher) {
+            try {
+                const curSubj = window.currentSubjectData || window.editingSubjectData || {};
+                const subjCode = curSubj.code || curSubj.id || window.currentSubjectCode || window.originalEditingSubjectId || '';
+                const subjName = curSubj.name || curSubj.title || subjCode;
+                const matType = finalItem.type || 'Material';
+                const notifId = `teacher-material-add:${subjCode}:${finalItem.id}:${Date.now()}`;
+                const notif = {
+                    id: notifId,
+                    type: 'curriculum-update',
+                    title: `New ${matType} Added: ${finalItem.title}`,
+                    body: `${authorName} added a new ${matType.toLowerCase()} "${finalItem.title}" to ${subjName}${activeSection ? ` (${activeSection})` : ''}.`,
+                    senderId: authorId,
+                    senderName: authorName,
+                    senderRole: 'Teacher',
+                    timestamp: new Date().toISOString(),
+                    read: false,
+                    assignmentScope: {
+                        subjectId: subjCode,
+                        subjectName: subjName,
+                        section: activeSection || ''
+                    },
+                    target: {
+                        subjectId: subjCode,
+                        tab: ['Quiz', 'Task'].includes(matType) ? 'assessments' : 'lessons',
+                        itemId: finalItem.id,
+                        materialTitle: finalItem.title
+                    }
+                };
+                if (window.SigmaNotifications?.sendToRole) {
+                    window.SigmaNotifications.sendToRole('admin', notif);
+                }
+            } catch (err) {
+                console.warn('[saveAndAddAnotherMaterial] Admin notification error:', err);
+            }
+        }
+
         if (isTeacher && existingMat && !['Lesson','Video','Handout'].includes(type)) {
             const subject = window.currentSubjectData || window.editingSubjectData;
             window.SigmaNotifications?.notifyAssessmentContentUpdate(notificationPreviousMaterial, finalItem, subject?.code || subject?.id || window.currentSubjectCode, activeSection);
@@ -10733,6 +10842,43 @@ window.addSubjectTopic = function () {
 
         if (typeof window.syncCurrentSubjectEditorToStorage === 'function') {
             window.syncCurrentSubjectEditorToStorage();
+        }
+
+        if (authorRole === 'Teacher' || isTeacher) {
+            try {
+                const curSubj = window.currentSubjectData || window.editingSubjectData || {};
+                const subjCode = curSubj.code || curSubj.id || window.currentSubjectCode || window.originalEditingSubjectId || '';
+                const subjName = curSubj.name || curSubj.title || subjCode;
+                const matType = finalItem.type || 'Material';
+                const notifId = `teacher-material-add:${subjCode}:${finalItem.id}:${Date.now()}`;
+                const notif = {
+                    id: notifId,
+                    type: 'curriculum-update',
+                    title: `New ${matType} Added: ${finalItem.title}`,
+                    body: `${authorName} added a new ${matType.toLowerCase()} "${finalItem.title}" to ${subjName}${activeSection ? ` (${activeSection})` : ''}.`,
+                    senderId: authorId,
+                    senderName: authorName,
+                    senderRole: 'Teacher',
+                    timestamp: new Date().toISOString(),
+                    read: false,
+                    assignmentScope: {
+                        subjectId: subjCode,
+                        subjectName: subjName,
+                        section: activeSection || ''
+                    },
+                    target: {
+                        subjectId: subjCode,
+                        tab: ['Quiz', 'Task'].includes(matType) ? 'assessments' : 'lessons',
+                        itemId: finalItem.id,
+                        materialTitle: finalItem.title
+                    }
+                };
+                if (window.SigmaNotifications?.sendToRole) {
+                    window.SigmaNotifications.sendToRole('admin', notif);
+                }
+            } catch (err) {
+                console.warn('[saveAndAddAnotherMaterial] Admin notification error:', err);
+            }
         }
 
         window.currentSubjectMaterialQuarter = matQuarterForAnother;

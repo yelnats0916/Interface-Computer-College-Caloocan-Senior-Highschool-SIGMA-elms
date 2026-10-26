@@ -6927,6 +6927,76 @@ if (typeof window !== 'undefined') {
     });
 }
 
+window.getDefaultCurriculumReleaseConfig = function (prefix, subjectId, section) {
+    if (!prefix || !subjectId) return null;
+    const cleanSubj = String(subjectId).replace(/^(card-|subj-|gen-)/i, '').trim().toLowerCase();
+    const cleanSec = String(section || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim().toLowerCase();
+    const isOralComm = cleanSubj === 'oralcomm' || cleanSubj === 'core-111-oc' || cleanSubj === 'comm' || cleanSubj.includes('oral');
+    const isEinstein = cleanSec === 'einstein' || cleanSec.includes('einstein');
+    if (!isOralComm || !isEinstein) return null;
+
+    if (prefix === 'sigma_topic_release') {
+        return {
+            publishAll: true,
+            releasedTopicIds: [
+                'CORE-111-OC-T01', 'CORE-111-OC-T02', 'CORE-111-OC-T03', 'CORE-111-OC-T04',
+                'CORE-111-OC-T05', 'CORE-111-OC-T07', 'CORE-111-OC-T08',
+                'Communication Processes and Models', 'Verbal, Nonverbal, and Intercultural Communication',
+                'Functions of Communication', 'Speech Contexts, Styles, and Acts',
+                'Communicative Strategies', 'Speech Writing', 'Speech Delivery'
+            ],
+            hiddenTopicIds: [],
+            topicSchedules: {},
+            topicReleaseDates: {},
+            updatedAt: '2026-10-26T00:00:00.000Z'
+        };
+    }
+    if (prefix === 'sigma_learning_release') {
+        return {
+            publishAll: true,
+            releasedMaterialIds: [
+                'CORE-111-OC-T01-M01', 'CORE-111-OC-T02-M01', 'CORE-111-OC-T03-M01', 'CORE-111-OC-T04-M01',
+                'CORE-111-OC-T05-M01', 'CORE-111-OC-T07-M01', 'CORE-111-OC-T08-M01',
+                'Communication Processes and Models - Learning Guide',
+                'Verbal, Nonverbal, and Intercultural Communication - Learning Guide',
+                'Functions of Communication - Learning Guide',
+                'Speech Contexts, Styles, and Acts - Learning Guide',
+                'Communicative Strategies - Learning Guide',
+                'Speech Writing - Learning Guide',
+                'Speech Delivery - Learning Guide'
+            ],
+            hiddenMaterialIds: [],
+            materialSchedules: {},
+            materialReleaseDates: {},
+            updatedAt: '2026-10-26T00:00:00.000Z'
+        };
+    }
+    if (prefix === 'sigma_assessment_release') {
+        return {
+            publishAll: true,
+            releasedMaterialIds: [
+                'CORE-111-OC-T01-M02', 'CORE-111-OC-T01-M03', 'CORE-111-OC-T01-M04', 'QZ-CORE-111-OC-T01-04-MATERIAL', 'QZ-CORE-111-OC-T01-01',
+                'CORE-111-OC-T02-M02', 'CORE-111-OC-T02-M03', 'QZ-CORE-111-OC-T02-03-MATERIAL',
+                'CORE-111-OC-T03-M02', 'QZ-CORE-111-OC-T03-02-MATERIAL',
+                'CORE-111-OC-T04-M04', 'QZ-CORE-111-OC-T04-01-MATERIAL', 'QZ-CORE-111-OC-T04-02-MATERIAL',
+                'CORE-111-OC-T05-M02', 'QZ-CORE-111-OC-T05-02-MATERIAL', 'QZ-CORE-111-OC-T05-01',
+                'CORE-111-OC-T07-M02', 'CORE-111-OC-T07-M03', 'CORE-111-OC-T07-M04', 'QZ-CORE-111-OC-T07-04-MATERIAL',
+                'CORE-111-OC-T08-M02', 'CORE-111-OC-T08-M03', 'QZ-CORE-111-OC-T08-03-MATERIAL',
+                'Structured Analysis: Communication Processes and Models',
+                'Communication Processes and Models Comprehensive Quiz',
+                'Diagnostic Activity: Communication Processes and Models',
+                'Practice Exercise: Communicative Strategies',
+                'Communicative Strategies Concept Quiz'
+            ],
+            hiddenMaterialIds: [],
+            materialSchedules: {},
+            materialReleaseDates: {},
+            updatedAt: '2026-10-26T00:00:00.000Z'
+        };
+    }
+    return null;
+};
+
 window._sigmaReleaseConfigCache = window._sigmaReleaseConfigCache || new Map();
 
 window.getUnifiedReleaseConfig = function (prefix, subjectId, section) {
@@ -7029,6 +7099,13 @@ window.getUnifiedReleaseConfig = function (prefix, subjectId, section) {
     } catch (e) { }
 
     if (!collected.length) {
+        const defConfig = (typeof window.getDefaultCurriculumReleaseConfig === 'function')
+            ? window.getDefaultCurriculumReleaseConfig(prefix, subjectId, secStr)
+            : null;
+        if (defConfig) {
+            window._sigmaReleaseConfigCache.set(releaseCacheKey, defConfig);
+            return defConfig;
+        }
         window._sigmaReleaseConfigCache.set(releaseCacheKey, null);
         return null;
     }
