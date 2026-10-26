@@ -187,6 +187,27 @@ try {
         }
 
         $secId = 'SEC-EINSTEIN-302';
+
+        // Ensure all demo student users exist with section Einstein in users table
+        $demoStudents = [
+            ['id' => '26010316', 'first_name' => 'Camille', 'last_name' => 'Mendoza', 'full_name' => 'Camille Torres Mendoza', 'email' => 'camille.mendoza@gmail.com', 'password' => 'mendoza26010316'],
+            ['id' => '2222222', 'first_name' => 'Juan', 'last_name' => 'Dela Cruz', 'full_name' => 'Juan Abad Dela Cruz', 'email' => 'juan.delacruz@gmail.com', 'password' => 'delacruz2222222'],
+            ['id' => '2601031', 'first_name' => 'Henry', 'last_name' => 'Ochoa', 'full_name' => 'Henry Wrecker Ochoa', 'email' => 'henry12@gmail.com', 'password' => 'ochoa2601031'],
+            ['id' => '2601033', 'first_name' => 'Amanda', 'last_name' => 'Gao', 'full_name' => 'Amanda Suri Gao', 'email' => 'amanda67@gmail.com', 'password' => 'gao2601033']
+        ];
+        foreach ($demoStudents as $ds) {
+            $chk = $pdo->prepare("SELECT id FROM users WHERE id=?");
+            $chk->execute([$ds['id']]);
+            if ($chk->fetch()) {
+                $pdo->prepare("UPDATE users SET first_name=?, last_name=?, full_name=?, email=?, grade_section='Einstein', grade_level='Grade 11', role='Student', status='Active', is_deleted=0 WHERE id=?")
+                    ->execute([$ds['first_name'], $ds['last_name'], $ds['full_name'], $ds['email'], $ds['id']]);
+            } else {
+                $pdo->prepare("INSERT INTO users (id, first_name, last_name, full_name, email, password, role, grade_section, grade_level, status, is_deleted) VALUES (?, ?, ?, ?, ?, ?, 'Student', 'Einstein', 'Grade 11', 'Active', 0)")
+                    ->execute([$ds['id'], $ds['first_name'], $ds['last_name'], $ds['full_name'], $ds['email'], $ds['password']]);
+            }
+        }
+        $pdo->prepare("UPDATE users SET grade_section='Einstein', grade_level='Grade 11' WHERE (role='Student' OR LOWER(role)='student') AND (grade_section IS NULL OR grade_section='' OR grade_section='Grade 11 - ICT A')")->execute();
+
         $teachersJson = json_encode([
             ['id' => '2601021', 'name' => 'Renato Ramos', 'role' => 'Teacher', 'subject' => 'Oral Communication in Context'],
             ['id' => '1111111', 'name' => 'Maria Santos Ramos', 'role' => 'Teacher', 'subject' => 'Oral Communication in Context']
@@ -306,8 +327,13 @@ try {
             'learning' => $learningConfig,
             'assessments' => $assessConfig
         ] as $cat => $cfg) {
-            $key = hash('sha256', json_encode(['release', 'CORE-111-OC', $secId, '', $cat]));
-            $insAcademic->execute([$key, 'release', 'CORE-111-OC', $secId, '', $cat, json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), $teacherId]);
+            $encodedCfg = json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            foreach (['CORE-111-OC', 'card-oralcomm'] as $sId) {
+                foreach ([$secId, 'Einstein'] as $scId) {
+                    $key = hash('sha256', json_encode(['release', $sId, $scId, '', $cat]));
+                    $insAcademic->execute([$key, 'release', $sId, $scId, '', $cat, $encodedCfg, $teacherId]);
+                }
+            }
         }
 
         // Notification records schema & seeding
@@ -328,12 +354,24 @@ try {
             ['type' => 'Task', 'title' => 'Practice Exercise: Communicative Strategies', 'id' => 'CORE-111-OC-T05-M02', 'topicIdx' => 4],
             ['type' => 'Quiz', 'title' => 'Communicative Strategies Concept Quiz', 'id' => 'QZ-CORE-111-OC-T05-02-MATERIAL', 'topicIdx' => 4],
         ];
-        $recipientsList = [
-            ['id' => '26010316', 'name' => 'Camille Torres Mendoza', 'role' => 'Student', 'readAt' => null],
-            ['id' => '2222222', 'name' => 'Juan Abad Dela Cruz', 'role' => 'Student', 'readAt' => null],
-            ['id' => '2601031', 'name' => 'Henry Wrecker Ochoa', 'role' => 'Student', 'readAt' => null],
-            ['id' => '2601033', 'name' => 'Amanda Suri Gao', 'role' => 'Student', 'readAt' => null]
-        ];
+        $allStudents = $pdo->query("SELECT id, full_name, role FROM users WHERE is_deleted=0 AND (role='Student' OR LOWER(role)='student')")->fetchAll(PDO::FETCH_ASSOC);
+        $recipientsList = [];
+        foreach ($allStudents as $st) {
+            $recipientsList[] = [
+                'id' => (string)$st['id'],
+                'name' => $st['full_name'] ?: 'Student',
+                'role' => 'Student',
+                'readAt' => null
+            ];
+        }
+        if (empty($recipientsList)) {
+            $recipientsList = [
+                ['id' => '26010316', 'name' => 'Camille Torres Mendoza', 'role' => 'Student', 'readAt' => null],
+                ['id' => '2222222', 'name' => 'Juan Abad Dela Cruz', 'role' => 'Student', 'readAt' => null],
+                ['id' => '2601031', 'name' => 'Henry Wrecker Ochoa', 'role' => 'Student', 'readAt' => null],
+                ['id' => '2601033', 'name' => 'Amanda Suri Gao', 'role' => 'Student', 'readAt' => null]
+            ];
+        }
         foreach ($releasedStudentAssessments as $ass) {
             $nId = 'notif_rel_init_' . md5($ass['id']);
             $nPayload = [

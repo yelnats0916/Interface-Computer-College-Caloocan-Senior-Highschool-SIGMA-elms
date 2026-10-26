@@ -67,6 +67,17 @@
             norm(assignment.sectionName || assignment.section) === norm(scope.section)
             && [assignment.subject,assignment.subjectId,assignment.name].map(subjectKey).some(value => value && wanted.includes(value)));
         if (role !== 'student') return false;
+        if (Array.isArray(notif.recipients) && notif.recipients.length > 0) {
+            const uId = String(user.id || user.uid || user.lrn || '').trim().toLowerCase();
+            const uName = norm(user.fullName || user.name || `${user.firstName || ''} ${user.lastName || ''}`);
+            const inRecipients = notif.recipients.some(r => {
+                if (!r) return false;
+                const rId = String(r.id || r.uid || '').trim().toLowerCase();
+                const rName = norm(r.name || r.fullName || '');
+                return (uId && rId && uId === rId) || (uName && rName && uName === rName);
+            });
+            if (inRecipients) return true;
+        }
         let sections=[];
         try { sections=JSON.parse(localStorage.getItem('sigma-admin-sections') || '[]'); } catch (_) {}
         return Array.isArray(sections) && sections.some(section => {

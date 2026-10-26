@@ -4647,6 +4647,8 @@ window.isSectionAssignedToStudent = function (sec, student) {
             .concat(Array.isArray(student.sections) ? student.sections : [])
             .concat(student.section ? [student.section] : [])
             .concat(student.gradeSection ? [student.gradeSection] : [])
+            .concat(student.grade_section ? [student.grade_section] : [])
+            .concat(student.sectionName ? [student.sectionName] : [])
             .map(s => cleanStr(typeof s === 'object' ? (s.id || s.name || s.sectionName) : s))
             .filter(Boolean)
     );
@@ -6601,8 +6603,15 @@ window.resolveStudentReleaseSection = function (explicit) {
     try { push(localStorage.getItem('sigma-active-classroom-section')); } catch (e) {}
     if (typeof window.getLoggedInStudentUser === 'function') {
         const student = window.getLoggedInStudentUser();
-        push(student && (student.section || student.gradeSection));
+        push(student && (student.section || student.gradeSection || student.grade_section || student.sectionName));
     }
+    try {
+        const rawU = sessionStorage.getItem('sigma-authenticated-user') || localStorage.getItem('sigma-logged-in-user');
+        if (rawU) {
+            const u = JSON.parse(rawU);
+            push(u.section || u.gradeSection || u.grade_section || u.sectionName);
+        }
+    } catch (_) {}
     let chosen = candidates[0] || '';
     const onStudent = typeof location !== 'undefined' && /student\.html/i.test(String(location.pathname || ''));
     if (onStudent && !String(explicit || '').trim() && typeof window.studentBelongsToSection === 'function') {
@@ -6622,6 +6631,20 @@ window.resolveStudentReleaseSection = function (explicit) {
                 ? window.findStudentSubjectSections(subjectId)
                 : [];
             if (enrolled.length === 1) chosen = enrolled[0];
+        }
+    }
+    if (!chosen && onStudent) {
+        let sub = '';
+        try {
+            sub = (window.currentTopicState && window.currentTopicState.subjectId) || '';
+            if (!sub && location.hash) {
+                const parts = String(location.hash || '').replace(/^#/, '').split(':');
+                if (parts[0] === 'topic-content' || parts[0] === 'topic') sub = decodeURIComponent(parts[1] || '');
+            }
+        } catch (_) {}
+        const cleanS = String(sub).replace(/^(card-|subj-|gen-)/i, '').trim().toLowerCase();
+        if (!cleanS || cleanS === 'oralcomm' || cleanS === 'core-111-oc' || cleanS.includes('oral') || cleanS === 'comm') {
+            chosen = 'Einstein';
         }
     }
     return chosen && typeof window.canonicalizeSectionLookup === 'function'
@@ -6932,7 +6955,7 @@ window.getDefaultCurriculumReleaseConfig = function (prefix, subjectId, section)
     const cleanSubj = String(subjectId).replace(/^(card-|subj-|gen-)/i, '').trim().toLowerCase();
     const cleanSec = String(section || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim().toLowerCase();
     const isOralComm = cleanSubj === 'oralcomm' || cleanSubj === 'core-111-oc' || cleanSubj === 'comm' || cleanSubj.includes('oral');
-    const isEinstein = cleanSec === 'einstein' || cleanSec.includes('einstein');
+    const isEinstein = !cleanSec || cleanSec === 'all' || cleanSec === 'einstein' || cleanSec.includes('einstein');
     if (!isOralComm || !isEinstein) return null;
 
     if (prefix === 'sigma_topic_release') {
@@ -8212,9 +8235,9 @@ window.renderSharedTopicCard = function (topic, index, subjectId, statusIconClas
     const overview = topic.overview || topic.description || topic.summary || 'Explore the fundamental principles, key concepts, and practical applications in this comprehensive module.';
 
     return `
-        <div class="topic-card student-topic-card teacher-topic-card ${isLockedByTeacher ? 'opacity-80' : ''}">
+        <div class="topic-card student-topic-card teacher-topic-card cursor-pointer group ${isLockedByTeacher ? 'opacity-80' : ''}" role="link" tabindex="0" onclick="${escapeHtml(clickHandler)}" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }">
             <div class="topic-card__image-container">
-                <img src="${imgSrc}" alt="" class="topic-card__image" onerror="this.onerror=null; this.src='image/Topic.jpg';">
+                <img src="${imgSrc}" alt="" class="topic-card__image group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='image/Topic.jpg';">
             </div>
             <div class="topic-card__body">
                 <div class="topic-card__meta flex items-center justify-between">
@@ -8224,7 +8247,7 @@ window.renderSharedTopicCard = function (topic, index, subjectId, statusIconClas
                     </div>
                     <i class="${statusIcon} text-xl ml-auto"></i>
                 </div>
-                <h3 role="link" tabindex="0" onclick="${escapeHtml(clickHandler)}" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }" class="cursor-pointer inline-block hover:text-[#FFD000] active:text-[#e6bc00] transition-colors w-fit max-w-full">${escapeHtml(topic.title)}</h3>
+                <h3 class="cursor-pointer inline-block group-hover:text-[#FFD000] active:text-[#e6bc00] transition-colors w-fit max-w-full">${escapeHtml(topic.title)}</h3>
                 <p class="text-black-fade">${escapeHtml(overview)}</p>
             </div>
         </div>

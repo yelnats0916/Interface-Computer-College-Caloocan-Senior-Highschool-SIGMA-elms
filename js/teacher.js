@@ -1452,7 +1452,57 @@ function initTeacherPortal() {
         for (const cid of candidateIds) {
             if (dynamicCurriculumSubjects[cid]) return dynamicCurriculumSubjects[cid];
         }
-        return null;
+
+        // Fallback 3: Check adminSubjects from database / storage
+        try {
+            const adminSubjects = (typeof getStoredJson === 'function')
+                ? getStoredJson('sigma-admin-subjects', [])
+                : loadSharedState(ADMIN_SUBJECTS_STORAGE_KEY, []);
+            let match = (typeof window.findMatchingSubject === 'function')
+                ? (window.findMatchingSubject(adminSubjects, resolvedSubjectId) || window.findMatchingSubject(adminSubjects, subjectId))
+                : null;
+            if (!match && Array.isArray(adminSubjects)) {
+                const cleanId = String(subjectId).replace(/^(card-|subj-|gen-)/i, '').trim().toLowerCase();
+                match = adminSubjects.find(s => {
+                    if (!s) return false;
+                    const sId = String(s.id || '').trim().toLowerCase();
+                    const sCode = String(s.code || '').trim().toLowerCase();
+                    const sName = String(s.name || s.title || '').trim().toLowerCase();
+                    return sId === cleanId || sCode === cleanId || sName.includes(cleanId) || cleanId.includes(sName);
+                });
+            }
+            if (match) {
+                return {
+                    id: match.id || subjectId,
+                    code: match.code || '',
+                    name: match.name || match.title || match.text || 'Subject',
+                    title: match.title || match.name || match.text || 'Subject',
+                    icon: match.icon || 'fa-solid fa-book-open',
+                    bg: match.bg || match.cover || 'image/book1.jpg',
+                    ...match
+                };
+            }
+        } catch (_) {}
+
+        // Fallback 4: Active classroom or topic state context
+        const fallbackName = window.currentClassroomSubject || (typeof currentClassroomMeta !== 'undefined' && currentClassroomMeta ? (currentClassroomMeta.subject || currentClassroomMeta.name) : '') || '';
+        if (fallbackName) {
+            return {
+                id: subjectId,
+                name: fallbackName,
+                title: fallbackName,
+                icon: 'fa-solid fa-book-open',
+                bg: 'image/book1.jpg'
+            };
+        }
+
+        return {
+            id: subjectId,
+            name: String(subjectId).replace(/^(card-|subj-|gen-)/i, '').replace(/[-_]+/g, ' '),
+            title: String(subjectId).replace(/^(card-|subj-|gen-)/i, '').replace(/[-_]+/g, ' '),
+            icon: 'fa-solid fa-book-open',
+            bg: 'image/book1.jpg'
+        };
     }
     window.getTopicData = getTopicData;
     window.getTopicSubject = getTopicSubject;
@@ -4834,9 +4884,21 @@ function initTeacherPortal() {
         if (stateOverrides?.viewSubmission || stateOverrides?._studentViewSubmissionMode || stateOverrides?._sharedViewSubmissionMode) {
             window._skipNextGradebookReset = false;
         }
-        const data = getTopicData(subjectId);
-        const subject = getTopicSubject(subjectId);
-        if (!data || !subject) return;
+        let data = getTopicData(subjectId);
+        let subject = getTopicSubject(subjectId);
+        if (!subject) {
+            subject = { id: subjectId, name: String(subjectId).replace(/^card-/, '').replace(/[-_]+/g, ' '), title: String(subjectId).replace(/^card-/, '').replace(/[-_]+/g, ' '), icon: 'fa-solid fa-book-open', bg: 'image/book1.jpg' };
+        }
+        if (!data) {
+            data = {
+                text: subject?.name || subject?.title || 'Subject Content',
+                subtitle: 'Core • Subject',
+                instructor: 'Faculty',
+                icon: subject?.icon || 'fa-solid fa-book-open',
+                bg: subject?.bg || 'image/book1.jpg',
+                q1Topics: []
+            };
+        }
 
         const isSubMode = (stateOverrides && Object.prototype.hasOwnProperty.call(stateOverrides, 'viewSubmission'))
             ? Boolean(stateOverrides.viewSubmission)

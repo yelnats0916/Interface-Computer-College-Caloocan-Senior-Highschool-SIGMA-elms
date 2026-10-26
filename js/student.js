@@ -3641,6 +3641,7 @@ if (overlay) overlay.classList.add('hidden');
             const subject = getTopicSubject(subjectId);
             const targetName = normalizeSubjectKey(subject?.title || subject?.name || subject?.text || data?.text || subjectId);
             const targetCode = normalizeSubjectKey(subjectId.replace(/^card-|^subj-|^gen-/, ''));
+            const cleanCode = targetCode;
             let adminSubj = (typeof window.findMatchingSubject === 'function')
                 ? window.findMatchingSubject(adminSubjects, subjectId)
                 : null;
@@ -3665,6 +3666,8 @@ if (overlay) overlay.classList.add('hidden');
                         q1Topics: []
                     };
                 }
+                if (!data.text && adminSubj.name) data.text = adminSubj.name;
+                if (!data.title && (adminSubj.title || adminSubj.name)) data.title = adminSubj.title || adminSubj.name;
                 const isMockTitle = () => false;
 
                 const releaseSection = (typeof window.resolveStudentReleaseSection === 'function')
@@ -3838,7 +3841,46 @@ if (overlay) overlay.classList.add('hidden');
             const dynamicName = dynamicSubs[subjectId].text || dynamicSubs[subjectId].title || dynamicSubs[subjectId].name;
             return { id: subjectId, name: dynamicName, title: dynamicName, ...dynamicSubs[subjectId] };
         }
-        return null;
+
+        // Check adminSubjects from database / storage
+        try {
+            const adminSubjects = (typeof getStoredJson === 'function')
+                ? getStoredJson('sigma-admin-subjects', [])
+                : loadSharedState(ADMIN_SUBJECTS_STORAGE_KEY, []);
+            let match = (typeof window.findMatchingSubject === 'function')
+                ? window.findMatchingSubject(adminSubjects, subjectId)
+                : null;
+            if (!match && Array.isArray(adminSubjects)) {
+                const cleanId = String(subjectId).replace(/^(card-|subj-|gen-)/i, '').trim().toLowerCase();
+                match = adminSubjects.find(s => {
+                    if (!s) return false;
+                    const sId = String(s.id || '').trim().toLowerCase();
+                    const sCode = String(s.code || '').trim().toLowerCase();
+                    const sName = String(s.name || s.title || '').trim().toLowerCase();
+                    return sId === cleanId || sCode === cleanId || sName.includes(cleanId) || cleanId.includes(sName);
+                });
+            }
+            if (match) {
+                return {
+                    id: match.id || subjectId,
+                    code: match.code || '',
+                    name: match.name || match.title || match.text || 'Subject',
+                    title: match.title || match.name || match.text || 'Subject',
+                    icon: match.icon || 'fa-solid fa-book-open',
+                    bg: match.bg || match.cover || 'image/book1.jpg',
+                    ...match
+                };
+            }
+        } catch (_) {}
+
+        // Failsafe subject descriptor so navigation never aborts silently
+        return {
+            id: subjectId,
+            name: String(subjectId).replace(/^(card-|subj-|gen-)/i, '').replace(/[-_]+/g, ' '),
+            title: String(subjectId).replace(/^(card-|subj-|gen-)/i, '').replace(/[-_]+/g, ' '),
+            icon: 'fa-solid fa-book-open',
+            bg: 'image/book1.jpg'
+        };
     }
     window.getTopicSubject = getTopicSubject;
     function ensureSubjectDataForTitle(title, clusterTitle) {
@@ -4915,9 +4957,21 @@ if (overlay) overlay.classList.add('hidden');
         } else if (typeof window.restoreStudentTopicSection === 'function') {
             window.restoreStudentTopicSection(subjectId);
         }
-        const data = getTopicData(subjectId);
-        const subject = getTopicSubject(subjectId);
-        if (!data || !subject) return;
+        let data = getTopicData(subjectId);
+        let subject = getTopicSubject(subjectId);
+        if (!subject) {
+            subject = { id: subjectId, name: String(subjectId).replace(/^card-/, '').replace(/[-_]+/g, ' '), title: String(subjectId).replace(/^card-/, '').replace(/[-_]+/g, ' '), icon: 'fa-solid fa-book-open', bg: 'image/book1.jpg' };
+        }
+        if (!data) {
+            data = {
+                text: subject?.name || subject?.title || 'Subject Content',
+                subtitle: 'Core • Subject',
+                instructor: 'Faculty Member',
+                icon: subject?.icon || 'fa-solid fa-book-open',
+                bg: subject?.bg || 'image/book1.jpg',
+                q1Topics: []
+            };
+        }
 
         const qKey = window.currentSelectedTopicQuarter || 'q1';
         const rawIdx = parseInt(topicIdx, 10);
