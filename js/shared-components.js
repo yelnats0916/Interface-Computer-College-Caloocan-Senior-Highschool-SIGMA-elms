@@ -11980,6 +11980,92 @@ window.getSigmaMaterialTypeConfig = function (rawType = '') {
 };
 
 /**
+ * Normalizes all subject assessments across the website so that:
+ * - Non-quiz assessment items (Activity, Assignment, Performance Task, pt, etc.) are strictly 'Task'
+ * - Quizzes remain 'Quiz'
+ * - Learning materials remain 'Lesson' or 'Video'
+ */
+window.normalizeSubjectAssessmentsToTaskAndQuiz = function (subjects) {
+    if (!Array.isArray(subjects)) return false;
+    let modified = false;
+    const taskKeywords = ['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance', 'performance tasks', 'pt'];
+    const normalizeMat = m => {
+        if (!m || typeof m !== 'object') return;
+        const curType = String(m.type || m.category || '').toLowerCase().trim();
+        if (taskKeywords.includes(curType) || curType.includes('task') || curType.includes('assign') || curType.includes('activ') || curType.includes('perf')) {
+            if (m.type !== 'Task') {
+                m.type = 'Task';
+                modified = true;
+            }
+        } else if (curType.includes('quiz')) {
+            if (m.type !== 'Quiz') {
+                m.type = 'Quiz';
+                modified = true;
+            }
+        }
+    };
+    subjects.forEach(subj => {
+        if (!subj) return;
+        if (Array.isArray(subj.materials)) {
+            subj.materials.forEach(normalizeMat);
+        }
+        if (Array.isArray(subj.topics)) {
+            subj.topics.forEach(top => {
+                if (!top) return;
+                ['activity', 'activities', 'assignments', 'tasks', 'performance', 'performanceTasks', 'allMaterials', 'materials'].forEach(arrKey => {
+                    if (Array.isArray(top[arrKey])) {
+                        top[arrKey].forEach(normalizeMat);
+                    }
+                });
+            });
+        }
+    });
+    return modified;
+};
+
+// Immediate self-healing migration for localStorage subject records
+try {
+    if (typeof localStorage !== 'undefined') {
+        const storeKeys = ['sigma-admin-subjects', 'sigma_subjects_v2', 'sigma-teacher-subjects', 'sigma_classroom_materials'];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('sigma_custom_materials_')) {
+                storeKeys.push(k);
+            }
+        }
+        storeKeys.forEach(k => {
+            const raw = localStorage.getItem(k);
+            if (!raw) return;
+            try {
+                const data = JSON.parse(raw);
+                if (Array.isArray(data) && data.length > 0) {
+                    let changed = false;
+                    if (k === 'sigma_classroom_materials' || k.startsWith('sigma_custom_materials_')) {
+                        data.forEach(m => {
+                            if (!m || typeof m !== 'object') return;
+                            const curType = String(m.type || m.category || '').toLowerCase().trim();
+                            if (['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance', 'performance tasks', 'pt'].includes(curType) || curType.includes('task') || curType.includes('assign') || curType.includes('activ') || curType.includes('perf')) {
+                                if (m.type !== 'Task') { m.type = 'Task'; changed = true; }
+                            } else if (curType.includes('quiz')) {
+                                if (m.type !== 'Quiz') { m.type = 'Quiz'; changed = true; }
+                            }
+                        });
+                    } else if (typeof window.normalizeSubjectAssessmentsToTaskAndQuiz === 'function') {
+                        changed = window.normalizeSubjectAssessmentsToTaskAndQuiz(data);
+                    }
+                    if (changed) {
+                        localStorage.setItem(k, JSON.stringify(data));
+                        if (window._sigmaSubjectsListCache && window._sigmaSubjectsListCache.key === k) {
+                            window._sigmaSubjectsListCache = null;
+                        }
+                    }
+                }
+            } catch (_) {}
+        });
+    }
+} catch (_) {}
+
+/**
  * Shared Lessons/Handouts Tab Renderer
  * Provides unified lesson card markup matching Add Materials styling across Student, Teacher, and Admin views.
  */
@@ -26443,8 +26529,8 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
     }
     const cleanTargetSection = String(targetSection || '').trim().toLowerCase();
 
-    const labels = { assignments: 'Assignment', quiz: 'Quiz', activity: 'Activity', performance: 'Performance Task' };
-    const label = labels[tab] || 'Assessment';
+    const labels = { assignments: 'Task', tasks: 'Task', task: 'Task', quiz: 'Quiz', activity: 'Task', performance: 'Task' };
+    const label = labels[tab] || 'Task';
 
     if (Array.isArray(assessments)) {
         assessments = window.deduplicateMaterialsArray(assessments, { collapseRoles: true });

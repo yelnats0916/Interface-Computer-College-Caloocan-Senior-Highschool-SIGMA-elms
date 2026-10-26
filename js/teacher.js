@@ -98,6 +98,11 @@ function initTeacherPortal() {
                     }
                 });
 
+                if (typeof window.normalizeSubjectAssessmentsToTaskAndQuiz === 'function') {
+                    if (window.normalizeSubjectAssessmentsToTaskAndQuiz(adminSubjects)) {
+                        changed = true;
+                    }
+                }
                 if (changed) {
                     if (typeof saveStoredJson === 'function') {
                         saveStoredJson('sigma-admin-subjects', adminSubjects);
@@ -16453,10 +16458,10 @@ function initTeacherPortal() {
     }
 
     function _buildAssessmentTab(tab, subject, topic, data, subjectId, topicIdx) {
-        const labels = { assignments: 'Assignment', quiz: 'Quiz', activity: 'Activity', performance: 'Performance Task', assessments: 'Assessment' };
-        const label = labels[tab] || 'Assessment';
-        const icons = { assignments: 'fa-file-pen', quiz: 'fa-square-poll-vertical', activity: 'fa-flask', performance: 'fa-star', assessments: 'fa-clipboard-check' };
-        const colors = { assignments: 'bg-blue-50 text-blue-600', quiz: 'bg-purple-50 text-purple-600', activity: 'bg-amber-50 text-amber-600', performance: 'bg-yellow-50 text-yellow-600', assessments: 'bg-emerald-50 text-emerald-600' };
+        const labels = { assignments: 'Task', quiz: 'Quiz', activity: 'Task', performance: 'Task', assessments: 'Task', tasks: 'Task', task: 'Task' };
+        const label = labels[tab] || 'Task';
+        const icons = { assignments: 'fa-clipboard-list', quiz: 'fa-stopwatch', activity: 'fa-clipboard-list', performance: 'fa-clipboard-list', assessments: 'fa-clipboard-list', tasks: 'fa-clipboard-list', task: 'fa-clipboard-list' };
+        const colors = { assignments: 'bg-amber-50 text-amber-600', quiz: 'bg-emerald-50 text-emerald-600', activity: 'bg-amber-50 text-amber-600', performance: 'bg-amber-50 text-amber-600', assessments: 'bg-amber-50 text-amber-600', tasks: 'bg-amber-50 text-amber-600', task: 'bg-amber-50 text-amber-600' };
 
         const startIdx = topicIdx * 2;
 
@@ -16949,9 +16954,11 @@ function initTeacherPortal() {
                 assignments: 'fa-clipboard-list',
                 quiz: 'fa-stopwatch',
                 quizzes: 'fa-stopwatch',
-                activity: 'fa-flask',
-                activities: 'fa-flask',
-                performance: 'fa-star',
+                activity: 'fa-clipboard-list',
+                activities: 'fa-clipboard-list',
+                performance: 'fa-clipboard-list',
+                'performance task': 'fa-clipboard-list',
+                pt: 'fa-clipboard-list',
                 lesson: 'fa-book-open',
                 lessons: 'fa-book-open',
                 handout: 'fa-file-lines',
@@ -16966,9 +16973,11 @@ function initTeacherPortal() {
                 assignments: 'bg-amber-50 text-amber-700 border border-amber-200',
                 quiz: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
                 quizzes: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-                activity: 'bg-blue-50 text-blue-700 border border-blue-200',
-                activities: 'bg-blue-50 text-blue-700 border border-blue-200',
-                performance: 'bg-purple-50 text-purple-700 border border-purple-200',
+                activity: 'bg-amber-50 text-amber-700 border border-amber-200',
+                activities: 'bg-amber-50 text-amber-700 border border-amber-200',
+                performance: 'bg-amber-50 text-amber-700 border border-amber-200',
+                'performance task': 'bg-amber-50 text-amber-700 border border-amber-200',
+                pt: 'bg-amber-50 text-amber-700 border border-amber-200',
                 lesson: 'bg-sky-50 text-sky-700 border border-sky-200',
                 lessons: 'bg-sky-50 text-sky-700 border border-sky-200',
                 handout: 'bg-sky-50 text-sky-700 border border-sky-200',
@@ -16980,28 +16989,32 @@ function initTeacherPortal() {
             const getTypeLabel = (m) => {
                 const raw = String(m.type || m.category || '').trim();
                 if (!raw) return 'Material';
+                const norm = raw.toLowerCase();
+                if (norm.includes('quiz')) return 'Quiz';
+                if (['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance', 'performance task', 'performance tasks', 'pt'].includes(norm) || norm.includes('task') || norm.includes('assign') || norm.includes('activ') || norm.includes('perf')) return 'Task';
+                if (norm.includes('video')) return 'Video';
+                if (norm.includes('handout')) return 'Handout';
+                if (norm.includes('lesson')) return 'Lesson';
                 const cap = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
-                if (cap === 'Task') return 'Task';
-                if (cap === 'Assignment' || cap === 'Assignments') return 'Task';
-                if (cap === 'Quiz' || cap === 'Quizzes') return 'Quiz';
-                if (cap === 'Activity' || cap === 'Activities') return 'Activity';
-                if (cap === 'Performance' || raw.toLowerCase().includes('performance')) return 'Performance Task';
-                if (cap === 'Lesson' || cap === 'Lessons') return 'Lesson';
-                if (cap === 'Handout' || cap === 'Handouts') return 'Handout';
-                if (cap === 'Video' || cap === 'Videos') return 'Video';
                 return cap;
             };
 
-            const getTypeKey = (m) => String(m.type || m.category || '').toLowerCase().split(' ')[0];
+            const getTypeKey = (m) => {
+                const label = getTypeLabel(m);
+                return label.toLowerCase();
+            };
 
             const getFileIcon = (m) => {
+                const typeLabel = getTypeLabel(m);
+                if (typeLabel === 'Quiz') return 'fa-stopwatch';
+                if (typeLabel === 'Task') return 'fa-clipboard-list';
                 const fn = String(m.fileName || m.file || '').toLowerCase();
                 const ft = String(m.fileType || '').toLowerCase();
+                if (typeLabel === 'Video' || fn.endsWith('.mp4') || fn.endsWith('.mov') || fn.includes('video')) return 'fa-circle-play';
                 if (ft === 'pdf' || fn.endsWith('.pdf')) return 'fa-file-pdf';
                 if (ft === 'docx' || fn.endsWith('.docx') || fn.endsWith('.doc')) return 'fa-file-word';
                 if (ft === 'pptx' || fn.endsWith('.pptx') || fn.endsWith('.ppt')) return 'fa-file-powerpoint';
                 if (ft === 'xlsx' || fn.endsWith('.xlsx') || fn.endsWith('.xls')) return 'fa-file-excel';
-                if (fn.endsWith('.mp4') || fn.endsWith('.mov') || fn.includes('video')) return 'fa-circle-play';
                 const typeKey = getTypeKey(m);
                 return typeIconMap[typeKey] || 'fa-file-lines';
             };

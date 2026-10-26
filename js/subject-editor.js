@@ -1999,7 +1999,12 @@
                         if (em && typeof em === 'object' && !isFakeSampleMaterial(em)) {
                             const emId = em.id || (em.title ? `mat-${tId}-${String(em.title).replace(/[^a-z0-9]/gi, '_').toLowerCase()}` : `mat-${tId}`);
                             if (!existingIds.has(emId)) {
-                                existingMats.push({ ...em, id: emId, topicId: em.topicId || tId });
+                                let emType = em.type || em.category || 'Lesson';
+                                const isTaskEm = ['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance', 'performance tasks', 'pt'].includes(String(emType).toLowerCase().trim()) || String(emType).toLowerCase().includes('task') || String(emType).toLowerCase().includes('assign') || String(emType).toLowerCase().includes('activ') || String(emType).toLowerCase().includes('perf');
+                                if (isTaskEm) emType = 'Task';
+                                else if (String(emType).toLowerCase().includes('quiz')) emType = 'Quiz';
+                                else if (String(emType).toLowerCase().includes('video')) emType = 'Video';
+                                existingMats.push({ ...em, id: emId, topicId: em.topicId || tId, type: emType });
                                 existingIds.add(emId);
                             }
                         }
@@ -2007,7 +2012,14 @@
                 });
                 subjectData.materials = existingMats;
             } else {
-                subjectData.materials = subjectData.materials.filter(m => !isFakeSampleMaterial(m));
+                subjectData.materials = subjectData.materials.filter(m => !isFakeSampleMaterial(m)).map(m => {
+                    let mType = m.type || m.category || 'Lesson';
+                    const isTask = ['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance', 'performance tasks', 'pt'].includes(String(mType).toLowerCase().trim()) || String(mType).toLowerCase().includes('task') || String(mType).toLowerCase().includes('assign') || String(mType).toLowerCase().includes('activ') || String(mType).toLowerCase().includes('perf');
+                    if (isTask) mType = 'Task';
+                    else if (String(mType).toLowerCase().includes('quiz')) mType = 'Quiz';
+                    else if (String(mType).toLowerCase().includes('video')) mType = 'Video';
+                    return { ...m, type: mType };
+                });
             }
         }
 
@@ -2241,9 +2253,7 @@
                         let mType = 'Lesson';
                         if (['mp4', 'mkv', 'webm', 'mov'].includes(fileExt)) mType = 'Video';
                         else if (m.toLowerCase().includes('quiz')) mType = 'Quiz';
-                        else if (m.toLowerCase().includes('assignment')) mType = 'Assignment';
-                        else if (m.toLowerCase().includes('activity')) mType = 'Activity';
-                        else if (m.toLowerCase().includes('task') || m.toLowerCase().includes('pt')) mType = 'Performance Task';
+                        else if (m.toLowerCase().includes('assignment') || m.toLowerCase().includes('activity') || m.toLowerCase().includes('task') || m.toLowerCase().includes('pt')) mType = 'Task';
 
                         return {
                             id: `mat-${mIdx + 1}-${Date.now()}`,
@@ -2267,11 +2277,16 @@
                                          mAuthorName.includes('maria') || mAuthorName.includes('ramos') || mAuthorName.includes('teacher') ||
                                          (parentTopic && normalizeSubjectAuthorRole(parentTopic.authorRole) === 'Teacher');
                     const mRawRole = isTeacherMat ? 'Teacher' : (m.isAdmin ? 'Admin' : (m.authorRole || m.role || 'Admin'));
+                    let normMType = m.type || m.category || 'Lesson';
+                    const isTaskM = ['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance', 'performance tasks', 'pt'].includes(String(normMType).toLowerCase().trim()) || String(normMType).toLowerCase().includes('task') || String(normMType).toLowerCase().includes('assign') || String(normMType).toLowerCase().includes('activ') || String(normMType).toLowerCase().includes('perf');
+                    if (isTaskM) normMType = 'Task';
+                    else if (String(normMType).toLowerCase().includes('quiz')) normMType = 'Quiz';
+                    else if (String(normMType).toLowerCase().includes('video')) normMType = 'Video';
                     return {
                         ...m,
                         id: m.id || `mat-${mIdx + 1}-${Date.now()}`,
                         title: m.title || m.name || m.fileName || 'Untitled Material',
-                        type: m.type || 'Lesson',
+                        type: normMType,
                         fileType: m.fileType || (m.fileName ? m.fileName.split('.').pop().toLowerCase() : 'docx'),
                         topicId: assignedTopicId,
                         quarter: mQuarter,
@@ -6545,16 +6560,47 @@ window.addSubjectTopic = function () {
                                                 : 0));
                                     const rawExt = (m.fileType || (m.fileName ? m.fileName.split('.').pop() : (m.url ? m.url.split('.').pop() : '')) || '').toLowerCase();
                                     
+                                    const rawMatType = m.type || m.category || 'Lesson';
+                                    const isTaskMat = ['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance', 'performance tasks', 'pt'].includes(String(rawMatType).toLowerCase().trim()) || String(rawMatType).toLowerCase().includes('task') || String(rawMatType).toLowerCase().includes('assign') || String(rawMatType).toLowerCase().includes('activ') || String(rawMatType).toLowerCase().includes('perf');
+                                    const normalizedMatType = isTaskMat ? 'Task' : (String(rawMatType).toLowerCase().includes('quiz') ? 'Quiz' : (String(rawMatType).toLowerCase().includes('video') ? 'Video' : 'Lesson'));
+
                                     const typeCfg = (typeof window.getSigmaMaterialTypeConfig === 'function')
-                                        ? window.getSigmaMaterialTypeConfig(m.type)
-                                        : {
+                                        ? window.getSigmaMaterialTypeConfig(normalizedMatType)
+                                        : (isTaskMat ? {
+                                            type: 'Task',
+                                            label: 'Task',
+                                            typeIcon: 'fa-clipboard-list',
+                                            iconColorClass: 'text-amber-600',
+                                            iconBoxClass: 'bg-amber-50 border border-amber-100',
+                                            badgeClass: 'bg-amber-50 text-amber-700 border-amber-200/70',
+                                            badgeTextClass: 'text-[8.5px] sm:text-[9.5px] px-1.5 py-0.5 tracking-tight leading-tight whitespace-nowrap'
+                                        } : (normalizedMatType === 'Quiz' ? {
+                                            type: 'Quiz',
+                                            label: 'Quiz',
+                                            typeIcon: 'fa-stopwatch',
+                                            iconColorClass: 'text-emerald-600',
+                                            iconBoxClass: 'bg-emerald-50 border border-emerald-100',
+                                            badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/70',
+                                            badgeTextClass: 'text-[9px] sm:text-[10px] px-2 py-0.5 whitespace-nowrap'
+                                        } : (normalizedMatType === 'Video' ? {
+                                            type: 'Video',
+                                            label: 'Video',
+                                            typeIcon: 'fa-circle-play',
+                                            iconColorClass: 'text-red-600',
+                                            iconBoxClass: 'bg-red-50 border border-red-100',
+                                            badgeClass: 'bg-red-50 text-red-600 border-red-200/70',
+                                            badgeTextClass: 'text-[9px] sm:text-[10px] px-2 py-0.5 whitespace-nowrap'
+                                        } : {
+                                            type: 'Lesson',
+                                            label: 'Lesson',
                                             typeIcon: 'fa-file-lines',
                                             iconColorClass: 'text-blue-600',
                                             iconBoxClass: 'bg-blue-50 border border-blue-100',
                                             badgeClass: 'bg-blue-50 text-blue-600 border-blue-200/70',
                                             badgeTextClass: 'text-[10px] px-2.5 py-0.5 whitespace-nowrap'
-                                        };
+                                        })));
 
+                                    const displayType = typeCfg.label || typeCfg.type || normalizedMatType;
                                     const typeIcon = typeCfg.typeIcon;
                                     const iconColorClass = typeCfg.iconColorClass;
                                     const iconBoxClass = typeCfg.iconBoxClass;
@@ -6655,7 +6701,7 @@ window.addSubjectTopic = function () {
                                                     <div class="mat-icon-box w-12 h-12 rounded-2xl ${iconBoxClass} flex items-center justify-center shrink-0 shadow-2xs">
                                                         <i class="fa-solid ${typeIcon} text-xl ${iconColorClass}"></i>
                                                     </div>
-                                                    <span class="mat-type-badge ${badgeTextClass} ${badgeClass} border font-medium rounded-md leading-tight inline-flex items-center justify-center text-center capitalize">${_escape(m.type)}</span>
+                                                    <span class="mat-type-badge ${badgeTextClass} ${badgeClass} border font-medium rounded-md leading-tight inline-flex items-center justify-center text-center capitalize">${_escape(displayType)}</span>
                                                 </div>
                                                 <div class="min-w-0 flex-1 flex flex-col justify-center">
                                                     <h4 onclick="window.viewSubjectMaterial('${matIdentifier}')"
@@ -7096,22 +7142,24 @@ window.addSubjectTopic = function () {
         let typeIcon = typeCfg?.typeIcon || 'fa-file-lines';
         let typeLabel = m.type || typeCfg?.type || 'Lesson';
 
-        if (m.type === 'Video') {
+        const rawTypeStr = String(m.type || m.category || '').toLowerCase().trim();
+        const isTaskDetail = ['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance', 'performance tasks', 'pt'].includes(rawTypeStr) || rawTypeStr.includes('task') || rawTypeStr.includes('assign') || rawTypeStr.includes('activ') || rawTypeStr.includes('perf');
+        if (rawTypeStr.includes('video')) {
             badgeClass = 'bg-red-50 text-red-600 border-red-200/70';
             typeIcon = 'fa-circle-play';
             typeLabel = 'Video Lesson';
-        } else if (m.type === 'Lesson') {
-            badgeClass = 'bg-blue-50 text-blue-600 border-blue-200/70';
-            typeIcon = 'fa-file-lines';
-            typeLabel = 'Lesson';
-        } else if (m.type === 'Quiz') {
+        } else if (rawTypeStr.includes('quiz')) {
             badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200/70';
             typeIcon = 'fa-stopwatch';
             typeLabel = 'Quiz';
-        } else if (m.type === 'Task' || m.type === 'Assignment' || m.type === 'Activity' || m.type === 'Performance Task') {
+        } else if (isTaskDetail) {
             badgeClass = 'bg-amber-50 text-amber-700 border-amber-200/70';
             typeIcon = 'fa-clipboard-list';
             typeLabel = 'Task';
+        } else {
+            badgeClass = 'bg-blue-50 text-blue-600 border-blue-200/70';
+            typeIcon = 'fa-file-lines';
+            typeLabel = 'Lesson';
         }
 
         const instructions = (m.description || m.instructions || m.summary || '').trim();
@@ -7930,7 +7978,11 @@ window.addSubjectTopic = function () {
                     return;
                 }
             }
-            const activeType = m.type || type || 'Lesson';
+            let activeType = m.type || type || 'Lesson';
+            const isTaskActive = ['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance', 'performance tasks', 'pt'].includes(String(activeType).toLowerCase().trim()) || String(activeType).toLowerCase().includes('task') || String(activeType).toLowerCase().includes('assign') || String(activeType).toLowerCase().includes('activ') || String(activeType).toLowerCase().includes('perf');
+            if (isTaskActive) activeType = 'Task';
+            else if (String(activeType).toLowerCase().includes('quiz')) activeType = 'Quiz';
+            else if (String(activeType).toLowerCase().includes('video')) activeType = 'Video';
             const isQuizType = activeType === 'Quiz' || String(activeType).toLowerCase().includes('quiz');
             const isTeacherEditor = typeof isCurrentEditorTeacher === 'function' ? isCurrentEditorTeacher() : false;
             const isViewScope = Boolean(window.activeCurriculumScope && window.activeCurriculumScope !== 'master');
@@ -7971,7 +8023,11 @@ window.addSubjectTopic = function () {
                 perfRubricFileName: isQuizType ? '' : (m.perfRubricFileName || '')
             };
         } else {
-            const activeType = type || 'Lesson';
+            let activeType = type || 'Lesson';
+            const isTaskActive = ['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance', 'performance tasks', 'pt'].includes(String(activeType).toLowerCase().trim()) || String(activeType).toLowerCase().includes('task') || String(activeType).toLowerCase().includes('assign') || String(activeType).toLowerCase().includes('activ') || String(activeType).toLowerCase().includes('perf');
+            if (isTaskActive) activeType = 'Task';
+            else if (String(activeType).toLowerCase().includes('quiz')) activeType = 'Quiz';
+            else if (String(activeType).toLowerCase().includes('video')) activeType = 'Video';
             const isQuizType = activeType === 'Quiz' || String(activeType).toLowerCase().includes('quiz');
             const prevTopicId = preserveFields ? (window.editingMaterialState?.topicId || '') : '';
 
@@ -10124,7 +10180,12 @@ window.addSubjectTopic = function () {
         const title = (titleInput?.value || window.editingMaterialState.title || '').trim();
         const desc = (descInput?.value || window.editingMaterialState.description || '').trim();
         const topicId = (topicSelect?.value || window.editingMaterialState.topicId || '').trim();
-        const type = window.editingMaterialState.type || 'Lesson';
+        const rawMatSaveType = window.editingMaterialState.type || 'Lesson';
+        let type = rawMatSaveType;
+        const isTaskSaveType = ['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance', 'performance tasks', 'pt'].includes(String(rawMatSaveType).toLowerCase().trim()) || String(rawMatSaveType).toLowerCase().includes('task') || String(rawMatSaveType).toLowerCase().includes('assign') || String(rawMatSaveType).toLowerCase().includes('activ') || String(rawMatSaveType).toLowerCase().includes('perf');
+        if (isTaskSaveType) type = 'Task';
+        else if (String(rawMatSaveType).toLowerCase().includes('quiz')) type = 'Quiz';
+        else if (String(rawMatSaveType).toLowerCase().includes('video')) type = 'Video';
 
         if (!topicId) {
             window.SigmaFeedback.notice('Please select a topic.');
@@ -10819,6 +10880,15 @@ window.addSubjectTopic = function () {
                 matchingMats = window.deduplicateMaterialsArray(matchingMats, { collapseRoles: false });
             }
 
+            matchingMats.forEach(m => {
+                if (!m || typeof m !== 'object') return;
+                const curType = String(m.type || m.category || '').toLowerCase().trim();
+                if (['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance', 'performance tasks', 'pt'].includes(curType) || curType.includes('task') || curType.includes('assign') || curType.includes('activ') || curType.includes('perf')) {
+                    m.type = 'Task';
+                } else if (curType.includes('quiz')) {
+                    m.type = 'Quiz';
+                }
+            });
             const activities = matchingMats.filter(m => {
                 const type = String(m.type || m.category || '').toLowerCase();
                 return type === 'activity' || type === 'activities';
