@@ -101,7 +101,7 @@ function attendanceSubmit(PDO $db,array $actor,array $input,bool $draft=false): 
 }
 
 function attendanceSnapshot(PDO $db,array $actor): array {
-    $student=academicRole($actor)==='student';$scopes=[];
+    $student=academicRole($actor)==='student';$scopes=[];$allowedScopes=[];
     if(!$student&&!academicAdmin($actor)&&!sigmaActorPermission($actor,'teacherAttendance'))throw new RuntimeException('Attendance access is disabled.');
     $years=$db->query('SELECT * FROM school_years WHERE is_deleted=0 ORDER BY year_start DESC')->fetchAll(PDO::FETCH_ASSOC);
     $subjects=$db->query('SELECT * FROM subjects WHERE is_deleted=0')->fetchAll(PDO::FETCH_ASSOC);
@@ -110,8 +110,41 @@ function attendanceSnapshot(PDO $db,array $actor): array {
         if(!academicSectionSubjects($section,$subject))continue;
         if($student?(strtolower($section['status'])!=='deployed'||strtolower($subject['status'])!=='published'||!gradeStudent($section,$actor)):
             !(academicAdmin($actor)||(academicRole($actor)==='teacher'&&academicTeacher($section,$actor,$subject))))continue;
-        $q=$db->prepare("SELECT item_id,payload FROM academic_records WHERE subject_id=? AND section_id=? AND record_type='attendance'");$q->execute([$subject['id'],$section['id']]);$days=[];
+        $scopeKey=(string)$subject['id']."\0".(string)$section['id'];
+        $allowedScopes[$scopeKey]=['sectionData'=>$section,'subjectData'=>$subject,'days'=>[],'drafts'=>[]];
+    }
+
+    // Fetch attendance history in bounded batches instead of running one or two
+    // database queries for every subject/section pair. Large schools otherwise
+    // make this snapshot slow enough to hit the browser's request deadline.
+    $scopeKeys=array_keys($allowedScopes);
+    foreach(array_chunk($scopeKeys,100) as $chunk){
+        $pairs=[];$params=[];
+        foreach($chunk as $scopeKey){
+            [$subjectId,$sectionId]=explode("\0",$scopeKey,2);
+            $pairs[]='(?,?)';$params[]=$subjectId;$params[]=$sectionId;
+        }
+        if(!$pairs)continue;
+        $pairSql=implode(',',$pairs);
+        $q=$db->prepare("SELECT subject_id,section_id,item_id,payload FROM academic_records WHERE record_type='attendance' AND (subject_id,section_id) IN ($pairSql)");
+        $q->execute($params);
         foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row){
+            $scopeKey=(string)$row['subject_id']."\0".(string)$row['section_id'];
+            if(isset($allowedScopes[$scopeKey]))$allowedScopes[$scopeKey]['days'][]=$row;
+        }
+        if(!$student){
+            $q=$db->prepare("SELECT subject_id,section_id,item_id,payload FROM academic_records WHERE record_type='attendance_draft' AND student_id=? AND (subject_id,section_id) IN ($pairSql)");
+            $q->execute(array_merge([(string)$actor['id']],$params));
+            foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row){
+                $scopeKey=(string)$row['subject_id']."\0".(string)$row['section_id'];
+                if(isset($allowedScopes[$scopeKey]))$allowedScopes[$scopeKey]['drafts'][]=$row;
+            }
+        }
+    }
+
+    foreach($allowedScopes as $scope){
+        $section=$scope['sectionData'];$subject=$scope['subjectData'];$days=[];
+        foreach($scope['days'] as $row){
             if(!attendanceIsScheduled($section,(string)$row['item_id']))continue;
             $record=json_decode($row['payload'],true)?:[];
             if(($record['submitted']??false)!==true)continue;
@@ -120,7 +153,7 @@ function attendanceSnapshot(PDO $db,array $actor): array {
             $days[$row['item_id']]=$record;
         }
         $drafts=[];
-        if(!$student){$q=$db->prepare("SELECT item_id,payload FROM academic_records WHERE subject_id=? AND section_id=? AND record_type='attendance_draft' AND student_id=?");$q->execute([$subject['id'],$section['id'],(string)$actor['id']]);foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row)$drafts[$row['item_id']]=json_decode($row['payload'],true)?:[];}
+        if(!$student)foreach($scope['drafts'] as $row)$drafts[$row['item_id']]=json_decode($row['payload'],true)?:[];
         $drafts=array_filter($drafts,fn($date)=>attendanceIsScheduled($section,(string)$date),ARRAY_FILTER_USE_KEY);
         $scopes[]=['section'=>$section['name'],'subject'=>$subject['name'],'subjectId'=>$subject['id'],'weekdays'=>attendanceScheduledWeekdays($section),'days'=>$days,'drafts'=>$drafts];
     }

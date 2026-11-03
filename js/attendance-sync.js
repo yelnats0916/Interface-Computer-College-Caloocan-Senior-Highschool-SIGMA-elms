@@ -2,7 +2,7 @@
 (function () {
     'use strict';
     const key='sigma-attendance-records-v1', queue=new Map();
-    let pending=null,pendingOwner='',pendingRevision=-1,readyFor='',encoded='',saving=null,timer,revision=0,lastRefresh=0,lastError='';
+    let pending=null,pendingOwner='',pendingRevision=-1,readyFor='',encoded='',saving=null,timer,revision=0,lastRefresh=0,lastError='',retryAfter=0,consecutiveFailures=0;
     let studentHistory=[];
     const schedules=new Map();
     // Database snapshots remain usable when browser storage is full or disabled.
@@ -12,7 +12,7 @@
     const persisted=new Map(),cacheLimit=128*1024;
     function activeCache(){
         const owner=String(actor().id||'');
-        if(owner!==cacheOwner){cache.clear();schedules.clear();studentHistory=[];readyFor='';encoded='';lastRefresh=0;lastError='';cacheOwner=owner;}
+        if(owner!==cacheOwner){cache.clear();schedules.clear();studentHistory=[];readyFor='';encoded='';lastRefresh=0;lastError='';retryAfter=0;consecutiveFailures=0;cacheOwner=owner;}
         return owner;
     }
     function readRecords(name){
@@ -106,13 +106,17 @@
         // Attendance is a small interactive read. Acquire the shared worker directly
         // instead of waiting behind the entire background sync queue. A failed read
         // must release its loader; focus/online/polling can retry later.
-        pending=window.SigmaDatabase.request('attendance',{foreground:true,autoReconnect:false,timeoutMs:10000,
-            ...(typeof AbortSignal!=='undefined'&&typeof AbortSignal.timeout==='function'?{signal:AbortSignal.timeout(12000)}:{})}).then(result=>{
+        pending=window.SigmaDatabase.request('attendance',{foreground:true,autoReconnect:false,timeoutMs:30000,
+            ...(typeof AbortSignal!=='undefined'&&typeof AbortSignal.timeout==='function'?{signal:AbortSignal.timeout(35000)}:{})}).then(result=>{
             if(owner!==String(actor().id)||at!==revision)return;
             if(result.success===false||String(result.userId)!==owner||!Array.isArray(result.scopes))throw Error('Attendance could not be retrieved. Please try again.');
-            receive(result);lastRefresh=Date.now();
+            receive(result);lastRefresh=Date.now();lastError='';retryAfter=0;consecutiveFailures=0;
         }).catch(error=>{
-            if(owner===String(actor().id))lastError=error.message||'Attendance could not be retrieved.';
+            if(owner===String(actor().id)){
+                lastError=error.message||'Attendance could not be retrieved.';
+                consecutiveFailures++;
+                retryAfter=Date.now()+Math.min(120000,10000*Math.pow(2,Math.min(consecutiveFailures-1,3)));
+            }
             throw error;
         }).finally(()=>{
             pending=null;pendingOwner='';
@@ -157,15 +161,21 @@
             return studentHistory.filter(row=>(!subject||norm(row.subject)===norm(subject))&&(!section||norm(row.section)===norm(section))).map(row=>({...row}));
         }};
     // A rejected private draft must not stop reading the latest publication.
-    const sync=()=> (String(actor().role).toLowerCase()==='student'?refresh():
+    const sync=()=> {
+        // Attendance snapshots are only needed in the attendance views. Polling
+        // them from every classroom page ties up the shared PHP worker and caused
+        // timeout warnings while teachers were using Topics or Room.
+        if(!attendanceRoute()||Date.now()<retryAfter)return Promise.resolve();
+        return (String(actor().role).toLowerCase()==='student'?refresh():
         flush().catch(error=>console.warn('Attendance draft sync:',error.message)).then(()=>refresh()))
         .catch(error=>console.warn('Attendance sync:',error.message));
+    };
     window.addEventListener('focus',sync);window.addEventListener('online',sync);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync();});
     const attendanceRoute=()=>/attendance/i.test(window.location?.hash||'');
     // A refreshed student attendance page can start its small read while the
     // remaining portal scripts load, ahead of unrelated dashboard requests.
-    const startupSync=attendanceRoute()&&String(actor().role).toLowerCase()==='student'?sync():null;
+    const startupSync=attendanceRoute()?sync():null;
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>startupSync||sync());else if(!startupSync)sync();
     // Session recovery can finish after DOM ready. Do not wait for the 15s poll.
     for(const event of ['sigma:database-session-ready','sigma:tab-identity-restored'])window.addEventListener(event,()=>{
@@ -173,7 +183,7 @@
     });
     // Retry on entry without restarting requests during month changes or rerenders.
     window.addEventListener('hashchange',()=>{
-        if(/attendance/i.test(window.location?.hash||'')&&(!window.SigmaAttendance.ready()||Date.now()-lastRefresh>15000))sync();
+        if(attendanceRoute()&&(!window.SigmaAttendance.ready()||Date.now()-lastRefresh>15000))sync();
     });
-    setInterval(()=>{if(!document.hidden)sync();},15000);
+    setInterval(()=>{if(!document.hidden&&attendanceRoute()&&Date.now()-lastRefresh>=60000)sync();},15000);
 })();

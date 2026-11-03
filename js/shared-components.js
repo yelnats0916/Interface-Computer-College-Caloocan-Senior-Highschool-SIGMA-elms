@@ -3292,6 +3292,15 @@ window.updateGlobalSYDisplay = function () {
 };
 
 window.addEventListener('sigma:school-year-changed', () => window.updateGlobalSYDisplay?.());
+// School-year edits happen in the admin tab. Forward the storage event to the
+// open classroom so its semester filters and quarter selector refresh too.
+window.addEventListener('storage', event => {
+    if (event.key !== 'sigma_school_year_records') return;
+    window.currentSelectedTopicQuarter = '';
+    window.updateGlobalSYDisplay?.();
+    window.dispatchEvent(new CustomEvent('sigma:school-year-changed'));
+    window.dispatchEvent(new CustomEvent('sigma:active-semester-changed'));
+});
 
 // Automatically run on DOM ready across all pages/roles
 if (document.readyState === 'loading') {
@@ -8482,6 +8491,29 @@ window.filterClassroomCardsToActiveAcademicTerm = function (cards) {
     return Array.isArray(cards) ? cards.filter(window.classroomCardMatchesActiveAcademicTerm) : [];
 };
 
+window.getActiveTopicQuarterScope = function () {
+    const year = window.getActiveSchoolYearRecord?.();
+    if (!year) return 'no-active-school-year';
+    const yearId = String(year.id || `${year.yearStart || ''}-${year.yearEnd || ''}`);
+    const semester = Number(year.activeSemester) === 2 ? 2 : 1;
+    return `${yearId}:semester-${semester}`;
+};
+window.addEventListener('sigma:active-semester-changed', () => {
+    window.currentSelectedTopicQuarter = '';
+});
+
+window.getDefaultTopicQuarterForActiveSemester = function (activeQuarters) {
+    const quarters = (Array.isArray(activeQuarters) && activeQuarters.length) ? activeQuarters : ['q1', 'q2'];
+    const year = window.getActiveSchoolYearRecord?.();
+    const semester = Number(year?.activeSemester) === 2 ? 2 : 1;
+    const semesterQuarters = quarters.filter(q => semester === 2 ? ['q3', 'q4'].includes(q) : ['q1', 'q2'].includes(q));
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const started = quarters.filter(q => year?.[`${q}Start`] && String(year[`${q}Start`]).slice(0, 10) <= today);
+    // The header's current quarter is driven by the school's configured dates.
+    // Prefer that quarter even when an administrator changes the semester early.
+    return started.at(-1) || semesterQuarters[0] || quarters[0] || 'q1';
+};
+
 window.rememberTopicQuarter = function (subjectId, quarterKey) {
     const quarter = String(quarterKey || '').trim().toLowerCase();
     if (!quarter) return;
@@ -8497,6 +8529,13 @@ window.rememberTopicQuarter = function (subjectId, quarterKey) {
         };
         add(subjectId);
         map._last = quarter;
+        const scope = window.getActiveTopicQuarterScope?.() || 'no-active-school-year';
+        map._activeScope = scope;
+        map._lastByScope = map._lastByScope && typeof map._lastByScope === 'object' ? map._lastByScope : {};
+        map._lastByScope[scope] = quarter;
+        map._quartersByScope = map._quartersByScope && typeof map._quartersByScope === 'object' ? map._quartersByScope : {};
+        map._quartersByScope[scope] = map._quartersByScope[scope] && typeof map._quartersByScope[scope] === 'object' ? map._quartersByScope[scope] : {};
+        ids.forEach(id => { map._quartersByScope[scope][id] = quarter; });
         ids.forEach(id => { map[id] = quarter; });
         localStorage.setItem('sigma-selected-topic-quarter', JSON.stringify(map));
     } catch (e) {}
@@ -8504,25 +8543,41 @@ window.rememberTopicQuarter = function (subjectId, quarterKey) {
 
 window.restoreTopicQuarter = function (subjectId, activeQuarters) {
     const quarters = (Array.isArray(activeQuarters) && activeQuarters.length > 0) ? activeQuarters : ['q1', 'q2'];
-    let saved = '';
+    let saved = '', scope = window.getActiveTopicQuarterScope?.() || 'no-active-school-year', scopeChanged = false;
     try {
         const map = JSON.parse(localStorage.getItem('sigma-selected-topic-quarter') || '{}');
         const raw = String(subjectId || '').trim().toLowerCase();
         const clean = raw.replace(/^(card-|subj-)/, '');
-        saved = (raw && map[raw]) || (clean && map[clean]) || map._last || '';
+        scopeChanged = map._activeScope !== scope;
+        const scopedMap = map._quartersByScope?.[scope] || {};
+        saved = (raw && scopedMap[raw]) || (clean && scopedMap[clean]) || map._lastByScope?.[scope] ||
+            (!scopeChanged ? ((raw && map[raw]) || (clean && map[clean]) || map._last || '') : '');
+        map._activeScope = scope;
+        localStorage.setItem('sigma-selected-topic-quarter', JSON.stringify(map));
     } catch (e) {}
     if (saved && quarters.includes(saved)) {
         window.currentSelectedTopicQuarter = saved;
         return saved;
     }
-    if (window.currentSelectedTopicQuarter && quarters.includes(window.currentSelectedTopicQuarter)) {
+    if (!scopeChanged && window.currentSelectedTopicQuarter && quarters.includes(window.currentSelectedTopicQuarter)) {
         return window.currentSelectedTopicQuarter;
     }
-    const year = window.getActiveSchoolYearRecord?.();
-    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-    const current = quarters.filter(q => year?.[q + 'Start'] && String(year[q + 'Start']).slice(0, 10) <= today).at(-1);
-    const fallback = current || quarters[0] || 'q1';
+    const fallback = window.getDefaultTopicQuarterForActiveSemester?.(quarters) || quarters[0] || 'q1';
     window.currentSelectedTopicQuarter = fallback;
+    try {
+        const map = JSON.parse(localStorage.getItem('sigma-selected-topic-quarter') || '{}');
+        const scope = window.getActiveTopicQuarterScope?.() || 'no-active-school-year';
+        const raw = String(subjectId || '').trim().toLowerCase();
+        const clean = raw.replace(/^(card-|subj-)/, '');
+        map._activeScope = scope;
+        map._lastByScope = map._lastByScope && typeof map._lastByScope === 'object' ? map._lastByScope : {};
+        map._lastByScope[scope] = fallback;
+        map._quartersByScope = map._quartersByScope && typeof map._quartersByScope === 'object' ? map._quartersByScope : {};
+        map._quartersByScope[scope] = map._quartersByScope[scope] && typeof map._quartersByScope[scope] === 'object' ? map._quartersByScope[scope] : {};
+        if (raw) map._quartersByScope[scope][raw] = fallback;
+        if (clean) map._quartersByScope[scope][clean] = fallback;
+        localStorage.setItem('sigma-selected-topic-quarter', JSON.stringify(map));
+    } catch (_) {}
     return fallback;
 };
 

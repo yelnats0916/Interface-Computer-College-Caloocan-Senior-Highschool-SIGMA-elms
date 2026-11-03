@@ -1680,6 +1680,11 @@
         });
         window.addEventListener('sigma:active-semester-changed', function () {
             renderSectionsGrid(activeSectionsRole);
+            const topics = document.getElementById('detail-section-topics');
+            if (topics && !topics.classList.contains('hidden') && typeof window.renderRoomTopicsPanel === 'function') {
+                window.renderRoomTopicsPanel();
+                window.syncRoomQuarterSwitch?.();
+            }
         });
         window.addEventListener('sigma:assigned-classrooms-updated', function () {
             renderSectionsGrid(activeSectionsRole);
