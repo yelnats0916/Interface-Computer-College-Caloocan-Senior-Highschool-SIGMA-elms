@@ -17883,11 +17883,25 @@ window.assessSHSStudentBirthday = function (value) {
 window.updateUserBirthdayLimits = function () {
     const input = document.getElementById('edit-user-birthday');
     const rangeButton = document.getElementById('edit-user-birthday-range-toggle');
+    const ageRule = document.getElementById('edit-user-birthday-age-rule');
     const role = String(document.getElementById('edit-user-role')?.value || '').trim();
     if (rangeButton) {
         rangeButton.classList.toggle('hidden', role !== 'Student');
-        rangeButton.textContent = window.currentUserBirthdayRangeAdvanced ? 'Use standard ages 16–17' : 'Advance to ages 12–17';
+        rangeButton.textContent = window.currentUserBirthdayRangeAdvanced
+            ? 'Use standard student ages 16–17'
+            : 'Expand student ages to 12–17';
     }
+    if (ageRule) ageRule.textContent = !role
+        ? 'Choose a role to see its birthday age requirement.'
+        : role === 'Student'
+            ? (() => {
+                const range = window.getSHSBirthdayDateRange(window.currentUserBirthdayRangeAdvanced ? 12 : 16);
+                const reference = String(range.referenceDate || '').split('-').reverse().join('/');
+                return `Current rule: Student age ${range.minAge}–17 on the school-year start date (${reference}).`;
+            })()
+            : window.isAdultAccountRole(role)
+                ? 'Current rule: Teacher and Admin accounts must be 18 or older today.'
+                : 'No age requirement is configured for this role.';
     if (!input) return;
     const today = new Date();
     const todayText = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;

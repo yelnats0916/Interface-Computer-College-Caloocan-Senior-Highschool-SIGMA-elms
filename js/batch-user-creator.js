@@ -1612,6 +1612,14 @@
             const itemBirthdayMax = item.role === 'Student'
                 ? (itemBirthdayRange?.max || todayText)
                 : (window.isAdultAccountRole?.(item.role) ? (window.getBirthdayMaximumDateForAge?.(18) || todayText) : todayText);
+            const birthdayReference = String(itemBirthdayRange?.referenceDate || '').split('-').reverse().join('/');
+            const itemBirthdayRule = !item.role
+                ? 'Choose a role to see its birthday age requirement.'
+                : item.role === 'Student'
+                    ? `Current rule: Student age ${item.birthdayRangeAdvanced ? '12–17' : '16–17'} on the school-year start date (${birthdayReference}).`
+                    : window.isAdultAccountRole?.(item.role)
+                        ? 'Current rule: Teacher and Admin accounts must be 18 or older today.'
+                        : 'No age requirement is configured for this role.';
             const roleKey = VALID_ROLES.includes(item.role) ? item.role : '';
             const meta = getRoleSectionMeta(roleKey);
             const showGroupHeader = roleKey !== lastRoleKey;
@@ -1744,9 +1752,10 @@
                                 ${item.role === 'Student' ? `
                                     <button type="button" onclick="window.toggleBatchBirthdayRange?.(${item._uid})"
                                         class="mt-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[#15803d] hover:bg-emerald-50 transition-colors">
-                                        ${item.birthdayRangeAdvanced ? 'Use standard ages 16–17' : 'Advance to ages 12–17'}
+                                        ${item.birthdayRangeAdvanced ? 'Use standard student ages 16–17' : 'Expand student ages to 12–17'}
                                     </button>
                                 ` : ''}
+                                <p class="mt-2 text-xs leading-relaxed text-slate-600" role="status" aria-live="polite">${escapeHtml(itemBirthdayRule)}</p>
                             </div>
                         </div>
                         <div id="batch-identity-warning-${item._uid}" class="${identityWarning ? '' : 'hidden'} rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900" role="status" aria-live="polite">${escapeHtml(identityWarning)}</div>
