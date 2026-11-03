@@ -1618,6 +1618,48 @@
         return { years, activeYear, selectedYear, semester: Number(profileAcademicScope.semester) };
     }
 
+    function openProfileAcademicRoom(sectionName, subjectName) {
+        const section = String(sectionName || '').trim();
+        const subject = String(subjectName || '').trim();
+        if (!section || !subject) return;
+
+        const role = String(getActiveUserData()?.role || getActiveUserData()?.type || '').toLowerCase();
+        if (role.includes('teacher') && typeof window.showStudentList === 'function') {
+            window.showStudentList(section, subject, 'room');
+            return;
+        }
+
+        if (role.includes('student') && typeof window.showClassroomDetail === 'function') {
+            const rooms = typeof window.getStudentSectionClassItems === 'function'
+                ? window.getStudentSectionClassItems()
+                : [];
+            const target = (Array.isArray(rooms) ? rooms : []).find(room =>
+                profileNormalize(room?.section || room?.sectionName) === profileNormalize(section)
+                && profileNormalize(room?.subject || room?.name) === profileNormalize(subject));
+            if (target?.id) window.showClassroomDetail(target.id, true, 'room');
+        }
+    }
+
+    function profileAcademicDropdown(field, label, options, selectedValue, selectedLabel) {
+        const optionMarkup = options.map(option => `
+            <button type="button" role="option" data-profile-scope-value="${escapeHtml(option.value)}"
+                aria-pressed="${String(String(option.value) === String(selectedValue))}">
+                <span>${escapeHtml(option.label)}</span>
+                ${String(option.value) === String(selectedValue) ? '<i class="fa-solid fa-check text-[#15803d]" aria-hidden="true"></i>' : ''}
+            </button>`).join('');
+        return `
+            <div class="min-w-0">
+                <span id="user-profile-${field}-label" class="mb-1.5 block text-xs font-bold text-slate-600">${escapeHtml(label)}</span>
+                <details class="sigma-quarter-dropdown profile-academic-dropdown w-full" data-profile-scope-dropdown="${escapeHtml(field)}">
+                    <summary aria-label="Filter by ${escapeHtml(label.toLowerCase())}" aria-expanded="false" aria-controls="user-profile-${field}-menu">
+                        <span class="profile-academic-dropdown-value">${escapeHtml(selectedLabel)}</span>
+                        <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                    </summary>
+                    <div id="user-profile-${field}-menu" class="sigma-quarter-dropdown-menu" role="listbox" aria-labelledby="user-profile-${field}-label">${optionMarkup}</div>
+                </details>
+            </div>`;
+    }
+
     window.addEventListener('sigma:active-semester-changed', event => {
         const changedYearId = String(event?.detail?.id || '');
         const activeYearId = String(window.getActiveSchoolYearRecord?.()?.id || '');
@@ -1673,51 +1715,43 @@
 
         const scope = profileScopeOptions(userData);
         const periodRows = profileBuildAcademicRows(userData, isTeacher ? 'teacher' : 'student', scope.selectedYear, scope.semester);
-        const isPast = !scope.activeYear || String(scope.selectedYear?.id) !== String(scope.activeYear?.id)
-            || scope.semester !== (Number(scope.activeYear?.activeSemester) === 2 ? 2 : 1);
         const yearOptions = scope.years.map(record => {
             const label = `${record.yearStart}-${record.yearEnd}${record.status === 'Active' ? ' · Active' : ''}`;
-            return `<option value="${escapeHtml(record.id)}" ${String(record.id) === String(scope.selectedYear?.id) ? 'selected' : ''}>${escapeHtml(label)}</option>`;
-        }).join('');
+            return { value: String(record.id), label };
+        });
+        if (!yearOptions.length) yearOptions.push({ value: '', label: 'No school years configured' });
+        const selectedYearLabel = yearOptions.find(option => String(option.value) === String(scope.selectedYear?.id))?.label || yearOptions[0].label;
         const scopeControls = `
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl border border-slate-200 bg-slate-50">
-                <label class="block text-xs font-bold text-slate-600">School Year
-                    <select id="user-profile-academic-year" class="sigma-select mt-1.5 w-full" aria-label="Filter by school year">${yearOptions || '<option value="">No school years configured</option>'}</select>
-                </label>
-                <label class="block text-xs font-bold text-slate-600">Semester
-                    <select id="user-profile-academic-semester" class="sigma-select mt-1.5 w-full" aria-label="Filter by semester">
-                        <option value="1" ${scope.semester === 1 ? 'selected' : ''}>1st Semester</option>
-                        <option value="2" ${scope.semester === 2 ? 'selected' : ''}>2nd Semester</option>
-                    </select>
-                </label>
-            </div>
-            <div class="mt-3 mb-4 flex items-start gap-2 rounded-xl bg-slate-100 px-3.5 py-3 text-xs text-slate-600">
-                <i class="fa-solid ${isPast ? 'fa-clock-rotate-left' : 'fa-circle-info'} mt-0.5 text-[#15803d]"></i>
-                <span><strong class="text-slate-800">${isPast ? 'Past semester' : 'Active semester'}</strong><br>Only assignments linked to this ${isTeacher ? 'teacher' : 'student'} in the section records are listed.</span>
+                ${profileAcademicDropdown('academic-year', 'School Year', yearOptions, scope.selectedYear?.id || '', selectedYearLabel)}
+                ${profileAcademicDropdown('academic-semester', 'Semester', [
+                    { value: '1', label: '1st Semester' },
+                    { value: '2', label: '2nd Semester' }
+                ], scope.semester, scope.semester === 2 ? '2nd Semester' : '1st Semester')}
             </div>`;
 
         let content = '';
         if (effectiveTab === 'subjects') {
             content = periodRows.subjects.length ? `
                 <div class="space-y-2.5">${periodRows.subjects.map(subject => `
-                    <article class="rounded-2xl border border-slate-200 bg-white p-4">
+                    <article class="rounded-2xl border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300">
                         <div class="flex flex-wrap items-start justify-between gap-2">
-                            <div><h4 class="text-sm font-bold text-slate-900">${escapeHtml(subject.name)}</h4>${subject.code ? `<p class="mt-1 text-xs text-slate-500">${escapeHtml(subject.code)}</p>` : ''}</div>
+                            <div><button type="button" class="profile-academic-room-link text-left text-sm font-bold text-slate-900 hover:text-[#15803d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#15803d]" data-profile-room-section="${escapeHtml(subject.sections[0]?.name || '')}" data-profile-room-subject="${escapeHtml(subject.name)}" aria-label="Open ${escapeHtml(subject.name)} room for ${escapeHtml(subject.sections[0]?.name || 'assigned section')}">${escapeHtml(subject.name)}</button>${subject.code ? `<p class="mt-1 text-xs text-slate-500">${escapeHtml(subject.code)}</p>` : ''}</div>
                             <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">${subject.sections.length} ${subject.sections.length === 1 ? 'Section' : 'Sections'}</span>
                         </div>
-                        <div class="mt-3 flex flex-wrap gap-2">${subject.sections.map(section => `<span class="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700">${escapeHtml(section.name)}${section.grade ? ` · ${escapeHtml(section.grade)}` : ''}</span>`).join('')}</div>
+                        <div class="mt-3 flex flex-wrap gap-2">${subject.sections.map(section => `<button type="button" class="profile-academic-room-link rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-[#15803d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#15803d]" data-profile-room-section="${escapeHtml(section.name)}" data-profile-room-subject="${escapeHtml(subject.name)}" aria-label="Open ${escapeHtml(subject.name)} room for ${escapeHtml(section.name)}">${escapeHtml(section.name)}${section.grade ? ` · ${escapeHtml(section.grade)}` : ''}</button>`).join('')}</div>
                     </article>`).join('')}</div>` : `
                 <div class="flex min-h-40 flex-col items-center justify-center gap-3 text-center">
-                    <i class="fa-solid fa-book-open text-4xl text-slate-400"></i>
+                    <i class="fa-solid fa-book-open text-4xl text-black-fade"></i>
                     <p class="text-sm font-bold text-slate-800">No subjects linked for this period</p>
-                    <p class="max-w-md text-xs text-slate-500">Subjects appear here only when the section records link this ${isTeacher ? 'teacher' : 'student'} to them for the selected school year and semester.</p>
+                    <p class="max-w-md text-xs text-black-fade">Subjects appear here only when the section records link this ${isTeacher ? 'teacher' : 'student'} to them for the selected school year and semester.</p>
                 </div>`;
         } else {
             content = periodRows.sections.length ? `
                 <div class="space-y-2.5">${periodRows.sections.map(entry => `
                     <article class="rounded-2xl border border-slate-200 bg-white p-4">
                         <div class="flex flex-wrap items-start justify-between gap-2"><div><h4 class="text-sm font-bold text-slate-900">${escapeHtml(entry.section.name)}</h4><p class="mt-1 text-xs text-slate-500">${escapeHtml(entry.section.grade || 'Grade not set')}${entry.section.room ? ` · Room ${escapeHtml(entry.section.room)}` : ''}</p></div><span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">${entry.subjects.length} ${entry.subjects.length === 1 ? 'Subject' : 'Subjects'}</span></div>
-                        <div class="mt-3 flex flex-wrap gap-2">${entry.subjects.map(subject => `<span class="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700">${escapeHtml(subject.name)}</span>`).join('')}</div>
+                        <div class="mt-3 flex flex-wrap gap-2">${entry.subjects.map(subject => `<button type="button" class="profile-academic-room-link rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-[#15803d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#15803d]" data-profile-room-section="${escapeHtml(entry.section.name)}" data-profile-room-subject="${escapeHtml(subject.name)}" aria-label="Open ${escapeHtml(subject.name)} room for ${escapeHtml(entry.section.name)}">${escapeHtml(subject.name)}</button>`).join('')}</div>
                         ${entry.section.schedule ? `<p class="mt-3 text-xs text-slate-500">${escapeHtml(entry.section.schedule)}</p>` : ''}
                     </article>`).join('')}</div>` : `
                 <div class="flex min-h-40 flex-col items-center justify-center gap-3 text-center"><i class="fa-solid fa-users-viewfinder text-4xl text-slate-400"></i><p class="text-sm font-bold text-slate-800">No sections linked for this period</p><p class="text-xs text-slate-500">Section assignments are read from the school’s section records.</p></div>`;
@@ -1729,8 +1763,19 @@
                 ${scopeControls}
                 ${content}
             </div>`;
-        panel.querySelector('#user-profile-academic-year')?.addEventListener('change', event => window.setUserProfileAcademicScope('schoolYear', event.target.value));
-        panel.querySelector('#user-profile-academic-semester')?.addEventListener('change', event => window.setUserProfileAcademicScope('semester', event.target.value));
+        panel.querySelectorAll('[data-profile-scope-dropdown]').forEach(dropdown => {
+            dropdown.querySelectorAll('[data-profile-scope-value]').forEach(option => {
+                option.addEventListener('click', () => {
+                    const field = dropdown.dataset.profileScopeDropdown;
+                    const value = option.dataset.profileScopeValue;
+                    if (field === 'academic-year') window.setUserProfileAcademicScope('schoolYear', value);
+                    else if (field === 'academic-semester') window.setUserProfileAcademicScope('semester', value);
+                });
+            });
+        });
+        panel.querySelectorAll('[data-profile-room-section][data-profile-room-subject]').forEach(button => {
+            button.addEventListener('click', () => openProfileAcademicRoom(button.dataset.profileRoomSection, button.dataset.profileRoomSubject));
+        });
     };
 
     if (!window.__profileAcademicScopeListenersAttached) {

@@ -1144,3 +1144,47 @@
     #user-profile-tabs-container:not(.hidden) { margin-top:8px !important; }
     #user-profile-tabs-container.hidden { display:none !important; }
 }
+
+html body .profile-academic-dropdown {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 14px !important;
+    color: #0f172a !important;
+    font: 500 14px/20px Inter, sans-serif !important;
+    box-sizing: border-box !important;
+}
+html body .profile-academic-dropdown > summary {
+    width: 100% !important;
+    min-height: 44px !important;
+    padding: 0 14px !important;
+    white-space: normal !important;
+    box-sizing: border-box !important;
+}
+html body .profile-academic-dropdown .profile-academic-dropdown-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+html body .profile-academic-dropdown .sigma-quarter-dropdown-menu {
+    width: calc(100% + 2px) !important;
+    min-width: 0 !important;
+    max-height: 260px;
+    overflow-y: auto;
+    left: -1px !important;
+    border-radius: 12px !important;
+}
+html body .profile-academic-dropdown .sigma-quarter-dropdown-menu button {
+    min-height: 40px;
+    text-align: left;
+}
+html body .profile-academic-room-link { cursor: pointer; }
+@media(max-width:767px) {
+    html body .profile-academic-dropdown,
+    html body .profile-academic-dropdown > summary {
+        font-size: 13px !important;
+    }
+}
