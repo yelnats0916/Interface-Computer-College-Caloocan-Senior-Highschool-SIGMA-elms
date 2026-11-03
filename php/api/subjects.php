@@ -31,6 +31,9 @@ require_once $rootDir . '/config/database.php';
 require_once $rootDir . '/php/includes/application_auth.php';
 require_once __DIR__ . '/../includes/activity_audit.php';
 require_once __DIR__ . '/../includes/material_provenance.php';
+require_once __DIR__ . '/../includes/coursework_creation_events.php';
+require_once __DIR__ . '/../includes/topic_covers.php';
+require_once __DIR__ . '/../includes/material_storage.php';
 $databaseActor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator', 'teacher']);
 
 function jsonResponse(array $data, int $code = 200): void {
@@ -83,13 +86,77 @@ function decodeJsonField($raw, $fallback = []) {
     return is_array($decoded) ? $decoded : $fallback;
 }
 
-function subjectRowToRecord(array $row): array {
+function subjectRemovalReasonsForRows(PDO $db, array $rows): array {
+    $reasons = [];
+    if (!$rows) return $reasons;
+    $subjectsByAlias = [];
+    $subjectIds = [];
+    $normalize = static fn($value): string => mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) $value)));
+
+    foreach ($rows as $row) {
+        $id = (string) ($row['id'] ?? '');
+        if ($id === '') continue;
+        $reasons[$id] = '';
+        $subjectIds[] = $id;
+        foreach (array_unique(array_filter(array_map($normalize, [$row['id'] ?? '', $row['code'] ?? '', $row['name'] ?? '']))) as $alias) {
+            $subjectsByAlias[$alias][] = $id;
+        }
+    }
+
+    // Load section assignments once for the whole subject page, instead of once per row.
+    foreach ($db->query('SELECT subject,subjects FROM sections')->fetchAll(PDO::FETCH_ASSOC) as $section) {
+        foreach (sigmaSectionSubjectReferences($section) as $reference) {
+            foreach ($subjectsByAlias[$reference] ?? [] as $id) {
+                $reasons[$id] = 'This subject is assigned to a section and cannot be deleted.';
+            }
+        }
+    }
+
+    // Academic evidence is also checked in bounded batches to avoid N+1 queries.
+    try {
+        foreach (array_chunk(array_values(array_unique($subjectIds)), 500) as $chunk) {
+            $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+            $query = $db->prepare("SELECT DISTINCT subject_id FROM academic_records WHERE subject_id IN ($placeholders)");
+            $query->execute($chunk);
+            foreach ($query->fetchAll(PDO::FETCH_COLUMN) as $subjectId) {
+                $id = (string) $subjectId;
+                if (($reasons[$id] ?? '') === '') $reasons[$id] = 'This subject has academic records and cannot be deleted.';
+            }
+        }
+    } catch (PDOException $error) {
+        if ($error->getCode() !== '42S02') throw $error;
+    }
+
+    // Match saved grade publications against subject id, code, or name in one pass.
+    try {
+        foreach ($db->query('SELECT scope_json FROM grade_publications')->fetchAll(PDO::FETCH_COLUMN) as $rawScope) {
+            $scope = json_decode($rawScope, true);
+            $alias = $normalize($scope[2] ?? '');
+            foreach ($subjectsByAlias[$alias] ?? [] as $id) {
+                if (($reasons[$id] ?? '') === '') {
+                    $reasons[$id] = 'This subject has saved grades or attendance and cannot be deleted.';
+                }
+            }
+        }
+    } catch (PDOException $error) {
+        if ($error->getCode() !== '42S02') throw $error;
+    }
+
+    return $reasons;
+}
+
+function subjectRowToRecord(array $row, ?array $computedMetadata = null): array {
     global $pdo;
-    $reason=sigmaSubjectRemovalReason($pdo,$row);
+    $reason = $computedMetadata === null
+        ? sigmaSubjectRemovalReason($pdo, $row)
+        : (string) ($computedMetadata['deleteReason'] ?? '');
+    $creationNumber = $computedMetadata !== null && array_key_exists('creationNumber', $computedMetadata)
+        ? $computedMetadata['creationNumber']
+        : sigmaTableCreationNumber($pdo, 'subjects', (string) $row['id']);
     return [
         'canDelete'=>$reason==='',
         'deleteReason'=>$reason,
-        'creationNumber' => sigmaTableCreationNumber($pdo, 'subjects', (string)$row['id']),
+        'creationNumber' => $creationNumber,
         'id'             => (string) $row['id'],
         'code'           => (string) $row['code'],
         'name'           => (string) $row['name'],
@@ -140,7 +207,16 @@ try {
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $records = array_map('subjectRowToRecord', $rows);
+        $removalReasons = subjectRemovalReasonsForRows($pdo, $rows);
+        $creationNumbers = $rows ? sigmaCreationNumbersForRecords($pdo, 'subjects', $rows) : [];
+        $records = [];
+        foreach ($rows as $row) {
+            $id = (string) ($row['id'] ?? '');
+            $records[] = subjectRowToRecord($row, [
+                'deleteReason' => $removalReasons[$id] ?? '',
+                'creationNumber' => $creationNumbers[$id] ?? null
+            ]);
+        }
         usort($records, static fn($a, $b) => $b['creationNumber'] <=> $a['creationNumber']);
 
         jsonResponse([
@@ -243,12 +319,18 @@ try {
         $weights = json_encode($subject['weights'] ?? null);
         $activeQuarters = json_encode($subject['activeQuarters'] ?? ['q1', 'q2']);
         $status = trim((string) ($subject['status'] ?? 'Published'));
+        if (strtolower(trim((string)($databaseActor['role'] ?? ''))) === 'teacher') {
+            sigmaEnsureCourseworkEventSchema($pdo);
+        }
         $pdo->beginTransaction();
-        $previousQuery = $pdo->prepare('SELECT topics,materials FROM subjects WHERE id=? OR code=? LIMIT 1 FOR UPDATE');
+        $previousQuery = $pdo->prepare('SELECT id,topics,materials,is_deleted FROM subjects WHERE id=? OR code=? LIMIT 1 FOR UPDATE');
         $previousQuery->execute([$id,$code]);
         $previousRow = $previousQuery->fetch(PDO::FETCH_ASSOC) ?: [];
+        $restoringDeletedSubject = !empty($previousRow['is_deleted']);
         $previous = ['topics'=>decodeJsonField($previousRow['topics'] ?? null), 'materials'=>decodeJsonField($previousRow['materials'] ?? null)];
         $subject['topics'] = $subject['topics'] ?? [];
+        sigmaPersistTopicCovers($subject,$rootDir);
+        $createdTopics = sigmaStampSubjectTopics($subject,$previous,$databaseActor);
         $createdMaterials = sigmaStampSubjectMaterials($subject,$previous,$databaseActor);
         $topics = json_encode($subject['topics'] ?? []);
         $materials = json_encode($subject['materials'] ?? []);
@@ -272,7 +354,9 @@ try {
             `status`          = VALUES(`status`),
             `topics`          = VALUES(`topics`),
             `materials`       = VALUES(`materials`),
-            `is_deleted`      = `is_deleted`";
+            `is_deleted`      = 0,
+            `deleted_at`      = NULL,
+            `deleted_by`      = NULL";
 
         $stmt = $pdo->prepare($upsertSql);
         $stmt->execute([
@@ -295,13 +379,22 @@ try {
         $stmt = $pdo->prepare("SELECT * FROM `subjects` WHERE `id` = :id OR `code` = :code_match LIMIT 1");
         $stmt->execute([':id' => $id, ':code_match' => $code]);
         $savedRow = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($restoringDeletedSubject && $savedRow) {
+            try {
+                $restoreLog = $pdo->prepare("INSERT INTO `record_lifecycle_events` (`table_name`, `record_id`, `action`, `actor_id`) VALUES ('subjects', ?, 'restore', ?)");
+                $restoreLog->execute([(string)$savedRow['id'], (string)$databaseActor['id']]);
+            } catch (Throwable $e) {}
+        }
         sigmaRecordActivity($pdo, (string)$databaseActor['id'], 'Saved Subject', 'Curriculum', 'Subject code: '.$code."\nSubject name: ".$name."\nUnits: ".$savedRow['units']."\nLearning hours: ".$savedRow['learning_hours']." hours\nGrade level: ".$savedRow['grade_level']."\nType: ".$savedRow['type']."\nStatus: ".$savedRow['status']);
         foreach ($createdMaterials as $material) {
+            if (strtolower($databaseActor['role']) === 'teacher') continue; // Logged atomically with the creation event below.
             sigmaRecordActivity($pdo,(string)$databaseActor['id'],'Created Material','Curriculum',
                 'Subject: '.$code.' '.$name."\nTitle: ".($material['title']??'')."\nType: ".($material['type']??'')."\nDescription: ".($material['description']??''),
                 ['materialId'=>$material['id'],'subjectId'=>$id,'topicId'=>$material['topicId']??null,'material'=>$material]);
         }
+        sigmaPersistTeacherCourseworkEvents($pdo,$databaseActor,array_merge($subject,['id'=>$id,'name'=>$name]),$createdTopics,$createdMaterials);
         $pdo->commit();
+        sigmaStartSubjectMaterialUploadSync($pdo);
 
         jsonResponse([
             'success' => true,
@@ -311,6 +404,9 @@ try {
     }
 
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
+} catch (InvalidArgumentException $e) {
+    if($pdo->inTransaction())$pdo->rollBack();
+    jsonResponse(['success'=>false,'error'=>$e->getMessage()],422);
 } catch (DomainException $e) {
     if($pdo->inTransaction())$pdo->rollBack();
     $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");

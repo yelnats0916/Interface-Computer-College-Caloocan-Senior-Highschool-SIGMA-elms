@@ -3162,6 +3162,13 @@ td:has(.gradebook-dash) {
 .shared-grades-top-panels{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3.15fr);gap:24px;align-items:stretch}
 html body .shared-grades-top-panels > .gwa-card{grid-column:auto;min-height:154px;box-sizing:border-box;padding:32px!important;border-radius:32px!important;justify-content:center;min-width:0}
 html body .shared-grades-top-panels > .student-grades-insights-card{grid-column:auto;min-height:154px;box-sizing:border-box;padding:24px!important;border-radius:32px!important;gap:16px}
+/* Desktop metrics keep their own size when the adjacent insight report grows. */
+@media(min-width:768px){
+ html body .shared-grades-top-panels{grid-template-columns:minmax(200px,260px) minmax(0,1fr)}
+ html body .shared-grades-top-panels > .gwa-card{align-self:start;min-height:180px;padding:24px!important;border-radius:24px!important}
+ html body .shared-grades-top-panels .gwa-label{font-size:14px;line-height:1.35}
+ html body .shared-grades-top-panels .gwa-value{font-size:56px;line-height:1.1}
+}
 @media(max-width:767px){
  html body .shared-grades-top-panels{grid-template-columns:minmax(0,1fr);gap:24px}
  html body .shared-grades-top-panels > .gwa-card{margin:0 16px!important;min-height:110px;padding:20px!important;border-radius:16px!important}
@@ -3195,6 +3202,16 @@ html body .shared-grades-top-panels > .student-grades-insights-card{grid-column:
 .sigma-grading-notification-content .sigma-grading-notification-empty{color:rgba(0,0,0,.45)!important;margin:0;line-height:1.5;font-size:13px;font-weight:500}
 .sigma-ai-panel-body{background:#ecfdf5!important;border:1px solid #bbf7d0!important;border-radius:12px!important;padding:14px 16px!important;color:#000;font-size:13.5px;line-height:1.6;margin:0;display:block!important;min-height:46px;text-align:left;overflow-wrap:break-word;word-break:break-word}
 .sigma-ai-panel-body p{margin:0;color:inherit;overflow-wrap:anywhere}
+/* Native feedback disclosure supports touch, pointer and keyboard input. */
+.sigma-ai-feedback-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;cursor:pointer;list-style:none;color:#000}
+.sigma-ai-feedback-toggle::-webkit-details-marker{display:none}
+.sigma-ai-feedback-toggle::marker{content:""}
+.sigma-ai-panel .sigma-ai-feedback-toggle .sigma-ai-shared-heading{margin:0;min-width:0}
+.sigma-ai-feedback-toggle:focus-visible{outline:2px solid #15803d;outline-offset:4px;border-radius:6px}
+.sigma-ai-feedback-chevron{flex:none;color:#000;font-size:14px;line-height:1;transform:rotate(0deg)}
+.sigma-ai-feedback-panel[open]>.sigma-ai-feedback-toggle{margin-bottom:12px}
+.sigma-ai-feedback-panel[open]>.sigma-ai-feedback-toggle .sigma-ai-feedback-chevron{transform:rotate(180deg)}
+.sigma-ai-feedback-panel:not([open])>.sigma-ai-panel-body{display:none!important}
 .sigma-ai-panel-body strong,:is([data-subject-grade-insight],[data-ai-insight-body]) strong{font-weight:700!important;color:#000!important;margin-right:4px!important;display:inline!important}
 .sigma-ai-panel [data-insight-empty="true"],.sigma-ai-empty{color:rgba(0,0,0,.45)!important}
 .sigma-ai-entry+.sigma-ai-entry{border-top:1px solid #bbf7d0;margin-top:12px;padding-top:12px}
@@ -3219,6 +3236,7 @@ html body .shared-grades-top-panels > .student-grades-insights-card{grid-column:
   .sigma-grading-notification-score :is(.sigma-score-divider,.sigma-score-max){font-size:13px!important}
   .sigma-grading-notification-content > p:not(.text-black-fade):not(.sigma-grading-notification-empty){margin:0 0 12px 0;font-size:13px!important}
   .sigma-ai-panel{padding:12px 14px!important;border-radius:12px!important}
+  .sigma-ai-feedback-toggle .sigma-ai-feedback-chevron{font-size:10px}
   .sigma-ai-panel .sigma-ai-shared-heading{margin:0 0 8px;font-size:12px!important;gap:6px;min-height:22px}
   .sigma-ai-shared-icon{width:22px!important;height:22px!important;border-radius:6px!important;font-size:10px!important}
   .sigma-ai-panel-body{padding:10px 12px!important;font-size:12px!important;border-radius:9px!important;min-height:38px;line-height:1.45}
@@ -3476,6 +3494,9 @@ html body .sigma-quarter-dropdown summary i{font-size:10px}
 html body .sigma-quarter-dropdown-menu{position:absolute;top:calc(100% + 4px);left:0;min-width:100%;width:180px;max-width:calc(100vw - 32px);padding:4px;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:10060;box-sizing:border-box}
 html body .sigma-quarter-dropdown-menu button{display:flex;align-items:center;justify-content:space-between;width:100%;padding:10px 12px;min-height:40px;border:0;background:#fff;color:#000;border-radius:4px;font:inherit;white-space:nowrap;cursor:pointer}
 html body .sigma-quarter-dropdown-menu button:hover{background:#f1f5f9}
+html body .sigma-report-quarter-menu.sigma-quarter-dropdown-menu{position:fixed!important;inset:auto!important;right:auto!important;bottom:auto!important;margin:0!important;min-width:0!important;max-width:calc(100vw - 16px)!important;box-sizing:border-box!important;overflow-y:auto!important;overscroll-behavior:contain;z-index:2147483000!important}
+html body .sigma-report-quarter-menu .sigma-quarter-full-label{display:inline!important}
+html body .sigma-report-quarter-menu .sigma-quarter-mobile-label{display:none!important}
 html body .sigma-quarter-dropdown-menu button[aria-pressed="true"]{background:#e7f6ec;color:#15803d}
 html body .sigma-quarter-dropdown summary:is(:hover,:focus-visible){
     background:#f1f5f9;
@@ -8289,7 +8310,7 @@ html body .sigma-page-size-dropdown>.sigma-quarter-dropdown-menu{position:absolu
 html body .sigma-page-size-dropdown .sigma-quarter-dropdown-menu>button{display:block;width:100%;padding:7px 10px;border:0;border-radius:6px;background:#fff;color:#000;text-align:left;font:400 13px/20px Inter,sans-serif;cursor:pointer}
 html body .sigma-page-size-dropdown .sigma-quarter-dropdown-menu>button:hover,html body .sigma-page-size-dropdown .sigma-quarter-dropdown-menu>button[aria-pressed=true]{background:#f0fdf4;color:#15803d}
 html body .sigma-pagination-settings .sigma-table-list-count{width:auto;white-space:nowrap;text-align:right}
-html body .sigma-group-pagination:not(:has(.sigma-pagination-btn--number~.sigma-pagination-btn--number)){display:none!important}
+html body .sigma-group-pagination:not(:has(.sigma-pagination-btn--number)){display:none!important}
 @media(max-width:600px){
  html body :is(.sigma-pagination-row,.sigma-table-list-pagination){gap:8px;padding:10px 12px}
  html body .sigma-pagination-settings{gap:10px;flex-wrap:wrap}
@@ -8340,3 +8361,19 @@ html body #attendance-record-dialog>footer [data-export]{width:44px!important;mi
  html body #attendance-record-dialog>footer .attendance-record-navigation>button>i{font-size:10px}
  html body #attendance-record-dialog>footer [data-export]{width:36px!important;min-width:36px!important;height:36px!important;min-height:36px!important;flex-basis:36px;font-size:12px}
 }
+
+/* Assistance keeps the suggested score without a transfer action. */
+html body #teacher-ai-assistance-panel .ai-panel-header-grid:not(:has(.ai-header-btn-area)){grid-template-columns:minmax(0,1fr) auto!important;grid-template-areas:"title badge"!important}
+@media(max-width:767px){html body #teacher-ai-assistance-panel .ai-panel-header-grid:not(:has(.ai-header-btn-area)){grid-template-columns:minmax(0,1fr)!important;grid-template-areas:"title" "badge"!important}}
+
+/* Assessment private comments retain the compact shared Add Comment presentation. */
+html body .shared-private-comments[data-comment-scope] .record-add-comment[hidden],
+html body .shared-private-comments[data-comment-scope] .database-comment-composer[hidden],
+html body .shared-private-comments[data-comment-scope] [data-comment-error][hidden],
+html body .shared-private-comments[data-comment-scope] [data-messages]:empty { display: none !important; }
+html body .shared-private-comments[data-comment-scope] .shared-private-comments-heading { margin-bottom: 28px; }
+html body .shared-private-comments[data-comment-scope] .shared-private-comments-heading h3 { color: #15803d; }
+html body .shared-private-comments[data-comment-scope] .record-add-comment { border: 1px solid rgba(0,0,0,.12); cursor: pointer; }
+html body .shared-private-comments[data-comment-scope] .database-comment-composer { width: 100%; min-width: 0; }
+html body .shared-private-comments[data-comment-scope] .sigma-comment-send-btn { flex: 0 0 32px; width: 32px !important; min-width: 32px !important; height: 32px !important; padding: 0 !important; border-radius: 50%; background: transparent; color: #15803d; }
+html body .shared-private-comments[data-comment-scope] .sigma-comment-send-btn:disabled { opacity: .45; cursor: default; }

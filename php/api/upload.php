@@ -192,7 +192,7 @@ $category = trim($_POST['category'] ?? 'materials');
 $materialPath = null;
 $materialSubject = null;
 if ($category === 'subject-material') {
-    if (!in_array($uploadRole, ['admin','masteradmin','administrator'], true)) jsonOut(['success'=>false,'error'=>'Master curriculum uploads require an administrator account.'],403);
+    if (!in_array($uploadRole, ['admin','masteradmin','administrator','teacher'], true)) jsonOut(['success'=>false,'error'=>'An administrator or authorized teacher account is required to upload subject materials.'],403);
     $db = serviceSettingsPdo();
     $find = $db->prepare('SELECT id,code,name,topics FROM subjects WHERE id=? AND is_deleted=0');
     $find->execute([trim((string)($_POST['subject_id'] ?? ''))]);
@@ -268,7 +268,33 @@ if (!move_uploaded_file($uploadedFile['tmp_name'], $targetPath)) {
 $uploadStored=true;
 $relativeUrl = 'uploads/' . $subDir . '/' . $uniqueName;
 $fileSize = (int)filesize($targetPath);
+if($category==='subject-material'){
+    try {
+        $uploadId=sigmaQueueSubjectMaterialUpload($db,$uploadActor,$materialSubject,$topic,$materialTitle,$assetKind,$relativeUrl,$uploadedFile['name'],$materialType);
+    } catch(Throwable $error) {
+        @unlink($targetPath);
+        jsonOut(['success'=>false,'error'=>'Could not queue the material attachment for storage. Please try again.'],503);
+    }
+    jsonOut(['success'=>true,'uploadId'=>$uploadId,'url'=>$relativeUrl,'fileName'=>$uploadedFile['name'],'storedName'=>$uniqueName,'fileType'=>$ext,'category'=>$subDir,'size'=>$fileSize,
+        'google_drive'=>['synced'=>false,'status'=>'queued']]);
+}
+if($category==='submissions'){
+    require_once dirname(__DIR__).'/includes/submission_uploads.php';
+    try {$uploadId=sigmaStageSubmissionUpload(serviceSettingsPdo(),$uploadActor,$relativeUrl,$uploadedFile['name']);}
+    catch(Throwable $error){$uploadStored=false;@unlink($targetPath);jsonOut(['success'=>false,'error'=>'Could not prepare your attachment. Please try again.'],503);}
+    // The local file is durable and usable now. Drive starts only after Submit.
+    jsonOut(['success'=>true,'uploadId'=>$uploadId,'url'=>$relativeUrl,'fileName'=>$uploadedFile['name'],'fileType'=>$ext,'size'=>$fileSize,'google_drive'=>['synced'=>false,'status'=>'awaiting_submission']]);
+}
 // Target Google Drive Folder Mapping (Just-in-Time Dynamic Resolution)
+if($category==='announcements'){
+    require_once dirname(__DIR__).'/includes/announcement_uploads.php';
+    try {$uploadId=sigmaQueueAnnouncementUpload(serviceSettingsPdo(),$uploadActor,$relativeUrl,$uploadedFile['name']);}
+    catch(Throwable $error){@unlink($targetPath);jsonOut(['success'=>false,'error'=>'Could not save the announcement attachment. Please try again.'],503);}
+    sigmaStartAnnouncementUploadSync();
+    // The file and its retryable backup entry are durable before acknowledging upload.
+    jsonOut(['success'=>true,'uploadId'=>$uploadId,'url'=>$relativeUrl,'fileName'=>$uploadedFile['name'],'fileType'=>$ext,'size'=>$fileSize,'google_drive'=>['synced'=>false,'status'=>'queued']]);
+}
+
 $rootFolderId = $driveConfig['folder_id'] ?? '';
 $targetGdriveFolderId = '';
 
@@ -299,12 +325,6 @@ if (!empty($token) && !empty($targetGdriveFolderId)) {
 }
 $syncError = $gdriveFile['error']['message'] ?? (empty($gdriveFile['id']) ? 'Google Drive upload is pending. Check the storage connection.' : null);
 $uploadId = null;
-if ($materialSubject) {
-    $uploadId = bin2hex(random_bytes(16));
-    sigmaEnsureMaterialUploads($db);
-    $db->prepare('INSERT INTO material_uploads(id,actor_id,subject_id,topic_id,material_title,asset_kind,local_url,file_name,folder_path,drive_file_id,drive_folder_id,sync_error,synced_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)')
-        ->execute([$uploadId,$uploadActor['id'],$materialSubject['id'],$topic['id'],$materialTitle,$assetKind,$relativeUrl,$uploadedFile['name'],json_encode($materialPath),$gdriveFile['id']??null,$targetGdriveFolderId,$syncError,empty($gdriveFile['id'])?null:gmdate('Y-m-d H:i:s')]);
-}
 
 jsonOut([
     'success'      => true,

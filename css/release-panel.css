@@ -537,3 +537,92 @@ html body #teacher-release-assessments-overlay .curriculum-hub-panel > div:last-
         flex: 0 0 auto !important;
     }
 }
+
+/* Schedule and detail steps use the same full-height workspace as Release Topics & Materials. */
+html body #teacher-topic-schedule-overlay {
+    padding: 0 !important;
+    background: #f8fafc !important;
+    align-items: flex-start !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+}
+html body #teacher-topic-schedule-overlay > .curriculum-hub-panel {
+    width: 100% !important;
+    max-width: 1024px !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 auto !important;
+    border: 0 !important;
+    border-left: 1px solid #e2e8f0 !important;
+    border-right: 1px solid #e2e8f0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    transition: none !important;
+}
+html body #teacher-topic-schedule-overlay .curriculum-hub-panel > div:first-child {
+    min-height: 72px;
+    padding: 16px 40px !important;
+    flex-shrink: 0;
+    background: white;
+}
+html body #teacher-topic-schedule-overlay #teacher-schedule-modal-body {
+    padding: 40px !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+}
+html body #teacher-topic-schedule-overlay .teacher-schedule-modal-footer {
+    padding: 16px 32px !important;
+    border-top: 1px solid #e2e8f0;
+    background: white;
+    flex: 0 0 auto !important;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+}
+/* Schedule and details use the footer Back action on every screen size. */
+html body #teacher-topic-schedule-overlay .picker-header-back-btn {
+    display: none !important;
+}
+@media (max-width: 767px) {
+    html body #teacher-topic-schedule-overlay .curriculum-hub-panel > div:first-child { min-height: 64px; padding: 16px !important; }
+    html body #teacher-topic-schedule-overlay #teacher-schedule-modal-body { padding: 20px 16px !important; }
+    html body #teacher-topic-schedule-overlay .teacher-schedule-modal-footer { padding: 12px 16px !important; padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important; }
+}
+
+html body #teacher-topic-schedule-overlay .teacher-schedule-modal-footer > .picker-footer-back-btn {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Desktop forms scroll as one page, matching Add/Edit Topics & Materials. */
+@media (min-width: 768px) {
+    html body #teacher-topic-schedule-overlay {
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior-y: contain;
+    }
+    html body #teacher-topic-schedule-overlay > .curriculum-hub-panel {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        flex-shrink: 0 !important;
+    }
+    html body #teacher-topic-schedule-overlay #teacher-schedule-modal-body {
+        overflow: visible !important;
+        max-height: none !important;
+        flex: 1 0 auto !important;
+    }
+    html body #teacher-topic-schedule-overlay .teacher-schedule-modal-footer {
+        position: sticky !important;
+        bottom: 0;
+        z-index: 3;
+    }
+}

@@ -6,7 +6,8 @@ function sigmaPasswordLockoutLimit(array $settings): int {
 
 /** Count consecutive wrong passwords against the account, across ID/email and clients. */
 function sigmaCheckLoginCredentials(PDO $db,string $login,string $password,int $limit): array {
-    $db->beginTransaction();
+    $own=!$db->inTransaction();
+    if($own)$db->beginTransaction();
     try {
         $lock=$db->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':'';
         $q=$db->prepare('SELECT * FROM users WHERE (id=? OR LOWER(email)=LOWER(?)) AND is_deleted=0 LIMIT 1'.$lock);
@@ -36,7 +37,7 @@ function sigmaCheckLoginCredentials(PDO $db,string $login,string $password,int $
             }
         }
         if($failure && $failure['code']!=='password_required') sigmaRecordAuthentication($db,$user['id']??null,'Failed login attempt','failed');
-        $db->commit();
+        if($own)$db->commit();
         return $failure ? ['success'=>false]+$failure : ['success'=>true,'user'=>$user];
-    } catch(Throwable $error) {if($db->inTransaction())$db->rollBack();throw $error;}
+    } catch(Throwable $error) {if($own&&$db->inTransaction())$db->rollBack();throw $error;}
 }

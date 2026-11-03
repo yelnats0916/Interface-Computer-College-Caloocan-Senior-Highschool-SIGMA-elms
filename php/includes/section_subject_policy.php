@@ -14,7 +14,10 @@ function sigmaSectionSubjectReferences(array $section): array {
 }
 function sigmaValidateSectionSubjectAssignments(PDO $db,array $section,?array $previous=null): void {
     $existing=$previous?sigmaSectionSubjectReferences($previous):[];
-    $new=array_values(array_diff(sigmaSectionSubjectReferences($section),$existing));
+    // Recheck every subject when deploying, including unchanged draft assignments.
+    $deploying=in_array(strtolower(trim($section['status']??'Deployed')),['deployed','published','active'],true);
+    $references=sigmaSectionSubjectReferences($section);
+    $new=$deploying?$references:array_values(array_diff($references,$existing));
     if(!$new)return;
     $catalog=$db->query('SELECT id,code,name,status,is_deleted FROM subjects')->fetchAll(PDO::FETCH_ASSOC);
     foreach($new as $reference){

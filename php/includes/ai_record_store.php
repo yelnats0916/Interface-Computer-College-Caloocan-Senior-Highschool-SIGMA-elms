@@ -17,7 +17,8 @@ function aiInsightControls(PDO $db): void {
         PRIMARY KEY(source_type,source_id),KEY owner_lookup(user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     try {
-        $db->exec("ALTER TABLE ai_insight_controls CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        $collation=$db->query("SELECT TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='ai_insight_controls'")->fetchColumn();
+        if($collation!=='utf8mb4_unicode_ci')$db->exec("ALTER TABLE ai_insight_controls CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
     } catch (Throwable $e) {}
     $ready=true;
 }
@@ -77,6 +78,8 @@ function aiAnalyticsState(PDO $db, string $user, string $kind): array {
     foreach($rows as $record){
         $card=json_decode($record['payload'],true);
         if(!is_array($card)||!is_string($card['id']??null))continue;
+        if($kind==='student' && (($card['area']??'')==='released-learning' || (($card['area']??'')==='learning-follow-up' && ($card['learningPolicyVersion']??0)<2)))continue;
+        if($kind==='teacher' && ($card['area']??'')==='attendance-review' && ($card['attendancePolicyVersion']??0)<2)continue;
         if(($counts[$card['id']]??0)>1){
             $card['_historyOriginalId']=$card['id'];
             $card['id']=substr($card['id'],0,90).'-'.substr($record['id'],0,32);
@@ -136,14 +139,56 @@ function aiRecordLogs(PDO $db, bool $exportAll = false): array {
 }
 
 /** Dashboard data contains no prompts, replies, account identities, or conversation titles. */
-function aiRecordUsage(PDO $db): array {
+function aiRecordUsage(PDO $db, bool $recentOnly = false): array {
     $rows=[];
-    foreach($db->query('SELECT id,payload FROM ai_logs ORDER BY created_at DESC')->fetchAll(PDO::FETCH_ASSOC) as $row){
+    $query = $recentOnly
+        ? "SELECT id,payload,is_deleted FROM ai_logs WHERE created_at >= UTC_TIMESTAMP() - INTERVAL 45 DAY ORDER BY created_at DESC"
+        : 'SELECT id,payload,is_deleted FROM ai_logs ORDER BY created_at DESC';
+    foreach($db->query($query)->fetchAll(PDO::FETCH_ASSOC) as $row){
         $log=json_decode($row['payload'],true);if(!is_array($log))continue;
         $summary=array_intersect_key($log,array_flip(['id','generationId','feature','provider','model','status','timestamp','usageExcluded']));
         $summary['id']=$row['id'];
+        $summary['isDeleted']=(bool)$row['is_deleted'];
         $summary['tokens']=isset($log['historyRecovery'])?null:(is_numeric($log['tokens']??null)?(float)$log['tokens']:ceil((mb_strlen($log['prompt']??'')+mb_strlen($log['response']??''))/4));
         $rows[]=$summary;
     }
     return $rows;
+}
+
+/** Assessment Generation reads only saved quiz generations, independently of the audit feed. */
+function aiAssessmentGenerationLogs(PDO $db): array {
+    require_once __DIR__.'/generated_assessments.php';
+    sigmaCreationNumberSchema($db);
+    // Return summaries only; the editor retrieves one complete question set by ID.
+    $saved=$db->query("SELECT q.id,q.code,q.title,q.author_id,q.created_at,CASE WHEN JSON_VALID(q.questions) THEN JSON_LENGTH(q.questions) ELSE 0 END AS question_count,n.creation_number,u.id AS owner_id,u.full_name,u.first_name,u.last_name,u.role,u.avatar FROM quizzes q LEFT JOIN record_creation_numbers n ON n.collection='quizzes' AND n.record_id COLLATE utf8mb4_unicode_ci=q.id COLLATE utf8mb4_unicode_ci LEFT JOIN users u ON u.id COLLATE utf8mb4_unicode_ci=q.author_id COLLATE utf8mb4_unicode_ci AND u.is_deleted=0 WHERE q.is_ai=1 AND q.is_deleted=0 ORDER BY q.created_at DESC,q.id DESC")->fetchAll(PDO::FETCH_ASSOC);
+    $rows=$db->query("SELECT l.id,l.payload,n.creation_number,u.id AS owner_id,u.full_name,u.first_name,u.last_name,u.role,u.avatar FROM ai_logs l LEFT JOIN record_creation_numbers n ON n.collection='ai_logs' AND n.record_id COLLATE utf8mb4_unicode_ci=l.id COLLATE utf8mb4_unicode_ci LEFT JOIN users u ON u.id COLLATE utf8mb4_unicode_ci=l.user_id COLLATE utf8mb4_unicode_ci AND u.is_deleted=0 WHERE l.feature='quiz' AND l.is_deleted=0 ORDER BY l.created_at DESC,l.id DESC")->fetchAll(PDO::FETCH_ASSOC);
+    $logs=[]; $linked=[];
+    foreach($rows as $row){
+        $log=json_decode($row['payload'],true);if(!is_array($log))continue;
+        $generation=(string)($log['generationId']??$row['id']);
+        $quizId='ai-asmt-'.$generation;
+        $match=null;
+        foreach($saved as $quiz)if($quiz['id']===$quizId || ltrim($quiz['code']??'','#')===$generation){$match=$quiz;break;}
+        $log['quizId']=$match['id']??$quizId;
+        $log['questionCount']=$match?(int)$match['question_count']:count(sigmaGeneratedQuestions($log['response']??null));
+        if($match){$linked[$match['id']]=true;$log['assessmentTitle']=$match['title'];}
+        // Do not invent questions when a legacy log only contains a textual summary.
+        $log['canOpen']=$log['questionCount']>0;
+        unset($log['response']);
+        $log['creationNumber']=$row['creation_number']===null?null:(int)$row['creation_number'];
+        $log['isDeleted']=false;
+        if($row['owner_id']!==null)$log['userProfile']=['id'=>(string)$row['owner_id'],'fullName'=>$row['full_name']?:trim($row['first_name'].' '.$row['last_name']),'role'=>$row['role'],'avatar'=>$row['avatar']];
+        $logs[]=$log;
+    }
+    foreach($saved as $quiz){
+        if(isset($linked[$quiz['id']]))continue;
+        $log=['id'=>$quiz['id'],'generationId'=>$quiz['code']?:$quiz['id'],'quizId'=>$quiz['id'],
+            'feature'=>'quiz','userId'=>$quiz['author_id'],'status'=>'Success','timestamp'=>str_replace(' ','T',$quiz['created_at']).'Z',
+            'assessmentTitle'=>$quiz['title'],'questionCount'=>(int)$quiz['question_count'],'canOpen'=>(int)$quiz['question_count']>0,
+            'creationNumber'=>$quiz['creation_number']===null?null:(int)$quiz['creation_number'],'isDeleted'=>false];
+        if($quiz['owner_id']!==null)$log['userProfile']=['id'=>(string)$quiz['owner_id'],'fullName'=>$quiz['full_name']?:trim($quiz['first_name'].' '.$quiz['last_name']),'role'=>$quiz['role'],'avatar'=>$quiz['avatar']];
+        $logs[]=$log;
+    }
+    usort($logs,fn($a,$b)=>strcmp($b['timestamp']??'',$a['timestamp']??'')?:strcmp($b['id'],$a['id']));
+    return $logs;
 }

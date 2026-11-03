@@ -19,9 +19,10 @@
     const clone = value => JSON.parse(JSON.stringify(value));
     window.getAiUsageSnapshot = function (provider, period) {
         const database = window.SigmaAiDatabase;
-        const status = database?.getLogStatus?.() || { state: 'error' };
+        const status = database?.getUsageStatus?.() || database?.getLogStatus?.() || { state: 'error' };
         if (status.state !== 'ready') return { ...status, logs: [] };
-        const dateKey = value => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
+        const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' });
+        const dateKey = value => formatter.format(new Date(value));
         const today = dateKey(Date.now());
         const todayUtc = new Date(today + 'T00:00:00Z');
         const weekStart = new Date(todayUtc);
@@ -51,6 +52,16 @@
         const snapshot = window.getAiUsageSnapshot();
         const logs = snapshot.logs;
         panel.replaceChildren(element('h2', 'AI Usage', 'text-sm font-bold text-black'));
+        if (snapshot.state === 'ready' && !window.SigmaAiDatabase?.hasCompleteUsage?.()) {
+            if (snapshot.refreshing) {
+                const loading = element('div'); window.SigmaContentLoading.render(loading, {compact:true, label:'Loading full AI usage history'}); panel.append(loading);
+            } else {
+                const status = element('div', '', 'sigma-load-status sigma-load-status--inline');
+                window.renderSigmaLoadStatus(status, 'Full AI usage history is unavailable.', () => window.SigmaAiDatabase?.reloadUsage?.().catch(() => {}));
+                panel.append(status);
+            }
+            return;
+        }
         if (snapshot.state !== 'ready') {
             panel.append(element('p', snapshot.state === 'loading' ? 'Loading recorded AI activity…' : snapshot.state === 'signed-out' ? 'Sign in to view AI usage.' : 'Unable to load recorded AI activity.', 'text-sm text-black-fade'));
             if (snapshot.state === 'loading') {
@@ -59,7 +70,7 @@
             }
             if (snapshot.state === 'error') {
                 const status = element('div', '', 'sigma-load-status sigma-load-status--inline');
-                window.renderSigmaLoadStatus(status, 'Unable to load recorded AI activity.', () => window.SigmaAiDatabase?.reloadLogs().catch(() => {}));
+                window.renderSigmaLoadStatus(status, 'Unable to load recorded AI activity.', () => (window.SigmaAiDatabase?.reloadUsage?.() || window.SigmaAiDatabase?.reloadLogs()).catch(() => {}));
                 panel.lastElementChild?.remove(); panel.append(status);
             }
             return;
@@ -113,7 +124,7 @@
                 used: groqTokens,
                 limit: groqLimit,
                 percent: groqPct,
-                logo: logoBase + 'groq-logo.svg'
+                logo: logoBase + 'groq-logo.ico'
             }
         ];
 
@@ -223,10 +234,13 @@
     };
     window.addEventListener('sigma:ai-logs-updated', () => { if (selectedTab === 'usage') window.renderAiSettingsUsage(); });
 
-    let driveUsage = null, driveUsageLoading = false, driveUsageError = '';
+    let driveUsage = null, driveUsageLoading = false, driveUsageError = '', driveUsagePending = false, driveUsageTask = null, driveUsageTimer = null, driveUsageOwner = '';
     window.syncGoogleDriveStorageMetric = function () {
         const label = byId('storage-status-label');
-        if (label) label.textContent = driveUsageLoading ? 'Checking' : driveUsageError ? (driveUsage ? 'Last checked' : 'Unavailable') : driveUsage ? 'Connected' : 'Not checked';
+        if (label) {
+            label.textContent = driveUsage ? driveUsageError ? 'Last checked' : 'Connected' : driveUsageLoading || driveUsagePending ? 'Checking' : driveUsageError ? 'Unavailable' : 'Not checked';
+            label.title = driveUsageError || (driveUsage?.checked_at ? 'Checked ' + new Date(driveUsage.checked_at).toLocaleString() : '');
+        }
         if (!driveUsage && !driveUsageLoading && !driveUsageError) {
             window.loadGoogleDriveFolderUsage?.();
         }
@@ -269,7 +283,7 @@
         const known = limit > 0 && driveUsage !== null;
         const percent = known ? Math.max(0, accountUsed / limit * 100) : 0;
         if (footer) {
-            if (driveUsageLoading) {
+            if (driveUsageLoading && !driveUsage) {
                 footer.textContent = 'Checking…';
             } else if (driveUsage) {
                 const pctFormatted = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(percent);
@@ -312,34 +326,38 @@
             if (!driveUsage) window.loadGoogleDriveFolderUsage();
         }
     };
-    window.loadGoogleDriveFolderUsage = async function () {
-        if (driveUsageLoading) return;
+    window.loadGoogleDriveFolderUsage = function () {
+        if (driveUsageTask) return driveUsageTask;
+        const owner = String(window.SigmaDatabase?.currentUser?.()?.id || '');
+        if (!owner) return Promise.resolve();
+        if (driveUsageOwner !== owner) { driveUsageOwner = owner; driveUsage = null; }
+        clearTimeout(driveUsageTimer);
         driveUsageLoading = true;
         driveUsageError = '';
         window.syncGoogleDriveStorageMetric();
         window.renderGoogleDriveSettingsUsage();
-        try {
+        driveUsageTask = (async () => { try {
             const url = new URL('storage_usage.php', new URL(window.resolveUploadApiUrl(), location.href));
-            let response, data;
-            const deadline = Date.now() + 120000;
-            do {
-                response = await window.SigmaDatabase.fetch(url.href);
-                data = window.SigmaDatabase.readJson ? await window.SigmaDatabase.readJson(response) : await response.json();
-                if (!data.pending) break;
-                if (Date.now() >= deadline) throw new Error('Folder usage is unavailable. Please try again.');
-                await new Promise(resolve => setTimeout(resolve, 3000));
-            } while (data.pending);
+            const response = await window.SigmaDatabase.fetch(url.href, {foreground:true, autoReconnect:false, timeoutMs:8000, signal:AbortSignal.timeout(12000)});
+            const data = window.SigmaDatabase.readJson ? await window.SigmaDatabase.readJson(response) : await response.json();
+            if (owner !== String(window.SigmaDatabase?.currentUser?.()?.id || '')) return;
             if (!response.ok || !data.success) throw new Error(data.error || 'Folder usage is unavailable.');
-            driveUsage = data.usage;
-            driveUsageLoading = false;
-            window.syncGoogleDriveStorageMetric();
-            window.renderGoogleDriveSettingsUsage();
+            if (data.usage) driveUsage = data.usage;
+            driveUsageError = data.refresh_error || '';
+            driveUsagePending = Boolean(data.pending || data.refreshing);
+            if (driveUsagePending) driveUsageTimer = setTimeout(() => {
+                if (!document.hidden && owner === String(window.SigmaDatabase?.currentUser?.()?.id || '')) window.loadGoogleDriveFolderUsage();
+            }, driveUsage ? 5000 : 1000);
         } catch (error) {
-            driveUsageLoading = false;
+            if (owner !== String(window.SigmaDatabase?.currentUser?.()?.id || '')) return;
+            driveUsagePending = false;
             driveUsageError = error.message || 'Folder usage is unavailable.';
+        } finally {
+            driveUsageLoading = false;
             window.syncGoogleDriveStorageMetric();
-            window.renderGoogleDriveSettingsUsage(error.message || 'Folder usage is unavailable.');
-        }
+            window.renderGoogleDriveSettingsUsage(driveUsageError);
+        } })().finally(() => { driveUsageTask = null; });
+        return driveUsageTask;
     };
     window.renderGoogleDriveSettingsUsage = function (error = '') {
         const panel = byId('gdrive-usage-panel');
@@ -352,7 +370,7 @@
         refresh.innerHTML = '<i class="fa-solid fa-rotate-right" aria-hidden="true"></i>';
         refresh.disabled = driveUsageLoading; refresh.onclick = window.loadGoogleDriveFolderUsage;
         toolbar.append(refresh); panel.append(toolbar);
-        if (error || driveUsageLoading || !driveUsage) {
+        if (!driveUsage) {
             const message = element('p', error || (driveUsageLoading ? 'Checking the ELMS folder and subfolders…' : 'Folder usage has not loaded yet.'), 'text-sm text-black-fade mt-4');
             message.setAttribute('role', 'status');
             if (driveUsageLoading && !error) window.SigmaContentLoading.render(message, {compact:true, label:'Loading folder usage'});
@@ -498,7 +516,12 @@
         byId('ai-provider-panel').hidden = !isKeys;
         if (!isKeys) window.toggleAddAiKeyForm?.(false, null, false);
         window.syncAiKeyListVisibility();
-        if (selectedTab === 'usage') window.renderAiSettingsUsage?.();
+        if (selectedTab === 'usage') {
+            window.renderAiSettingsUsage?.();
+            if (!byId('settings-ai-view')?.classList.contains('hidden') && !window.SigmaAiDatabase?.hasCompleteUsage?.()) {
+                window.SigmaAiDatabase?.reloadUsage?.().catch(() => {});
+            }
+        }
         ['functions', 'keys', 'usage'].forEach(name => {
             const tabButton = byId('ai-' + name + '-tab');
             tabButton.setAttribute('aria-selected', String(name === selectedTab));

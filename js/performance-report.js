@@ -3,60 +3,74 @@
 'use strict';
 
 let records=[];
+let reportDirty=true, reportReady=false, overviewDirty=true, reportDay='', overviewRows=[];
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const numeric=v=>v!==null&&v!==undefined&&v!==''&&v!=='-'&&Number.isFinite(Number(v));
 
+const timestampMs=(...values)=>{for(const value of values){if(value===null||value===undefined||value==='')continue;const parsed=typeof value==='number'?value:Date.parse(String(value));if(Number.isFinite(parsed)&&parsed>0)return parsed;}return 0;};
+const formatRecordDate=value=>value?new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}).format(new Date(value)):'Date unavailable';
+
 function collect(){
- if (!window._gradebookReadCacheActive && window.withGradebookReadCache) return window.withGradebookReadCache(collect);
-
+ const live=window.SigmaAcademicRecords?.getPerformanceSnapshot?.();
+ if(!live?.ready)return null;
  const users=window.getStoredJson?.('sigma-admin-users',[])||[];
+ const catalog=window.getStoredJson?.('sigma-admin-subjects',[])||[];
+ const userById=new Map(users.flatMap(user=>[user.id,user.uid,user.studentNumber,user.lrn].filter(Boolean).map(id=>[String(id).replace(/^std-/i,''),user])));
+ const norm=value=>String(value||'').replace(/^(card|subj|gen)[-_]/i,'').trim().toLowerCase();
+ const rows=[],seen=new Set();
+ for(const scope of live.scopes){
+  const subject=catalog.find(subject=>[subject.id,subject.code,subject.name,subject.title].some(value=>norm(value)===norm(scope.subjectId)))||{};
+  const materials=new Map();
+  const walk=(nodes,quarter=1,bucket='materials')=>{
+   if(!Array.isArray(nodes))return;
+   nodes.forEach(node=>{
+    if(!node||node.isDeleted||node.is_deleted)return;
+    const q=node.quarter||quarter,id=node.id||node.materialId||node.assessmentId;
+    if(id)materials.set(String(id),{...node,quarter:q,type:node.type||(/quiz/i.test(bucket)?'Quiz':'Task')});
+    for(const key of ['materials','assignments','quiz','quizzes','activities','performanceTasks','assessments','tasks'])walk(node[key],q,key);
+   });
+  };
+  walk(subject.materials);walk(subject.topics);
+  for(const q of [1,2,3,4])walk(subject['q'+q+'Topics'],q);
 
- const classes=new Map();
-
- for(const teacher of users.filter(u=>String(u.role).toLowerCase()==='teacher')) for(const c of window.getTeacherAssignedSubjectsAndSections?.(teacher)||[])classes.set(JSON.stringify([c.subject,c.sectionName]),c);
-
- const rows=[];const seen=new Set();
-
- for(const quarter of [1,2,3,4]) for(const c of classes.values()) for(const category of ['ww','pt','qa']){
-
- const students=(window.getStudentsForSection?.(c.sectionName,c.subject)||[]).map(student=>({...student,section:c.sectionName}));
- const items=window.getCategoryDetails?.(category,quarter,c.subject,c.sectionName)||[];
-
- items.forEach((item,index)=>{
-
- const key=JSON.stringify([quarter,c.subject,c.sectionName,item.id||item.rawItem?.id||[item.topicIdx,item.itemIdx,category,index]]);if(seen.has(key))return;seen.add(key);
-
- for(const student of students){
-
- const scoped={...item,section:c.sectionName,quarter};
- const itemIndex=item.itemIdx??index;
-
- const effective=window.getEffectiveAssessmentStatusAndScore?.(student,category,itemIndex,item.subjectId||c.subject,quarter,scoped)||{};
-
- const score=numeric(effective.score)?Number(effective.score):window.getGradebookStudentItemScore?.(student,category,itemIndex,scoped,item.subjectId||c.subject,quarter);
-
- const raw=String(effective.status||'').toLowerCase();
-
- const status=['missing','absent','incomplete','excuse','excused'].includes(raw)?(raw==='excuse'?'excused':raw):numeric(score)?'graded':null;
-
- if(!status)continue;
-
- const source=item.rawItem||item;
-
- const type=/quiz/i.test(String(source.type||source.assessmentType||item._category||''))?'Quiz':'Task';
-
- rows.push({student,subject:c.subject,section:c.sectionName,grade:c.grade||student.gradeLevel||'',category,index,item,quarter,score:numeric(score)?Number(score):null,max:Number(item.max||item.points||source.points||source.totalPoints)||null,status,type});
-
+  const roster=window.getStudentsForSection?.(scope.section,scope.subjectId)||[];
+  const studentFor=id=>{const user=roster.find(student=>[student.id,student.uid,student.studentNumber,student.lrn].some(value=>String(value)===String(id)))||userById.get(String(id).replace(/^std-/i,''))||{id};return {...user,section:scope.section};};
+  const config=scope.releases?.assessments||{};
+  const submissionTimes=new Map((scope.records||[]).filter(record=>record.type==='submission').map(record=>[
+   `${record.studentId}:${record.itemId}`,timestampMs(record.data?.submittedAt,record.data?.completedAt,record.data?.recordedAt)
+  ]));
+  for(const record of scope.records||[]){
+   if(record.type!=='score')continue;
+   const data=record.data||{},rawStatus=String(data.gradingStatus||data.attendance||'').toLowerCase();
+   const score=numeric(data.score)?Number(data.score):null;
+   const status=['missing','absent','incomplete','excuse','excused'].includes(rawStatus)?(rawStatus==='excuse'?'excused':rawStatus):score!==null?'graded':null;
+   if(!status)continue;
+   const raw=materials.get(String(record.itemId))||{};
+   const quarter=Number(String(data.quarter||raw.quarter||raw.data?.quarter||1).replace(/\D/g,''))||1;
+   const key=JSON.stringify([scope.sectionId,scope.subjectId,record.studentId,record.itemId]);if(seen.has(key))continue;seen.add(key);
+   const configured=config.assessmentActivityComponents?.[record.itemId]||config.assessmentComponents?.[record.itemId]||raw.component||raw.activityComponent||raw.category||raw.type||'';
+   const type=/quiz/i.test(String(raw.type||raw.assessmentType||data.category||''))?'Quiz':'Task';
+   const category=type==='Quiz'?'ww':/^(pt|perf)|performance/i.test(configured)?'pt':/^(qa|quarter)|exam/i.test(configured)?'qa':'ww';
+   const maximum=config.assessmentMaxScores?.[record.itemId]??data.maxScore??raw.maxScore??raw.points??raw.totalPoints;
+   const item={...raw,id:record.itemId,subjectId:scope.subjectId,section:scope.section,quarter,max:numeric(maximum)?Number(maximum):null,rawItem:raw};
+   const student=studentFor(record.studentId);
+   const recordedAtMs=timestampMs(data.gradedAt,data.recordedAt,submissionTimes.get(`${record.studentId}:${record.itemId}`),raw.gradedAt,raw.recordedAt,raw.updatedAt,raw.createdAt);
+   rows.push({student,subject:scope.subject,section:scope.section,grade:student.gradeLevel||student.grade||'',category,index:0,item,quarter,score,max:item.max,status,type,recordedAtMs});
+  }
+  // Offline assessments retain their saved gradebook scores without rebuilding curriculum lists.
+  for(const quarter of [1,2,3,4])for(const category of ['ww','pt','qa']){
+   const offline=window.getOfflineAssessments?.(scope.subjectId,scope.section,quarter,category==='pt'?'perf. task':category)||[];
+   for(const raw of offline)for(const student of roster){
+    const score=window.readOfflineAssessmentScore?.(student,raw),status=String(window.readOfflineAssessmentStatus?.(student,raw)||'').toLowerCase();if(!numeric(score)&&!['missing','absent','incomplete','excuse','excused'].includes(status))continue;
+    const key=JSON.stringify([scope.sectionId,scope.subjectId,student.id,raw.id]);if(seen.has(key))continue;seen.add(key);
+    const item={...raw,offline:true,section:scope.section,quarter,subjectId:scope.subjectId,rawItem:raw};
+    rows.push({student:{...student,section:scope.section},subject:scope.subject,section:scope.section,grade:student.gradeLevel||student.grade||'',category,index:0,item,quarter,score:numeric(score)?Number(score):null,max:Number(raw.max||raw.points||raw.totalPoints)||null,status:status==='excuse'?'excused':status||'graded',type:/quiz/i.test(raw.type||'')?'Quiz':'Task',recordedAtMs:timestampMs(raw.gradedAt,raw.recordedAt,raw.updatedAt,raw.createdAt)});
+   }
+  }
  }
-
- });
-
- }
-
- return rows;
-
+ return rows.sort((a,b)=>b.recordedAtMs-a.recordedAtMs||b.quarter-a.quarter);
 }
 
 window.openPerformanceSubmission=function(index){
@@ -75,7 +89,10 @@ window.openPerformanceSubmission=function(index){
 
  window.sigmaGradesState.selectedStudent=r.student.fullName||r.student.name||[r.student.firstName,r.student.lastName].filter(Boolean).join(' ');
 
- window.openGradebookAssessment?.(r.category,r.item.itemIdx??r.index,r.subject,r.section);
+ const details=window.getCategoryDetails?.(r.category,r.quarter,r.item.subjectId||r.subject,r.section)||[];
+ const detailIndex=details.findIndex(item=>String(item.id||item.materialId||item.rawItem?.id)===String(r.item.id));
+ if(detailIndex<0){window.showToast?.('This assessment is not currently available in the class gradebook.');return;}
+ window.openGradebookAssessment?.(r.category,detailIndex,r.item.subjectId||r.subject,r.section);
 
 };
 
@@ -91,18 +108,24 @@ window.applyPerformanceSearch=function(){
  const type=document.getElementById('perf-filter-type')?.value||'';
  const selectedQuarter=Number(document.getElementById('perf-filter-quarter')?.value)||0;
 
- const filtered=records.map((r,index)=>({...r,index})).filter(r=>(!selectedQuarter||r.quarter===selectedQuarter)&&(!subject||r.subject===subject)&&(!type||r.type===type)&&window.SigmaSearch.record(q,[r.student.studentNumber,r.student.id,r.student.uid,r.student.lrn],[r.student.fullName,r.student.name,r.subject,r.section]));
+ const filtered=records.map((r,index)=>({...r,index})).filter(r=>(!selectedQuarter||r.quarter===selectedQuarter)&&(!subject||r.subject===subject)&&(!type||r.type===type)&&window.SigmaSearch.record(q,[r.student.studentNumber,r.student.id,r.student.uid,r.student.lrn],[r.student.fullName,r.student.name,r.subject,r.section]))
+  .sort((a,b)=>b.recordedAtMs-a.recordedAtMs||b.quarter-a.quarter||a.index-b.index);
+ filtered.forEach((record,index)=>{record.displayNumber=filtered.length-index;record.isLatest=index===0&&record.recordedAtMs>0;});
 
- const percentages=filtered.filter(r=>r.status==='graded'&&r.score!==null&&r.max>0).map(r=>r.score/r.max*100);
+ const percentages=filtered.filter(r=>r.score!==null&&r.max>0).map(r=>r.score/r.max*100);
 
- const values=[percentages.length?(percentages.reduce((a,b)=>a+b,0)/percentages.length).toFixed(1)+'%':'N/A',percentages.length?Math.max(...percentages).toFixed(1)+'%':'N/A',filtered.filter(r=>r.status==='graded'&&r.score!==null).length,new Set(filtered.filter(r=>['missing','absent','incomplete'].includes(r.status)||r.status==='graded'&&r.score!==null&&r.max>0&&r.score/r.max<.75).map(r=>r.student.uid||r.student.id||r.student.studentNumber||JSON.stringify([r.student.fullName||r.student.name,r.section]))).size];
+ const values=[percentages.length?(percentages.reduce((a,b)=>a+b,0)/percentages.length).toFixed(1)+'%':'N/A',percentages.length?percentages.reduce((max,value)=>Math.max(max,value),-Infinity).toFixed(1)+'%':'N/A',filtered.filter(r=>r.score!==null).length,new Set(filtered.filter(r=>['missing','absent','incomplete'].includes(r.status)||r.score!==null&&r.max>0&&r.score/r.max<.75).map(r=>r.student.uid||r.student.id||r.student.studentNumber||JSON.stringify([r.student.fullName||r.student.name,r.section]))).size];
 
  ['avg','highest','passrate','atrisk'].forEach((id,i)=>{const el=document.getElementById('metric-perf-'+id);if(el){el.textContent=values[i];el.classList.toggle('performance-metric-unavailable',values[i]==='N/A');el.title=values[i]==='N/A'?'No scored assessments available for the selected filters.':'';const spot=el.closest('.sigma-interactive-metric-card')?.querySelector('.metric-text-spotlight span:last-child');if(spot){spot.textContent=values[i];spot.classList.toggle('performance-metric-unavailable',values[i]==='N/A');}}});
 
- renderOverview(filtered);
+ overviewDirty=true;
+ const overviewPanel=document.getElementById('performance-live-overview');
+ if(overviewPanel&&!overviewPanel.hidden){renderOverview(filtered);overviewDirty=false;}
+ overviewRows=filtered;
 
- body.innerHTML=filtered.map(r=>{const name=r.student.fullName||r.student.name||[r.student.firstName,r.student.lastName].filter(Boolean).join(' ');const avatarHtml=(typeof window.renderUserAvatarHtml==='function'&&window.renderUserAvatarHtml(r.student,'sm'))||'<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user"></i></div>';return `<tr><td><div class="flex items-center gap-3">${avatarHtml}<div class="performance-student-identity"><span>${esc(name)}</span><small class="performance-student-id">ID: ${esc(r.student.studentNumber || r.student.id || r.student.uid || r.student.lrn || '—')}</small></div></div></td><td><div>${esc(r.section)}</div><div>${esc(r.grade)}</div></td><td><div>${esc(r.subject)}</div><small class="performance-quarter-label">Quarter ${r.quarter}</small></td><td><span>${r.type}</span></td><td><span>${r.score===null?'—':esc(r.score)}${r.max?' / '+esc(r.max):''}</span></td><td><span class="performance-assessment-status" data-status="${r.status}">${r.status[0].toUpperCase()+r.status.slice(1)}</span></td><td><div class="flex justify-center"><div class="action-dropdown-container"><button type="button" class="action-dots-btn cursor-pointer" id="perf-dots-btn-${r.index}" aria-label="Assessment actions" onclick="window.togglePerformanceActionDropdown(${r.index},event)"><i class="fa-solid fa-ellipsis"></i></button><div id="perf-action-menu-${r.index}" class="action-dropdown-menu"><button type="button" class="action-dropdown-item cursor-pointer" onclick="window.openPerformanceSubmission(${r.index});this.closest('.action-dropdown-menu').classList.remove('show')"><i class="fa-solid fa-file-lines"></i><span>View Submission</span></button></div></div></div></td></tr>`}).join('')||`<tr><td colspan="7" class="text-xs text-black-fade italic" style="text-align:center;padding:32px;color:rgba(0,0,0,0.45);">${records.length ? 'No assessment records match the selected filters.' : 'No graded assessments or assessment statuses have been recorded for this school year.'}</td></tr>`;
- paginatePerformanceRows();
+ const rowHtml=r=>{const name=r.student.fullName||r.student.name||[r.student.firstName,r.student.lastName].filter(Boolean).join(' ');const avatarHtml=(typeof window.renderUserAvatarHtml==='function'&&window.renderUserAvatarHtml(r.student,'sm'))||'<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user"></i></div>';return `<tr><td><div class="flex items-center gap-3">${avatarHtml}<div class="performance-student-identity"><span>${esc(name)}${r.isLatest?' <span class="performance-record-latest" style="display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;background:#dcfce7;color:#15803d;font-size:10px;font-weight:700;vertical-align:middle">Latest</span>':''}</span><small class="performance-student-id">ID: ${esc(r.student.studentNumber || r.student.id || r.student.uid || r.student.lrn || '—')}</small><small class="performance-record-sequence" title="Most recently saved records appear first" style="display:block;margin-top:3px;color:#64748b;font-size:10px;font-weight:600">#${r.displayNumber} · ${esc(formatRecordDate(r.recordedAtMs))}</small></div></div></td><td><div>${esc(r.section)}</div><div>${esc(r.grade)}</div></td><td><div>${esc(r.subject)}</div><small class="performance-quarter-label">Quarter ${r.quarter}</small></td><td><span>${r.type}</span></td><td><span>${r.score===null?'—':esc(r.score)}${r.max?' / '+esc(r.max):''}</span></td><td><span class="performance-assessment-status" data-status="${r.status}">${r.status[0].toUpperCase()+r.status.slice(1)}</span></td><td><div class="flex justify-center"><div class="action-dropdown-container"><button type="button" class="action-dots-btn cursor-pointer" id="perf-dots-btn-${r.index}" aria-label="Assessment actions" onclick="window.togglePerformanceActionDropdown(${r.index},event)"><i class="fa-solid fa-ellipsis"></i></button><div id="perf-action-menu-${r.index}" class="action-dropdown-menu"><button type="button" class="action-dropdown-item cursor-pointer" onclick="window.openPerformanceSubmission(${r.index});this.closest('.action-dropdown-menu').classList.remove('show')"><i class="fa-solid fa-file-lines"></i><span>View Submission</span></button></div></div></div></td></tr>`};
+ const emptyHtml=`<tr><td colspan="7" class="text-xs text-black-fade italic" style="text-align:center;padding:32px;color:rgba(0,0,0,0.45);">${records.length ? 'No assessment records match the selected filters.' : 'No graded assessments or assessment statuses have been recorded for this school year.'}</td></tr>`;
+ paginatePerformanceRows(filtered,rowHtml,emptyHtml);
 
 };
 
@@ -464,6 +487,7 @@ window.togglePerformanceSYDropdown = function(e) {
 
 window.selectPerformanceSY = function(sy, label) {
  selectedPerfSchoolYear = sy;
+ reportDirty=true;overviewDirty=true;
  const currentLabel = document.getElementById('perf-sy-current-label');
  if (currentLabel) currentLabel.textContent = label || `S.Y. ${sy}`;
  const dropdown = document.getElementById('perf-sy-dropdown');
@@ -560,31 +584,7 @@ function computeStudentGwaRankings(quarter, sectionFilter = '', subjectFilter = 
   }
  }
 
- // Also fallback to any graded assessment records for students who may not have category weights computed yet
- if (studentMap.size === 0 && Array.isArray(records) && records.length > 0) {
-  for (const r of records) {
-   if (r.status !== 'graded' || r.score === null || !(r.max > 0)) continue;
-   if (sectionFilter && r.section !== sectionFilter) continue;
-   if (subjectFilter && r.subject !== subjectFilter) continue;
-   const student = r.student || {};
-   const studentName = student.fullName || student.name || [student.firstName, student.lastName].filter(Boolean).join(' ') || 'Student';
-   const studentId = student.uid || student.id || JSON.stringify([studentName, r.section]);
-   const rawGradeLevel = r.grade || student.gradeLevel || sectionGradeMap.get(String(r.section || '').trim().toLowerCase()) || 'Grade 11';
-   const normalizedGradeLevel = /12/.test(String(rawGradeLevel)) ? 'Grade 12' : (/11/.test(String(rawGradeLevel)) ? 'Grade 11' : rawGradeLevel);
-   const existing = studentMap.get(studentId) || {
-    studentId,
-    name: studentName,
-    section: r.section,
-    gradeLevel: normalizedGradeLevel,
-    totalGrade: 0,
-    subjectCount: 0
-   };
-   existing.totalGrade += (r.score / r.max) * 100;
-   existing.subjectCount += 1;
-   studentMap.set(studentId, existing);
-  }
- }
-
+ // GWA uses saved published quarterly subject grades, never a raw assessment percentage.
  return Array.from(studentMap.values())
   .filter(s => s.subjectCount > 0)
   .map(s => ({
@@ -742,7 +742,7 @@ function renderOverview(rows) {
   filteredRows = filteredRows.filter(r => r.subject === overviewSubjectFilter);
  }
 
- const graded = filteredRows.filter(r => r.status === 'graded' && r.score !== null && r.max > 0);
+ const graded = filteredRows.filter(r => r.score !== null && r.max > 0);
 
  const bands = [
   ['Outstanding (90 - 100)', 90, Infinity],
@@ -849,16 +849,16 @@ function renderOverview(rows) {
  `;
 }
 
-function paginatePerformanceRows() {
+function paginatePerformanceRows(items,rowHtml,emptyHtml) {
  const body=document.getElementById('performanceReportTableBody');
- const table=body?.closest('table');if(!table||!window.SigmaLogPagination)return;
+ const table=body?.closest('table');if(!table)return;
+ body.innerHTML=items.length?'':emptyHtml;
+ if(!window.SigmaLogPagination){if(items.length)body.innerHTML=items.map(rowHtml).join('');return;}
  table.dataset.pageSize ||= String(performancePageSize);
-
- const rows=Array.from(body.rows).filter(row=>row.cells.length>1);
- window.SigmaLogPagination.setRecords(table,rows,row=>row,{reset:true});
+ window.SigmaLogPagination.setRecords(table,items,item=>{const host=document.createElement('tbody');host.innerHTML=rowHtml(item);return host.firstElementChild;},{reset:true});
  const wrap=table.closest('.performance-records-table-wrap');
  const footer=wrap?.querySelector('.sigma-log-pagination');
- if(footer)wrap.after(footer);
+ if(footer)wrap.before(footer);
 }
 function setupPerformanceDropdowns(){
  const toolbar=document.querySelector('.performance-records-toolbar');if(!toolbar)return;
@@ -879,7 +879,7 @@ function setupPerformanceDropdowns(){
   dropdown.append(summary,menu);select.after(dropdown);
  }
 }
-let performancePageSize=20;
+let performancePageSize=5;
 function setupPerformanceTabs() {
  const tabOverview = document.getElementById('performance-tab-overview');
  const tabRecords = document.getElementById('performance-tab-records');
@@ -897,6 +897,10 @@ function setupPerformanceTabs() {
   tabRecords.setAttribute('aria-pressed', String(!isOverview));
   panelOverview.hidden = !isOverview;
   panelRecords.hidden = isOverview;
+  if(isOverview&&overviewDirty&&reportReady){
+   const render=()=>{renderOverview(overviewRows);overviewDirty=false;};
+   if(window.withGradebookReadCache)window.withGradebookReadCache(render);else render();
+  }
  };
 
  if (tabOverview.dataset.bound !== 'true') {
@@ -915,7 +919,16 @@ function refresh() {
  }
 
  setupPerformanceTabs();
- records = collect();
+ const today=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'});
+ if(!reportDirty&&reportReady&&reportDay===today)return;
+ reportDay=today;
+ const collected=collect();
+ if(collected===null){
+  if(!reportReady){const body=document.getElementById('performanceReportTableBody');if(body)body.innerHTML='<tr><td colspan="7" role="status" style="text-align:center;padding:32px">Loading saved assessment records…</td></tr>';}
+  return;
+ }
+ records=collected;
+ reportDirty=false;reportReady=true;
 
  const select = document.getElementById('perf-filter-subject');
  const previous = select?.value;
@@ -944,10 +957,12 @@ document.addEventListener('DOMContentLoaded', () => {
  scheduleRefresh();
 });
 window.addEventListener('hashchange', scheduleRefresh);
-window.addEventListener('sigma:grades-published', scheduleRefresh);
-['sigma:assessment-scored','sigma-gradebook-updated','sigma-assessment-data-updated','sigma:submission-files-updated','sigma-submissions-cleared','sigma:release-config-updated','focus'].forEach(event=>window.addEventListener(event,scheduleRefresh));
+function markReportDirty(){reportDirty=true;overviewDirty=true;scheduleRefresh();}
+window.addEventListener('sigma:grades-published', markReportDirty);
+['sigma:assessment-scored','sigma-gradebook-updated','sigma-assessment-data-updated','sigma:submission-files-updated','sigma-submissions-cleared','sigma:release-config-updated','sigma:academic-snapshot-updated','sigma:assigned-classrooms-updated','sigma:database-updated'].forEach(event=>window.addEventListener(event,markReportDirty));
+window.addEventListener('focus',scheduleRefresh);
 window.addEventListener('storage', event => {
- if (!event.key || /grade|score|submission|sigma_sub_|assessment|sigma-admin-(users|sections|subjects)/i.test(event.key)) scheduleRefresh();
+ if (!event.key || /grade|score|submission|sigma_sub_|assessment|sigma-admin-(users|sections|subjects)/i.test(event.key)) markReportDirty();
 });
 
 })();

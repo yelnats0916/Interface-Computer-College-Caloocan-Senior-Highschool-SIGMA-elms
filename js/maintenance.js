@@ -4,7 +4,7 @@
     const node=id=>document.getElementById(id);
     const actor=()=>{try{return window.getLoggedInAdminUser?.()||JSON.parse(sessionStorage.getItem('sigma-authenticated-user')||'{}');}catch(_){return {};}};
     const role=()=>String(actor().role||actor().type||'').replace(/[\s_-]+/g,'').toLowerCase();
-    const canManage=()=>{const p=actor().permissions||{};return role()==='masteradmin'||role()==='admin'&&p.settingsMain!==false&&p.settingsSecurity!==false&&p.maintenanceManage===true;};
+    const canManage=()=>{const p=actor().permissions||{};return role()==='masteradmin'||!state?.masterOnly&&role()==='admin'&&p.settingsMain!==false&&p.settingsSecurity!==false&&p.maintenanceManage===true;};
     const time=value=>value?new Date(value).toLocaleString('en-US',{timeZone:'Asia/Manila',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}):'Not recorded';
     const notify=(message,type='success')=>window.SigmaFeedback?.notify(message,type,{id:'maintenance-settings',placement:'bottom-left',compact:true});
     const detailRoute=()=>new URL(location.href).searchParams.get('maintenanceView')==='manage'&&location.hash==='#nav-settings-security';
@@ -53,11 +53,11 @@
             node('maintenance-schedule-summary').textContent=state.scheduleStatus==='none'?'No maintenance is scheduled.':`${state.scheduleStatus==='upcoming'?'Scheduled':state.scheduleStatus==='active'?'In progress':'Completed'} from ${time(state.schedule.startAt)} to ${time(state.schedule.endAt)}, Manila time.`;
             node('maintenance-schedule-cancel').hidden=!['upcoming','active'].includes(state.scheduleStatus);
         }
-        if(node('maintenance-mode-status'))node('maintenance-mode-status').textContent=state.enabled?'On. Portal access is restricted. Authorized maintenance administrators retain access.':'Off. The portal is available. Use the switch for immediate maintenance or manage a scheduled window.';
+        if(node('maintenance-mode-status'))node('maintenance-mode-status').textContent=state.enabled?(state.masterOnly?'On. Academic year maintenance: only Master Admins retain access.':'On. Portal access is restricted. Authorized maintenance administrators retain access.'):'Off. The portal is available. Use the switch for immediate maintenance or manage a scheduled window.';
         if(detailRoute()&&!editorReady)seedEditor();renderBanner();controls();scheduleBoundary();
         window.dispatchEvent(new CustomEvent('sigma:academic-calendar-changed'));
         if(state.enabled&&role()&&!canManage()){
-            sessionStorage.removeItem('sigma-grade-sync-session');sessionStorage.removeItem('sigma-login-challenge');sessionStorage.removeItem('sigma-authenticated-user');location.href=new URL('index.html',location.href).href;
+            window.SigmaSessionNavigation?.signOutToLogin({broadcast:false});
         }
     }
     function scheduleBoundary(){
@@ -142,6 +142,7 @@
             new MutationObserver(showPage).observe(node('settings-security-view'),{attributes:true,attributeFilter:['class']});showPage();
         }
         refresh();setInterval(()=>{if(document.visibilityState!=='hidden')refresh();},30000);
+        window.addEventListener('sigma:maintenance-refresh',refresh);
         document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refresh();});
         window.addEventListener('popstate',showPage);window.addEventListener('hashchange',showPage);
     }

@@ -7,7 +7,7 @@ function sigmaMaintenanceState(array $config, ?int $now=null): array {
     $start=$scheduled?strtotime($schedule['startAt']??''):false;
     $end=$scheduled?strtotime($schedule['endAt']??''):false;
     $within=$start!==false && $end!==false && $now>=$start && $now<$end;
-    return ['enabled'=>!empty($config['enabled'])||$within,'manualEnabled'=>!empty($config['enabled']),
+    return ['enabled'=>!empty($config['enabled'])||$within,'manualEnabled'=>!empty($config['enabled']),'masterOnly'=>!empty($config['masterOnly']),
         'message'=>trim($config['message']??'')?:'The system is temporarily unavailable for maintenance. Please try again later.',
         'title'=>$config['title']??'Scheduled System Maintenance','schedule'=>$schedule,
         'scheduleStatus'=>!$scheduled?'none':($now<$start?'upcoming':($within?'active':'completed')),
@@ -21,13 +21,27 @@ function sigmaMaintenanceConfig(): array {
 }
 function sigmaMaintenanceRestricted(array $user,?array $state=null): bool {
     $state=$state??sigmaMaintenanceState(sigmaMaintenanceConfig());
-    return !empty($state['enabled']) && !sigmaMaintenanceCanManage($user);
+    $master=preg_replace('/[\s_-]+/','',strtolower($user['role']??''))==='masteradmin';
+    return !empty($state['enabled']) && (!empty($state['masterOnly']) ? !$master : !sigmaMaintenanceCanManage($user));
 }
 function sigmaMaintenanceCanManage(array $user): bool {
     $role=preg_replace('/[\s_-]+/','',strtolower($user['role']??''));
     if($role==='masteradmin')return true;
     $p=is_array($user['permissions']??null)?$user['permissions']:(json_decode($user['permissions']??'{}',true)?:[]);
     return $role==='admin' && ($p['settingsMain']??true)===true && ($p['settingsSecurity']??true)===true && ($p['maintenanceManage']??false)===true;
+}
+/** Serialize token issuance with a maintenance transition so an in-flight login cannot escape revocation. */
+function sigmaBeginAllowedLogin(PDO $db,array $user): bool {
+    $ownsTransaction=!$db->inTransaction();
+    if($ownsTransaction)$db->beginTransaction();
+    $db->query('SELECT id FROM system_service_settings WHERE id=1 LOCK IN SHARE MODE');
+    $state=sigmaMaintenanceState(loadServiceSettings()['maintenance']??[]);
+    if(sigmaMaintenanceRestricted($user,$state)){
+        if($ownsTransaction)$db->rollBack();
+        http_response_code(423);header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success'=>false,'code'=>'system_maintenance','error'=>$state['message']]);exit;
+    }
+    return $ownsTransaction;
 }
 function sigmaMaintenanceNoticeText($value,int $limit,string $label): string {
     if(!is_string($value))throw new InvalidArgumentException('Enter a valid '.$label.'.');

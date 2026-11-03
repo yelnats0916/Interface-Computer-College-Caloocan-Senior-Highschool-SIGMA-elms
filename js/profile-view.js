@@ -206,15 +206,22 @@
                 localStorage.removeItem(`sigma_avatar_${id}`);
             }
 
-            // Update in persistent users database for this user specifically
-            const allUsers = getStoredJson(USER_STORAGE_KEY, []);
-            if (Array.isArray(allUsers)) {
-                const uIdx = allUsers.findIndex(u => String(u.uid || u.id || '').replace(/^#/, '').trim() === id);
+            // Clear or update every role-scoped roster cache for this account.
+            // Otherwise an older role cache can restore the removed picture.
+            ['sigma-admin-users', 'sigma-student-users', 'sigma-teacher-users', 'sigma-users-list', 'sigma-users'].forEach(key => {
+                const allUsers = getStoredJson(key, []);
+                if (!Array.isArray(allUsers)) return;
+                const uIdx = allUsers.findIndex(u => String(u?.uid || u?.id || u?.lrn || '').replace(/^#/, '').trim() === id);
                 if (uIdx !== -1) {
                     allUsers[uIdx].avatar = val || '';
-                    saveStoredJson(USER_STORAGE_KEY, allUsers);
+                    if (!val) {
+                        ['profilePicture', 'photo', 'profileImage'].forEach(field => {
+                            if (field in allUsers[uIdx]) allUsers[uIdx][field] = '';
+                        });
+                    }
+                    saveStoredJson(key, allUsers);
                 }
-            }
+            });
         }
 
         // Clean up legacy keys across the board ONLY if specifically 0000000
@@ -252,7 +259,8 @@
         const id = resolveTargetUserId(userId);
         if (!id) return [];
         const saved = getStoredJson(`sigma_avatar_history_${id}`, null);
-        if (Array.isArray(saved) && saved.length) return saved;
+        // An empty saved list is authoritative: it means the user deleted all uploads.
+        if (Array.isArray(saved)) return saved;
         const users = getStoredJson(USER_STORAGE_KEY, []);
         const record = Array.isArray(users) ? users.find(user => String(user.id || user.uid) === String(id)) : null;
         const avatar = record?.avatar || getCurrentUserAvatar(id);
@@ -719,6 +727,16 @@
                             <p id="view-user-gender" class="text-base md:text-lg font-medium text-black font-['Inter']">Not specified</p>
                         </div>
 
+                        <!-- Birthday (private to the account owner) -->
+                        <div id="view-user-birthday-row" class="space-y-1.5 pt-4">
+                            <div class="flex items-center gap-2.5">
+                                <i class="fa-solid fa-cake-candles text-sm md:text-base text-[#15803d]"></i>
+                                <p class="text-sm md:text-base font-semibold text-black font-['Inter']">Birthday</p>
+                            </div>
+                            <p id="view-user-birthday" class="text-base md:text-lg font-medium text-black font-['Inter']">Not provided</p>
+                            <p id="view-user-birthday-note" class="hidden text-xs text-amber-700">Generated placeholder. Confirm with school records.</p>
+                        </div>
+
                         <!-- Institutional Role -->
                         <div id="view-user-role-row" class="space-y-1.5 pt-4">
                             <div class="flex items-center gap-2.5">
@@ -866,7 +884,7 @@
         const defaultRole = portal === 'teacher' ? 'Teacher' : portal === 'student' ? 'Student' : 'User';
         const firstName = userData.firstName || defaultRole;
         const lastName = userData.lastName || '';
-        const fullName = (firstName + ' ' + lastName).trim() || userData.name || defaultRole;
+        const fullName = [userData.firstName, userData.middleName, userData.lastName].filter(Boolean).join(' ').trim() || userData.fullName || userData.name || defaultRole;
         const role = userData.role || defaultRole;
         const formattedRole = role ? (role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()) : defaultRole;
         const userId = userData.id || '';
@@ -908,6 +926,10 @@
         const userGender = userData.gender && userData.gender !== 'Not specified' ? userData.gender : (isMasterAdmin ? 'Male' : 'Not specified');
         const genderEl = document.getElementById('view-user-gender');
         if (genderEl) genderEl.textContent = userGender.charAt(0).toUpperCase() + userGender.slice(1).toLowerCase();
+        const birthdayEl = document.getElementById('view-user-birthday');
+        if (birthdayEl) birthdayEl.textContent = userData.dateOfBirth || userData.birthDate || 'Not provided';
+        const birthdayNote = document.getElementById('view-user-birthday-note');
+        if (birthdayNote) birthdayNote.classList.toggle('hidden', userData.dateOfBirthIsGenerated !== true);
         const sidebarRoleEl = document.getElementById('view-user-sidebar-role');
         if (sidebarRoleEl) sidebarRoleEl.textContent = formattedRole;
 
@@ -932,6 +954,7 @@
         const emailRow = document.getElementById('view-user-email-row');
         const idRow = document.getElementById('view-user-id-row');
         const genderRow = document.getElementById('view-user-gender-row');
+        const birthdayRow = document.getElementById('view-user-birthday-row');
         if (isViewingSomeoneElse) {
             if (emailRow) {
                 emailRow.classList.add('hidden');
@@ -940,6 +963,10 @@
             if (idRow) {
                 idRow.classList.add('hidden');
                 idRow.style.display = 'none';
+            }
+            if (birthdayRow) {
+                birthdayRow.classList.add('hidden');
+                birthdayRow.style.display = 'none';
             }
             if (idEl) {
                 idEl.classList.add('hidden');
@@ -957,6 +984,10 @@
             if (idRow) {
                 idRow.classList.remove('hidden');
                 idRow.style.display = '';
+            }
+            if (birthdayRow) {
+                birthdayRow.classList.remove('hidden');
+                birthdayRow.style.display = '';
             }
             if (idEl) {
                 idEl.classList.remove('hidden');
@@ -1072,7 +1103,7 @@
             if (totalMasters <= 1) canDeactivateThisUser = false;
         }
         const cleanDeleteId = String(userData.id || userData.uid || '').replace(/^#/, '').trim();
-        const canDeleteThisUser = canDelete && canDeactivateThisUser && !isTargetMaster && cleanDeleteId !== '1111111' && cleanDeleteId !== '2222222';
+        const canDeleteThisUser = canDelete && canDeactivateThisUser && !isTargetMaster && cleanDeleteId !== '1111111';
 
         if (settingsBtn) {
             const isTargetAdmin = isTargetMaster || isRowAdmin;
@@ -1367,6 +1398,247 @@
         }
     };
 
+    // Academic profile tabs are derived from section assignments, then scoped by
+    // school year and the subject's semester assignment. The subject catalog is
+    // used only to resolve display details and semester metadata.
+    const profileAcademicScope = { profileId: '', schoolYearId: '', semester: 0 };
+
+    function profileList(value) {
+        if (Array.isArray(value)) return value;
+        if (value && typeof value === 'object') return [value];
+        if (typeof value !== 'string' || !value.trim()) return [];
+        try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) return parsed;
+            if (parsed && typeof parsed === 'object') return [parsed];
+        } catch (_) {}
+        return value.split(',').map(item => item.trim()).filter(Boolean);
+    }
+
+    function profileNormalize(value) {
+        return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase().replace(/^#/, '').replace(/[^a-z0-9@.]+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function profileYearRecords() {
+        const live = window.SigmaAssignedClassrooms?.records?.('sigma_school_year_records');
+        const stored = getStoredJson('sigma_school_year_records', []);
+        const records = Array.isArray(live) && (live.length || window.SigmaAssignedClassrooms?.isReady?.())
+            ? live
+            : (Array.isArray(stored) ? stored : getStoredJson('sigma-school-years', []));
+        return (Array.isArray(records) ? records : [])
+            .filter(record => record && !record.isDeleted)
+            .sort((a, b) => Number(b.yearStart || 0) - Number(a.yearStart || 0));
+    }
+
+    function profileSectionRecords() {
+        const assigned = window.SigmaAssignedClassrooms?.records?.('sigma-admin-sections');
+        if (Array.isArray(assigned) && (assigned.length || window.SigmaAssignedClassrooms?.isReady?.())) return assigned;
+        const stored = getStoredJson('sigma-admin-sections', []);
+        return Array.isArray(stored) ? stored : [];
+    }
+
+    function profileSubjectCatalog() {
+        const shared = window.SigmaAssignedClassrooms?.records?.('sigma-admin-subjects');
+        if (Array.isArray(shared) && (shared.length || window.SigmaAssignedClassrooms?.isReady?.())) return shared;
+        const stored = getStoredJson('sigma-admin-subjects', []);
+        return Array.isArray(stored) ? stored : [];
+    }
+
+    function profileYearMatches(section, year) {
+        const raw = String(section?.schoolYear || section?.school_year || '').trim();
+        if (!raw || !year) return false;
+        if (raw.toLowerCase() === String(year.id || '').toLowerCase()) return true;
+        const years = raw.match(/(?:19|20|21|22)\d{2}/g) || [];
+        return years.length >= 2 && Number(years[0]) === Number(year.yearStart) && Number(years[1]) === Number(year.yearEnd);
+    }
+
+    function profileIdentity(user) {
+        const ids = new Set();
+        [user?.id, user?.uid, user?.accountId, user?.userId]
+            .filter(Boolean).forEach(value => ids.add(profileNormalize(value)));
+        if (!ids.size) {
+            [window.currentViewingUserId, window.currentEditingUserId]
+                .filter(Boolean).forEach(value => ids.add(profileNormalize(value)));
+        }
+        const parsed = parseNameComponents(user, '');
+        const names = new Set();
+        [user?.fullName, user?.name, parsed?.fullName,
+            [parsed?.firstName, parsed?.middleName, parsed?.lastName].filter(Boolean).join(' '),
+            [parsed?.lastName, parsed?.firstName, parsed?.middleName].filter(Boolean).join(', ')]
+            .filter(Boolean).forEach(value => names.add(profileNormalize(value)));
+        const emails = new Set([user?.email, user?.gmail].filter(Boolean).map(profileNormalize));
+        return { ids, names, emails };
+    }
+
+    function profileAssignmentMatches(entry, identity) {
+        if (!entry) return false;
+        if (typeof entry === 'object') {
+            const id = entry.id || entry.uid || entry.accountId || entry.userId || entry.studentId || entry.teacherId;
+            if (id) return identity.ids.has(profileNormalize(id));
+            const email = entry.email || entry.gmail;
+            if (email && identity.emails.has(profileNormalize(email))) return true;
+            const name = entry.fullName || entry.full_name || entry.name ||
+                [entry.firstName || entry.first_name, entry.middleName || entry.middle_name, entry.lastName || entry.last_name].filter(Boolean).join(' ');
+            return !!name && identity.names.has(profileNormalize(name));
+        }
+        const value = String(entry).trim();
+        if (!value) return false;
+        const normalized = profileNormalize(value);
+        return identity.ids.has(normalized) || identity.emails.has(normalized) || identity.names.has(normalized);
+    }
+
+    function profileSectionHasUser(section, role, identity) {
+        if (role.includes('teacher')) {
+            const entries = [...profileList(section?.teachers), ...profileList(section?.assignedTeachers)];
+            for (const key of ['teacher', 'teacherId', 'teacher_id', 'adviser', 'adviserId', 'adviser_id']) {
+                if (section?.[key]) entries.push(section[key]);
+            }
+            return entries.some(entry => profileAssignmentMatches(entry, identity));
+        }
+        return [...profileList(section?.students), ...profileList(section?.studentIds), ...profileList(section?.student_ids)]
+            .some(entry => profileAssignmentMatches(entry, identity));
+    }
+
+    function profileSemestersFor(subject, section, reference) {
+        const quarters = profileList(subject?.activeQuarters || subject?.quarters || reference?.activeQuarters || reference?.quarters || section?.activeQuarters || section?.quarters)
+            .map(value => String(value).trim().toLowerCase().match(/^(?:q|quarter\s*)?([1-4])(?:st|nd|rd|th)?$/)?.[1])
+            .filter(Boolean);
+        if (quarters.length) return new Set(quarters.map(value => Number(value) <= 2 ? 1 : 2));
+
+        const rawSemesters = subject?.activeSemesters || subject?.semesters || reference?.activeSemesters || reference?.semesters || section?.activeSemesters || section?.semesters;
+        const semesterValues = profileList(rawSemesters).map(value => String(value).toLowerCase());
+        if (subject?.semester || subject?.term || reference?.semester || reference?.term || section?.semester || section?.term) {
+            semesterValues.push(String(subject?.semester || subject?.term || reference?.semester || reference?.term || section?.semester || section?.term).toLowerCase());
+        }
+        const semesters = new Set();
+        semesterValues.forEach(value => {
+            if (/both|full|year/.test(value)) { semesters.add(1); semesters.add(2); }
+            else if (/2|second|sem2/.test(value)) semesters.add(2);
+            else if (/1|first|sem1/.test(value)) semesters.add(1);
+        });
+        return semesters.size ? semesters : new Set([1]);
+    }
+
+    function profileSubjectReference(reference) {
+        if (typeof reference === 'string' || typeof reference === 'number') return { text: String(reference).trim() };
+        if (!reference || typeof reference !== 'object') return { text: '' };
+        return {
+            text: String(reference.name || reference.subject || reference.title || reference.code || reference.subjectCode || reference.id || reference.subjectId || '').trim(),
+            id: String(reference.id || reference.subjectId || '').trim(),
+            code: String(reference.code || reference.subjectCode || '').trim(),
+            activeQuarters: reference.activeQuarters || reference.quarters,
+            activeSemesters: reference.activeSemesters || reference.semesters,
+            semester: reference.semester || reference.term
+        };
+    }
+
+    function profileBuildAcademicRows(user, role, year, semester) {
+        const identity = profileIdentity(user);
+        const catalog = profileSubjectCatalog();
+        const catalogByAlias = new Map();
+        catalog.forEach(subject => {
+            [subject?.id, subject?.code, subject?.name, subject?.title].filter(Boolean).forEach(alias => {
+                catalogByAlias.set(profileNormalize(alias), subject);
+            });
+        });
+        const subjectRows = new Map();
+        const sectionRows = new Map();
+        profileSectionRecords().forEach(section => {
+            if (!section || section.isDeleted || String(section.status || '').toLowerCase() === 'draft') return;
+            if (!profileYearMatches(section, year) || !profileSectionHasUser(section, role, identity)) return;
+            const refs = [
+                ...profileList(section.assignedSubjects),
+                ...profileList(section.subjects),
+                ...(section.subject ? [section.subject] : [])
+            ];
+            const linkedSubjects = new Map();
+            refs.forEach(rawRef => {
+                const ref = profileSubjectReference(rawRef);
+                if (!ref.text) return;
+                const subject = [ref.id, ref.code, ref.text].map(profileNormalize).map(alias => catalogByAlias.get(alias)).find(Boolean) || null;
+                if (!profileSemestersFor(subject, section, ref).has(semester)) return;
+                const name = String(subject?.name || subject?.title || ref.text).trim();
+                const code = String(subject?.code || ref.code || '').trim();
+                const key = profileNormalize(subject?.id || code || name);
+                if (!key) return;
+                const subjectInfo = { key, id: subject?.id || '', name, code };
+                linkedSubjects.set(key, subjectInfo);
+                if (!subjectRows.has(key)) subjectRows.set(key, { ...subjectInfo, sections: [] });
+                const row = subjectRows.get(key);
+                const sectionInfo = {
+                    id: String(section.id || ''),
+                    name: String(section.name || section.sectionName || 'Section'),
+                    grade: String(section.gradeLevel || section.grade || section.grade_level || ''),
+                    room: String(section.room || ''),
+                    schedule: String(section.schedule || '')
+                };
+                const sectionKey = sectionInfo.id || `${profileNormalize(sectionInfo.name)}::${profileNormalize(sectionInfo.grade)}`;
+                if (!row.sections.some(item => item.key === sectionKey)) row.sections.push({ ...sectionInfo, key: sectionKey });
+            });
+            if (!linkedSubjects.size) return;
+            const sectionInfo = {
+                id: String(section.id || ''),
+                name: String(section.name || section.sectionName || 'Section'),
+                grade: String(section.gradeLevel || section.grade || section.grade_level || ''),
+                room: String(section.room || ''),
+                schedule: String(section.schedule || '')
+            };
+            const sectionKey = sectionInfo.id || `${profileNormalize(sectionInfo.name)}::${profileNormalize(sectionInfo.grade)}`;
+            if (!sectionRows.has(sectionKey)) sectionRows.set(sectionKey, { section: sectionInfo, subjects: new Map() });
+            const sectionRow = sectionRows.get(sectionKey);
+            linkedSubjects.forEach(subject => sectionRow.subjects.set(subject.key, subject));
+        });
+        const subjects = Array.from(subjectRows.values())
+            .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+        const sections = Array.from(sectionRows.values()).map(row => ({
+            section: row.section,
+            subjects: Array.from(row.subjects.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+        }))
+            .sort((a, b) => a.section.name.localeCompare(b.section.name, undefined, { sensitivity: 'base' }));
+        return { subjects, sections };
+    }
+
+    function profileScopeOptions(user) {
+        const years = profileYearRecords();
+        const activeYear = window.getActiveSchoolYearRecord?.() || years.find(record => record.status === 'Active') || years[0] || null;
+        const profileId = String(user?.id || user?.uid || user?.accountId || window.currentViewingUserId || '').replace(/^#/, '');
+        if (profileAcademicScope.profileId !== profileId) {
+            profileAcademicScope.profileId = profileId;
+            profileAcademicScope.schoolYearId = '';
+            profileAcademicScope.semester = 0;
+        }
+        if (!years.some(record => String(record.id) === String(profileAcademicScope.schoolYearId))) {
+            profileAcademicScope.schoolYearId = String(activeYear?.id || years[0]?.id || '');
+        }
+        let selectedYear = years.find(record => String(record.id) === String(profileAcademicScope.schoolYearId)) || activeYear;
+        if (![1, 2].includes(Number(profileAcademicScope.semester))) {
+            profileAcademicScope.semester = Number(selectedYear?.activeSemester) === 2 ? 2 : 1;
+        }
+        return { years, activeYear, selectedYear, semester: Number(profileAcademicScope.semester) };
+    }
+
+    window.addEventListener('sigma:active-semester-changed', event => {
+        const changedYearId = String(event?.detail?.id || '');
+        const activeYearId = String(window.getActiveSchoolYearRecord?.()?.id || '');
+        if (changedYearId && (profileAcademicScope.schoolYearId === changedYearId || profileAcademicScope.schoolYearId === activeYearId)) {
+            profileAcademicScope.schoolYearId = changedYearId;
+            profileAcademicScope.semester = Number(event?.detail?.semester) === 2 ? 2 : 1;
+        }
+    });
+
+    window.setUserProfileAcademicScope = function (field, value) {
+        const panel = document.getElementById('user-profile-tab-panel');
+        if (field === 'schoolYear') {
+            profileAcademicScope.schoolYearId = String(value || '');
+            const selected = profileYearRecords().find(record => String(record.id) === String(value));
+            profileAcademicScope.semester = Number(selected?.activeSemester) === 2 ? 2 : 1;
+        } else if (field === 'semester') {
+            profileAcademicScope.semester = Number(value) === 2 ? 2 : 1;
+        }
+        window.renderUserProfileTab(panel?.dataset.profileAcademicTab || 'subjects');
+    };
+
     // ─── 3. TAB CONTENT RENDERING (Right Panel) ──────────────────────────────────
     window.renderUserProfileTab = function (tabId) {
         const portal = getPortalRoleKey();
@@ -1389,17 +1661,93 @@
             icon: 'fa-chalkboard',
             emptyText: `No ${effectiveTab} Assigned`
         };
+        panel.dataset.profileAcademicTab = effectiveTab;
+        const isTeacher = String(role).toLowerCase().includes('teacher');
+        const isStudentProfile = isStudent || String(role).toLowerCase().includes('student');
+        if (!isTeacher && !isStudentProfile) {
+            panel.innerHTML = `
+                <div class="space-y-2"><h3 class="text-base md:text-lg font-bold text-black font-['Inter']">${escapeHtml(tabMeta.title)}</h3></div>
+                <div class="flex flex-col items-center justify-center py-16 gap-3"><i class="fa-solid ${tabMeta.icon || 'fa-folder'} text-4xl text-black-fade"></i><p class="text-sm font-bold text-black font-['Inter']">${escapeHtml(tabMeta.emptyText)}</p></div>`;
+            return;
+        }
+
+        const scope = profileScopeOptions(userData);
+        const periodRows = profileBuildAcademicRows(userData, isTeacher ? 'teacher' : 'student', scope.selectedYear, scope.semester);
+        const isPast = !scope.activeYear || String(scope.selectedYear?.id) !== String(scope.activeYear?.id)
+            || scope.semester !== (Number(scope.activeYear?.activeSemester) === 2 ? 2 : 1);
+        const yearOptions = scope.years.map(record => {
+            const label = `${record.yearStart}-${record.yearEnd}${record.status === 'Active' ? ' · Active' : ''}`;
+            return `<option value="${escapeHtml(record.id)}" ${String(record.id) === String(scope.selectedYear?.id) ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+        }).join('');
+        const scopeControls = `
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl border border-slate-200 bg-slate-50">
+                <label class="block text-xs font-bold text-slate-600">School Year
+                    <select id="user-profile-academic-year" class="sigma-select mt-1.5 w-full" aria-label="Filter by school year">${yearOptions || '<option value="">No school years configured</option>'}</select>
+                </label>
+                <label class="block text-xs font-bold text-slate-600">Semester
+                    <select id="user-profile-academic-semester" class="sigma-select mt-1.5 w-full" aria-label="Filter by semester">
+                        <option value="1" ${scope.semester === 1 ? 'selected' : ''}>1st Semester</option>
+                        <option value="2" ${scope.semester === 2 ? 'selected' : ''}>2nd Semester</option>
+                    </select>
+                </label>
+            </div>
+            <div class="mt-3 mb-4 flex items-start gap-2 rounded-xl bg-slate-100 px-3.5 py-3 text-xs text-slate-600">
+                <i class="fa-solid ${isPast ? 'fa-clock-rotate-left' : 'fa-circle-info'} mt-0.5 text-[#15803d]"></i>
+                <span><strong class="text-slate-800">${isPast ? 'Past semester' : 'Active semester'}</strong><br>Only assignments linked to this ${isTeacher ? 'teacher' : 'student'} in the section records are listed.</span>
+            </div>`;
+
+        let content = '';
+        if (effectiveTab === 'subjects') {
+            content = periodRows.subjects.length ? `
+                <div class="space-y-2.5">${periodRows.subjects.map(subject => `
+                    <article class="rounded-2xl border border-slate-200 bg-white p-4">
+                        <div class="flex flex-wrap items-start justify-between gap-2">
+                            <div><h4 class="text-sm font-bold text-slate-900">${escapeHtml(subject.name)}</h4>${subject.code ? `<p class="mt-1 text-xs text-slate-500">${escapeHtml(subject.code)}</p>` : ''}</div>
+                            <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">${subject.sections.length} ${subject.sections.length === 1 ? 'Section' : 'Sections'}</span>
+                        </div>
+                        <div class="mt-3 flex flex-wrap gap-2">${subject.sections.map(section => `<span class="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700">${escapeHtml(section.name)}${section.grade ? ` · ${escapeHtml(section.grade)}` : ''}</span>`).join('')}</div>
+                    </article>`).join('')}</div>` : `
+                <div class="flex min-h-40 flex-col items-center justify-center gap-3 text-center">
+                    <i class="fa-solid fa-book-open text-4xl text-slate-400"></i>
+                    <p class="text-sm font-bold text-slate-800">No subjects linked for this period</p>
+                    <p class="max-w-md text-xs text-slate-500">Subjects appear here only when the section records link this ${isTeacher ? 'teacher' : 'student'} to them for the selected school year and semester.</p>
+                </div>`;
+        } else {
+            content = periodRows.sections.length ? `
+                <div class="space-y-2.5">${periodRows.sections.map(entry => `
+                    <article class="rounded-2xl border border-slate-200 bg-white p-4">
+                        <div class="flex flex-wrap items-start justify-between gap-2"><div><h4 class="text-sm font-bold text-slate-900">${escapeHtml(entry.section.name)}</h4><p class="mt-1 text-xs text-slate-500">${escapeHtml(entry.section.grade || 'Grade not set')}${entry.section.room ? ` · Room ${escapeHtml(entry.section.room)}` : ''}</p></div><span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">${entry.subjects.length} ${entry.subjects.length === 1 ? 'Subject' : 'Subjects'}</span></div>
+                        <div class="mt-3 flex flex-wrap gap-2">${entry.subjects.map(subject => `<span class="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700">${escapeHtml(subject.name)}</span>`).join('')}</div>
+                        ${entry.section.schedule ? `<p class="mt-3 text-xs text-slate-500">${escapeHtml(entry.section.schedule)}</p>` : ''}
+                    </article>`).join('')}</div>` : `
+                <div class="flex min-h-40 flex-col items-center justify-center gap-3 text-center"><i class="fa-solid fa-users-viewfinder text-4xl text-slate-400"></i><p class="text-sm font-bold text-slate-800">No sections linked for this period</p><p class="text-xs text-slate-500">Section assignments are read from the school’s section records.</p></div>`;
+        }
 
         panel.innerHTML = `
-            <div class="space-y-2">
-                <h3 class="text-base md:text-lg font-bold text-black font-['Inter']">${escapeHtml(tabMeta.title)}</h3>
-            </div>
-            <div class="flex flex-col items-center justify-center py-16 gap-3">
-                <i class="fa-solid ${tabMeta.icon || 'fa-folder'} text-4xl text-black-fade"></i>
-                <p class="text-sm font-bold text-black font-['Inter']">${escapeHtml(tabMeta.emptyText)}</p>
-            </div>
-        `;
+            <div class="space-y-4">
+                <div class="flex items-center justify-between gap-3"><h3 class="text-base md:text-lg font-bold text-black font-['Inter']">${escapeHtml(tabMeta.title)}</h3><span class="text-xs font-medium text-slate-500">${effectiveTab === 'subjects' ? `${periodRows.subjects.length} subjects` : `${periodRows.sections.length} sections`}</span></div>
+                ${scopeControls}
+                ${content}
+            </div>`;
+        panel.querySelector('#user-profile-academic-year')?.addEventListener('change', event => window.setUserProfileAcademicScope('schoolYear', event.target.value));
+        panel.querySelector('#user-profile-academic-semester')?.addEventListener('change', event => window.setUserProfileAcademicScope('semester', event.target.value));
     };
+
+    if (!window.__profileAcademicScopeListenersAttached) {
+        window.__profileAcademicScopeListenersAttached = true;
+        const rerenderAcademicProfileTab = () => {
+            const view = document.getElementById('user-profile-view');
+            const panel = document.getElementById('user-profile-tab-panel');
+            const tab = panel?.dataset.profileAcademicTab;
+            if (!view || view.classList.contains('hidden') || !['subjects', 'sections'].includes(tab)) return;
+            window.renderUserProfileTab(tab);
+        };
+        ['sigma:section-catalog-loaded', 'sigma:assigned-classrooms-updated', 'sigma:section-deployed', 'sigma:school-year-changed', 'sigma:active-semester-changed']
+            .forEach(eventName => window.addEventListener(eventName, rerenderAcademicProfileTab));
+        window.addEventListener('storage', event => {
+            if (['sigma-admin-sections', 'sigma-admin-subjects', 'sigma_school_year_records', 'sigma-school-years'].includes(event.key)) rerenderAcademicProfileTab();
+        });
+    }
 
     // ─── 4. BIO CARD RENDERING & EDITING (Left or Right Column) ──────────────────
     function getUserBioActiveContainer() {
@@ -1671,14 +2019,19 @@
         const targetId = isEditingOtherUser ? (window.currentViewingUserId || window.currentEditingUserId) : (getActiveUserData().id);
 
         const currentAvatar = getCurrentUserAvatar(targetId);
-        const hasSvgAvatar = isSvgAvatar(currentAvatar);
+        // Saved generated avatars are compressed to WebP before persistence, so
+        // detect any active image here instead of relying on its original SVG.
+        const hasCurrentAvatar = typeof currentAvatar === 'string'
+            && currentAvatar.trim() !== ''
+            && currentAvatar !== 'null'
+            && currentAvatar !== 'undefined';
 
         if (pendingSelectedAvatarUrl) {
             selectBtn.classList.remove('hidden', 'opacity-50', 'cursor-not-allowed', 'bg-slate-100', 'text-slate-400');
             selectBtn.classList.add('bg-[#15803d]', 'hover:bg-[#166534]', 'text-white', 'cursor-pointer', 'shadow-sm');
             selectBtn.disabled = false;
             removeBtn.classList.add('hidden');
-        } else if (hasSvgAvatar) {
+        } else if (hasCurrentAvatar) {
             selectBtn.classList.add('hidden');
             removeBtn.classList.remove('hidden');
         } else {
@@ -1803,7 +2156,9 @@
         if (document.getElementById('sigma-photo-lightbox')) return;
         const lightbox = document.createElement('div');
         lightbox.id = 'sigma-photo-lightbox';
-        lightbox.className = 'fixed inset-0 bg-black/90 z-[3500] hidden flex items-center justify-center p-4 select-none';
+        lightbox.className = 'fixed inset-0 bg-black/90 hidden flex items-center justify-center p-4 select-none';
+        lightbox.style.setProperty('z-index', '100020', 'important');
+        lightbox.style.setProperty('height', '100dvh');
         lightbox.onclick = function (e) {
             if (e.target === lightbox || e.target.id === 'lightbox-image-container') {
                 window.closePhotoLightbox();
@@ -1856,6 +2211,9 @@
         const uploads = getCurrentUserAvatarHistory();
         if (idx < 0 || idx >= uploads.length) return;
 
+        // The viewer replaces the chooser; never leave two picture panels stacked.
+        window.toggleUserProfilePictureOverlay(false);
+        window.closeAllPhotoOptionMenus();
         currentLightboxPhotoIdx = idx;
         const img = document.getElementById('lightbox-image');
         if (img) {
@@ -1994,7 +2352,22 @@
         const isEditingOtherUser = portal === 'admin' && (!!window.currentViewingUserId || !!window.currentEditingUserId);
         const targetId = isEditingOtherUser ? (window.currentViewingUserId || window.currentEditingUserId) : (getActiveUserData().id);
 
-        const performRemove = () => {
+        const performRemove = async () => {
+            if (window._sigmaProfilePhotoRemoving) return;
+            window._sigmaProfilePhotoRemoving = true;
+            try {
+                if (!window.SigmaDatabase?.request) throw new Error('Profile photo service is unavailable. Please try again.');
+                const result = await window.SigmaDatabase.request('profile_photos', {
+                    data: { userId: targetId, action: 'remove' }
+                });
+                saveCurrentUserAvatarHistory(result.photos || [], targetId);
+            } catch (error) {
+                window.showToast?.(error.message || 'The profile picture could not be removed.', 'error');
+                return;
+            } finally {
+                window._sigmaProfilePhotoRemoving = false;
+            }
+
             setCurrentUserAvatar('', targetId);
 
             if (isEditingOtherUser) {
@@ -2136,12 +2509,24 @@
         const currentAvatar = getCurrentUserAvatar(targetId);
         const isDeletingActiveAvatar = !!(currentAvatar && photoToDelete === currentAvatar);
 
-        const performDelete = () => {
-            const freshUploads = getCurrentUserAvatarHistory(targetId);
-            freshUploads.splice(idx, 1);
-            saveCurrentUserAvatarHistory(freshUploads, targetId);
+        const performDelete = async () => {
+            if (window._sigmaProfilePhotoDeleting) return;
+            window._sigmaProfilePhotoDeleting = true;
+            let result;
+            try {
+                if (!window.SigmaDatabase?.request) throw new Error('Profile photo service is unavailable. Please try again.');
+                result = await window.SigmaDatabase.request('profile_photos', {
+                    data: { userId: targetId, action: 'delete', photo: photoToDelete }
+                });
+                saveCurrentUserAvatarHistory(Array.isArray(result.photos) ? result.photos : [], targetId);
+            } catch (error) {
+                window.showToast?.(error.message || 'The photo could not be deleted.', 'error');
+                return;
+            } finally {
+                window._sigmaProfilePhotoDeleting = false;
+            }
 
-            if (isDeletingActiveAvatar) {
+            if (isDeletingActiveAvatar || !result.avatar) {
                 setCurrentUserAvatar('', targetId);
 
                 if (isEditingOtherUser) {
@@ -2233,7 +2618,9 @@
         window._sigmaProfilePhotoSaving = true;
         try {
             avatarBase64 = await compressProfilePhoto(avatarBase64);
-            const result = await window.SigmaDatabase.request('profile_photos', {data:{userId:targetId,photo:avatarBase64}});
+            const result = await window.SigmaDatabase.request('profile_photos', {
+                data: { userId: targetId, photo: avatarBase64, trackUpload: trackUpload !== false }
+            });
             saveCurrentUserAvatarHistory(result.photos, targetId);
         } catch (error) {
             window.showToast?.(error.message || 'The profile photo was not saved.', 'error');
@@ -2373,7 +2760,7 @@
             return;
         }
 
-        if (targetId === '0000000' || targetId === '1111111' || targetId === '2222222' || (loggedInId && targetId === loggedInId)) {
+        if (targetId === '0000000' || targetId === '1111111' || (loggedInId && targetId === loggedInId)) {
             if (typeof window.showSigmaDialog === 'function') {
                 window.showSigmaDialog({
                     title: 'Action Not Allowed',

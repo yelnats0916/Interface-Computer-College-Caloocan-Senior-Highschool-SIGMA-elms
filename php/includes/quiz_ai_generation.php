@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/ai_routing_config.php';
+require_once __DIR__ . '/quiz_ai_provider.php';
 
 function quizAiSettings(array $services): array {
     $routing = aiRoutingConfig($services);
@@ -72,15 +73,7 @@ function quizAiBlueprint(array $input,int $count,string $type): array {
         if(!$counts||array_sum($counts)!==$count)throw new InvalidArgumentException('Mixed type counts must equal the total question count.');
     }else $counts[$type]=$count;
     $targets=[];foreach($selected as $index=>$level)$targets[$level]=intdiv($count,count($selected))+($index<$count%count($selected)?1:0);
-    if(isset($targets['Create'])){
-        if(empty($counts['Essay']))throw new InvalidArgumentException('Add Essay / Paragraph questions to include Create.');
-        $extra=max(0,$targets['Create']-$counts['Essay']);$targets['Create']-=$extra;
-        $other=array_values(array_diff($selected,['Create']));
-        if($extra&&!$other)throw new InvalidArgumentException('Create requires Essay / Paragraph questions.');
-        for($i=0;$i<$extra;$i++)$targets[$other[$i%count($other)]]++;
-    }
     $remaining=$counts;$wanted=$targets;$allocations=[];
-    if(isset($wanted['Create'])){$allocations[]=['type'=>'Essay','level'=>'Create','count'=>$wanted['Create']];$remaining['Essay']-=$wanted['Create'];unset($wanted['Create']);}
     foreach($remaining as $kind=>$available)foreach($wanted as $level=>$number){
         $take=min($available,$number);if(!$take)continue;
         $allocations[]=['type'=>$kind,'level'=>$level,'count'=>$take];$available-=$take;$wanted[$level]-=$take;
@@ -88,7 +81,7 @@ function quizAiBlueprint(array $input,int $count,string $type): array {
     return ['bloomLevel'=>$selected[0],'bloomLevels'=>$selected,'bloomCounts'=>$targets,'allocations'=>$allocations,'instructions'=>$instructions,'counts'=>$counts];
 }
 
-function generateQuizAiBatch(array $services, array $input, callable $request): array {
+function generateQuizAiBatch(array $services, array $input, callable $request, ?callable $discoverModels=null): array {
     $count = filter_var($input['count'] ?? null, FILTER_VALIDATE_INT);
     $type = $input['type'] ?? 'Mixed';
     $source = is_string($input['source'] ?? null) ? trim($input['source']) : '';
@@ -105,25 +98,35 @@ function generateQuizAiBatch(array $services, array $input, callable $request): 
         'Apply'=>'Use a taught rule or procedure in a new, answerable situation.',
         'Analyze'=>'Examine relationships, distinguish parts or compare evidence in a passage or situation.',
         'Evaluate'=>'Judge a claim or solution against explicit criteria and evidence; give a defensible answer or grading guide.',
-        'Create'=>'Produce an original written response, plan or proposal using the lesson; provide a model response and clear grading criteria.'
+        'Create'=>'Produce something original, such as a design, solution, plan or response grounded in the lesson; provide an answer key or grading criteria suited to the requested question format.'
     ];
     $descriptions=[];foreach($blueprint['bloomLevels'] as $level)$descriptions[$level]=$thinking[$level];
-    $prompt.=' Revised Bloom taxonomy levels: '.json_encode($descriptions).'. Difficulty is separate from cognitive level. Every question must include bloomLevel from these selected levels, and bloomRationale explaining why it tests that level. Include an answer key for objective questions and grading guidance for open responses. Follow this exact question-type distribution: '.json_encode($blueprint['counts']).'. Follow this exact type/level/count allocation: '.json_encode($blueprint['allocations']).'. Create questions must be Essay. Additional teacher instructions (within the source only): '.json_encode($blueprint['instructions']).'.';
+    $prompt.=' Revised Bloom taxonomy levels: '.json_encode($descriptions).'. Difficulty is separate from cognitive level. Every question must include bloomLevel from these selected levels, and bloomRationale explaining why it tests that level. Do not restrict any selected thinking skill, including Create, to a particular question type; assess each skill within the requested format. Include an answer key for objective questions and grading guidance for open responses. Follow this exact question-type distribution: '.json_encode($blueprint['counts']).'. Follow this exact type/level/count allocation: '.json_encode($blueprint['allocations']).'. Additional teacher instructions (within the source only): '.json_encode($blueprint['instructions']).'.';
     if(!empty($input['excludeQuestions']))$prompt.=' Do not repeat these earlier questions from this quiz: '.json_encode($input['excludeQuestions']).'.';
-    $lastError = null;
-    foreach (array_filter([$settings['primary'], $settings['fallback']]) as $index => $key) {
+    $lastError = null;$capacityError=null;$discover=[];
+    $candidates=array_values(array_filter([$settings['primary'],$settings['fallback']]));
+    $allowFallback=aiRoutingConfig($services)['allow_fallback'];
+    $outputTokens=min(14000,max(2048,800+$count*550));
+    for($index=0;$index<count($candidates);$index++) {
+        $key=$candidates[$index];
         try {
             if ($key['provider'] === 'gemini') {
                 $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($key['model']) . ':generateContent';
                 $headers = ['x-goog-api-key: ' . $key['api_key']];
-                $body = ['systemInstruction' => ['parts' => [['text' => $prompt]]], 'contents' => [['role' => 'user', 'parts' => [['text' => $source]]]], 'generationConfig' => ['responseMimeType' => 'application/json', 'maxOutputTokens' => 16000]];
+                $body = ['systemInstruction' => ['parts' => [['text' => $prompt]]], 'contents' => [['role' => 'user', 'parts' => [['text' => $source]]]], 'generationConfig' => ['responseMimeType' => 'application/json', 'maxOutputTokens' => $outputTokens]];
+                if(preg_match('/^gemini-[34]/',$key['model']))$body['generationConfig']['thinkingConfig']=['thinkingLevel'=>'LOW'];
+                elseif(preg_match('/^gemini-2\.5-flash/',$key['model']))$body['generationConfig']['thinkingConfig']=['thinkingBudget'=>0];
             } else {
                 $url = 'https://api.groq.com/openai/v1/chat/completions';
                 $headers = ['Authorization: Bearer ' . $key['api_key']];
-                $body = ['model' => $key['model'], 'messages' => [['role' => 'system', 'content' => $prompt], ['role' => 'user', 'content' => $source]], 'response_format' => ['type' => 'json_object'], 'max_completion_tokens' => 16000];
+                $body = ['model' => $key['model'], 'messages' => [['role' => 'system', 'content' => $prompt], ['role' => 'user', 'content' => $source]], 'response_format' => ['type' => 'json_object'], 'max_completion_tokens' => $outputTokens];
+                if(in_array($key['model'],['openai/gpt-oss-20b','openai/gpt-oss-120b'],true)){
+                    $body['reasoning_effort']='low';
+                    $body['response_format']=['type'=>'json_schema','json_schema'=>['name'=>'quiz_questions','strict'=>true,'schema'=>quizAiResponseSchema($blueprint)]];
+                }
             }
             $response = $request($url, $headers, $body);
-            $output = $key['provider'] === 'gemini' ? implode('', array_column($response['candidates'][0]['content']['parts'] ?? [], 'text')) : ($response['choices'][0]['message']['content'] ?? '');
+            $output = aiProviderResponseText($response,$key['provider']);
             $decoded = json_decode($output, true);
             if (!is_array($decoded['questions'] ?? null)) throw new RuntimeException('The provider did not return valid quiz JSON.');
             $questions = validateQuizAiQuestions($decoded['questions'], $count, $type);
@@ -145,13 +148,28 @@ function generateQuizAiBatch(array $services, array $input, callable $request): 
             $expectedPairs=[];foreach($blueprint['allocations'] as $allocation)$expectedPairs[$allocation['type'].'|'.$allocation['level']]=$allocation['count'];
             ksort($actualPairs);ksort($expectedPairs);if($actualPairs!==$expectedPairs)throw new RuntimeException('The generated thinking skills did not match the selected distribution. Try again.');
             return ['questions' => $questions, 'provider' => $key['provider'], 'model' => $key['model'], 'keyId' => $key['id'], 'keyLabel' => $key['label'] ?? 'API Key', 'status' => $index ? 'Fallback Used' : 'Success'];
-        } catch (RuntimeException $error) { $lastError = $error; }
+        } catch (RuntimeException $error) {
+            $lastError=$error;
+            if($error instanceof QuizAiProviderException&&$error->httpStatus===429
+                &&(!$capacityError||$error->retryAfter<$capacityError->retryAfter))$capacityError=$error;
+            if($allowFallback&&$error instanceof QuizAiProviderException
+                &&in_array($error->httpStatus,[0,429,500,502,503,504],true)&&!isset($discover[$key['provider']])){
+                $discover[$key['provider']]=true;
+                try{
+                    require_once __DIR__.'/ai_key_discovery.php';
+                    foreach(quizAiAlternativeKeys($key,$discoverModels??'discoverAiKey') as $alternative){
+                        $duplicate=false;foreach($candidates as $candidate)if($candidate['provider']===$alternative['provider']&&$candidate['model']===$alternative['model'])$duplicate=true;
+                        if(!$duplicate)$candidates[]=$alternative;
+                    }
+                }catch(Throwable $ignored){/* Keep the configured provider error if discovery is unavailable. */}
+            }
+        }
     }
-    throw $lastError ?? new RuntimeException('No AI provider is configured.');
+    throw ($lastError instanceof QuizAiProviderException&&$lastError->httpStatus===429?$capacityError:$lastError) ?? new RuntimeException('No AI provider is configured.');
 }
 
 /** Generate the full requested total in bounded provider batches, validating every batch. */
-function generateQuizAi(array $services,array $input,callable $request): array {
+function generateQuizAi(array $services,array $input,callable $request,?callable $discoverModels=null): array {
     $count=filter_var($input['count']??null,FILTER_VALIDATE_INT);$type=$input['type']??'Mixed';
     if(!$count||$count<1||$count>100)throw new InvalidArgumentException('Choose 1-100 questions.');
     $plan=quizAiBlueprint($input,$count,$type);
@@ -166,7 +184,7 @@ function generateQuizAi(array $services,array $input,callable $request): array {
         if($type==='Mixed'){$batch['typeCounts']=[];foreach($distribution as $kind=>$number)$batch['typeCounts'][]=['type'=>$kind,'count'=>$number];}
         $batch['_blueprint']=['counts'=>$distribution,'bloomLevels'=>array_keys($levelCounts),'bloomCounts'=>$levelCounts,'allocations'=>$allocations,'instructions'=>$plan['instructions']];
         $batch['excludeQuestions']=array_column($questions,'question');
-        $last=generateQuizAiBatch($services,$batch,$request);
+        $last=generateQuizAiBatch($services,$batch,$request,$discoverModels);
         foreach($last['questions'] as $question){
             $key=mb_strtolower(trim(preg_replace('/\s+/u',' ',$question['question'])));
             if(isset($seen[$key]))throw new RuntimeException('Generation repeated a question. Try a narrower focus or a smaller count.');

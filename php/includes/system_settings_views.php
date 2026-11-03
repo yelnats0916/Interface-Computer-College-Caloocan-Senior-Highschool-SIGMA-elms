@@ -86,7 +86,7 @@
                             <label for="password-lockout-attempts" class="text-sm font-bold">Failed Password Attempts</label>
                             <p id="lockout-attempts-description" class="recaptcha-rule-description text-xs text-black-fade">Number of incorrect password attempts before account lockout.</p>
                             <div class="recaptcha-rule-control">
-                                <input type="number" id="password-lockout-attempts" aria-describedby="lockout-attempts-description" value="8" max="50" min="1" oninput="window.scheduleSecuritySettingsSave()"
+                                <input type="number" id="password-lockout-attempts" onchange="window.scheduleSecuritySettingsSave(true)" onkeydown="if(event.key==='Enter'){event.preventDefault();window.scheduleSecuritySettingsSave(true)}" aria-describedby="lockout-attempts-description" value="" placeholder="Loading…" disabled max="50" min="1" oninput="window.scheduleSecuritySettingsSave()"
                                     class="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-center">
                             </div>
                         </div>
@@ -348,7 +348,7 @@
                                 <div class="flex justify-end shrink-0">
                                     <span id="badge-gemini-live-status" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 pointer-events-none select-none cursor-default">
                                         <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                                        <span class="gemini-status-text">Not Configured</span>
+                                        <span class="gemini-status-text">Checking configuration…</span>
                                     </span>
                                 </div>
                             </div>
@@ -366,7 +366,7 @@
                                 <div class="flex justify-end shrink-0">
                                     <span id="badge-groq-live-status" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 pointer-events-none select-none cursor-default">
                                         <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                                        <span class="groq-status-text">Not Configured</span>
+                                        <span class="groq-status-text">Checking configuration…</span>
                                     </span>
                                 </div>
                             </div>

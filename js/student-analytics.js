@@ -84,7 +84,7 @@
         return next;
     }
 
-    const DAILY_INSIGHT_LIMIT = 3;
+    const DAILY_INSIGHT_LIMIT = 4;
     function evidenceFingerprint(value) {
         const canonical = item => {
             if (Array.isArray(item)) return item.map(canonical).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
@@ -199,6 +199,8 @@
             return {
                 id: `${snapshot.teacherId ? 'teacher' : 'student'}-insight-${snapshot.teacherId || snapshot.studentId}-${card.area}`,
                 area: card.area,
+                learningPolicyVersion: card.learningPolicyVersion,
+                attendancePolicyVersion: card.attendancePolicyVersion,
                 title: normalizeInsightTitle(card.title),
                 icon: normalizeInsightIcon(card.icon),
                 categories: [...categories],
@@ -269,7 +271,7 @@
     function status() {
         document.querySelectorAll('.sigma-analyze-button:not(.sigma-insight-mark-all)').forEach(button => {
             button.disabled = running;
-            button.title = running ? 'Refreshing insights…' : 'Refresh insights';
+            button.title = running ? 'Generating daily insights…' : 'Generate today’s daily insight';
             button.setAttribute('aria-label', button.title);
             button.querySelector('i')?.classList.toggle('fa-spin', running);
         });
@@ -316,7 +318,7 @@
                 if (root.SigmaAiDatabase) await root.SigmaAiDatabase.saveState('student', id, unchanged);
                 else localStorage.setItem(key(id), JSON.stringify(unchanged));
                 retryAfter = 0;
-                status(!policy.remaining ? 'Daily insight limit reached. Changed records can be analyzed tomorrow.' : 'No relevant changes. No new insights generated.');
+                status(!policy.remaining ? 'Daily insight limit reached. Changed records can be analyzed tomorrow.' : 'You are up to date. New insights will appear when new grades or class activity are available.');
                 return;
             }
             let cards;
@@ -409,7 +411,7 @@
                         concernText: renderBody(summary.text, root.location.href) }] : [];
                 } catch { return []; }
             }
-            return newestInsightsFirst(provider && saved.usedProvider !== true ? [] : saved.cards || []).filter(card => card.analyses?.length === 1 && normalizeActionLabel(card.analyses[0].actionLabel)).map(card => ({
+            return newestInsightsFirst(provider && saved.usedProvider !== true ? [] : saved.cards || []).filter(card => card.area !== 'released-learning' && (card.area !== 'learning-follow-up' || card.learningPolicyVersion >= 2) && card.analyses?.length === 1 && normalizeActionLabel(card.analyses[0].actionLabel)).map(card => ({
                 id: escapeText(card.id), area: card.area, categories: card.categories,
                 categoryIcon: INSIGHT_ICONS[normalizeInsightIcon(card.icon)].className, concernTitle: escapeText(normalizeInsightTitle(card.title)),
                 date: card.createdAt ? new Date(card.createdAt).toLocaleString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : date, datePlacement: 'footer',

@@ -25,6 +25,11 @@ const getStoredJson = (typeof window !== 'undefined' && typeof window.getStoredJ
             return fallback;
         }
     };
+function saveTeacherNavigationState(value) {
+    // The URL and history carry navigation; a full optional cache must not stop it.
+    try { localStorage.setItem('sigma-teacher-nav-state', value); } catch (_) {}
+}
+
 document.addEventListener('DOMContentLoaded', initTeacherPortal);
 if (document.readyState === 'interactive' || document.readyState === 'complete') {
     initTeacherPortal();
@@ -291,7 +296,7 @@ function initTeacherPortal() {
     let welcomePanel = localStorage.getItem('sigma-welcome-panel');
     if (!welcomePanel || welcomePanel === 'image/Welcome.jpg' || welcomePanel === '../image/Welcome.jpg') {
         welcomePanel = 'image/ICC Goals.jpeg';
-        localStorage.setItem('sigma-welcome-panel', welcomePanel);
+        try { localStorage.setItem('sigma-welcome-panel', welcomePanel); } catch (_) { /* Display does not depend on optional browser storage. */ }
     }
     const teacherImg = document.getElementById('welcome-panel-teacher-img');
     if (teacherImg) {
@@ -1085,6 +1090,8 @@ function initTeacherPortal() {
     const ADMIN_SUBJECTS_STORAGE_KEY = 'sigma-admin-subjects';
 
     function loadSharedState(key, fallback) {
+        const live = window.SigmaAssignedClassrooms?.records(key);
+        if (live !== undefined) return live;
         try {
             const raw = localStorage.getItem(key);
             return raw ? JSON.parse(raw) : fallback;
@@ -1894,6 +1901,103 @@ function initTeacherPortal() {
     let currentClassroomMeta = null;
     let currentClassroomKey = '';
     let currentClassroomSectionName = '';
+
+    function syncTeacherActiveClassContext(sectionName, subjectName) {
+        const section = String(sectionName || '').trim();
+        let subject = String(subjectName || '').trim();
+        if (!section) return null;
+
+        const normalize = value => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const wantedSection = normalize(section);
+        const wantedSubject = normalize(subject);
+        let assignment = null;
+
+        if (subject && typeof window.getTeacherAssignedSubjectsAndSections === 'function') {
+            const teacher = typeof getEffectiveTeacher === 'function' ? getEffectiveTeacher() : null;
+            const assignments = window.getTeacherAssignedSubjectsAndSections(teacher) || [];
+            assignment = assignments.find(item =>
+                normalize(item.sectionName || item.section || item.name) === wantedSection &&
+                normalize(item.subject || item.title) === wantedSubject
+            ) || null;
+
+            // A section name may have one canonical subject spelling in the roster.
+            // Only use that fallback when the section itself identifies one assignment.
+            if (!assignment) {
+                const sectionMatches = assignments.filter(item =>
+                    normalize(item.sectionName || item.section || item.name) === wantedSection
+                );
+                if (sectionMatches.length === 1) assignment = sectionMatches[0];
+            }
+        }
+
+        if (assignment) {
+            subject = String(assignment.subject || assignment.title || subject).trim();
+        }
+
+        currentClassroomSectionName = section;
+        window.currentClassroomSectionName = section;
+        if (subject) {
+            currentClassroomKey = `${section}::${subject}`;
+            window.currentClassroomKey = currentClassroomKey;
+            window.currentClassroomSubject = subject;
+        }
+
+        const context = {
+            section,
+            subject,
+            sectionId: assignment?.rawSection?.id || assignment?.rawSection?.sectionId || assignment?.sectionId || '',
+            assignmentId: assignment?.id || ''
+        };
+        try {
+            localStorage.setItem('sigma-active-classroom-section', section);
+            if (subject) localStorage.setItem('sigma-active-classroom-subject', subject);
+            sessionStorage.setItem('sigma-active-classroom-context-v1', JSON.stringify(context));
+            if (subject) {
+                window._classroomGradebookContext = { subject, section, sectionId: context.sectionId, assignmentId: context.assignmentId };
+                sessionStorage.setItem('sigma-classroom-gradebook-context', JSON.stringify(window._classroomGradebookContext));
+            }
+        } catch (_) {}
+
+        if (assignment && window.sigmaGradesState) {
+            window.sigmaGradesState.selectedSubjectSection = assignment;
+            window.sigmaGradesState.selectedSection = section;
+            window.sigmaGradesState.selectedSubject = subject;
+            if (typeof gradebookState !== 'undefined' && gradebookState) {
+                gradebookState.selectedSubjectSection = assignment;
+                gradebookState.selectedSection = section;
+                gradebookState.selectedSubject = subject;
+            }
+            if (typeof window.saveSigmaGradesState === 'function') window.saveSigmaGradesState();
+        }
+        return assignment;
+    }
+
+    function getTeacherSectionForSubject(subjectName, subjectId = '') {
+        const normalize = value => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const subjectKeys = new Set([normalize(subjectName), normalize(subjectId)].filter(Boolean));
+        const matchesSubject = value => subjectKeys.has(normalize(value));
+
+        const activeClassSubject = window.currentClassroomSubject
+            || (currentClassroomMeta && (currentClassroomMeta.subject || currentClassroomMeta.name))
+            || (currentClassroomKey ? currentClassroomKey.split('::')[1] : '');
+        if (currentClassroomSectionName && matchesSubject(activeClassSubject)) return currentClassroomSectionName;
+
+        try {
+            const saved = JSON.parse(sessionStorage.getItem('sigma-active-classroom-context-v1') || 'null');
+            if (saved?.section && matchesSubject(saved.subject)) return String(saved.section);
+        } catch (_) {}
+
+        const topic = window.currentTopicState || currentTopicState;
+        const topicSubject = topic?.subjectId;
+        const topicSubjectName = typeof getTopicSubject === 'function'
+            ? (getTopicSubject(topicSubject)?.name || getTopicSubject(topicSubject)?.title || '')
+            : '';
+        if (topic?.selectedSection && (matchesSubject(topicSubject) || matchesSubject(topicSubjectName))) {
+            return String(topic.selectedSection);
+        }
+        return '';
+    }
+
     let announcementPostsByClassroom = loadSharedState(SHARED_ANNOUNCEMENTS_KEY, {});
 
     let attendanceRecordsByClassroom = loadSharedState(SHARED_ATTENDANCE_RECORDS_KEY, {});
@@ -2507,21 +2611,29 @@ function initTeacherPortal() {
         
         if (!fullKey) return 'disabled';
 
-        // 1. Check exact key in shared state dictionary
-        if (commentModeByClassroom[fullKey]) {
-            return commentModeByClassroom[fullKey];
-        }
+        const serverMode = window.getClassroomCommentMode?.(sec, subj, fullKey);
+        if (serverMode) return serverMode;
 
-        // 2. Check localStorage with exact full key
-        const lowerFull = fullKey.trim().toLowerCase();
-        const exactVal = localStorage.getItem(`classroom-comment-mode-${lowerFull}`);
-        if (exactVal) return exactVal;
-
-        // 3. Fallback to case-insensitive lookup in commentModeByClassroom
-        for (const [k, v] of Object.entries(commentModeByClassroom)) {
-            if (k.trim().toLowerCase() === lowerFull) {
-                return v;
+        // Migrate the old device-only preference into the shared classroom setting once.
+        const lowerFull = String(fullKey).trim().toLowerCase();
+        let legacyMode = commentModeByClassroom[fullKey] || localStorage.getItem(`classroom-comment-mode-${lowerFull}`);
+        if (!legacyMode) {
+            for (const [k, v] of Object.entries(commentModeByClassroom)) {
+                if (String(k).trim().toLowerCase() === lowerFull) {
+                    legacyMode = v;
+                    break;
+                }
             }
+        }
+        if (legacyMode === 'enabled' || legacyMode === 'disabled') {
+            const persistMode = window.SigmaAnnouncements?.setClassroomCommentMode;
+            const migrationKey = `${sec}::${subj}`.toLowerCase();
+            const attempts = window.__sigmaClassroomCommentModeMigrations || (window.__sigmaClassroomCommentModeMigrations = new Set());
+            if (persistMode && sec && subj && !attempts.has(migrationKey)) {
+                attempts.add(migrationKey);
+                Promise.resolve(persistMode(sec, subj, legacyMode === 'enabled')).catch(() => {});
+            }
+            return legacyMode;
         }
 
         return 'disabled';
@@ -2790,6 +2902,10 @@ function initTeacherPortal() {
             teacherList = getSafeList(sec.assignedTeachers);
         }
 
+        // The subject roster is authoritative. Being the section adviser does
+        // not assign this teacher to every subject taught in that section.
+        if (hasExplicitRoster) return teacherList.some(t => isMatch(t));
+
         teacherList = teacherList
             .concat(getSafeList(sec.coTeachers))
             .concat(getSafeList(sec.instructors));
@@ -2927,8 +3043,9 @@ function initTeacherPortal() {
             // Source 1: Canonical stored sections (sigma-admin-sections prioritized)
             const combinedSections = [];
             const seenSecKeys = new Set();
+            const hasLiveAssignments = typeof window.SigmaAssignedClassrooms?.records === 'function';
             const canonicalList = getStoredJson('sigma-admin-sections', []);
-            if (Array.isArray(canonicalList) && canonicalList.length > 0) {
+            if (Array.isArray(canonicalList) && (canonicalList.length > 0 || hasLiveAssignments)) {
                 canonicalList.forEach(sec => {
                     if (!sec) return;
                     const sId = String(sec.id || '');
@@ -2994,7 +3111,7 @@ function initTeacherPortal() {
             }
 
             // Source 2: getTeacherAssignedSubjectsAndSections ONLY if result is empty
-            if (result.length === 0 && typeof window.getTeacherAssignedSubjectsAndSections === 'function') {
+            if (!hasLiveAssignments && result.length === 0 && typeof window.getTeacherAssignedSubjectsAndSections === 'function') {
                 const assignedItems = window.getTeacherAssignedSubjectsAndSections(currentTeacher);
                 if (Array.isArray(assignedItems)) {
                     assignedItems.forEach(item => {
@@ -3157,6 +3274,7 @@ function initTeacherPortal() {
     }
 
     function getRealTeacherPendingSubmissions() {
+        if (window.SigmaAcademicRecords?.getPendingSubmissions) return window.SigmaAcademicRecords.getPendingSubmissions();
         const realSubmissions = [];
         try {
             const sectionCards = typeof getTeacherSectionCards === 'function' ? getTeacherSectionCards() : [];
@@ -3429,7 +3547,7 @@ function initTeacherPortal() {
                 }
                 const group = groupedMap[sId];
                 if (group) {
-                    const actKey = `${row.topicIdx || 0}_${row.tab || 'activity'}_${row.itemIdx || 0}_${row.activity || row.title || ''}`;
+                    const actKey = `${row.section || ''}_${row.materialId || ''}_${row.topicIdx || 0}_${row.tab || 'activity'}_${row.itemIdx || 0}_${row.activity || row.title || ''}`;
                     if (!group.activitiesMap[actKey]) {
                         if (group.activities.length < 8) {
                             const matchedCard = sectionCards.find(c => c.id === sId || c.name === row.subject);
@@ -3478,7 +3596,7 @@ function initTeacherPortal() {
                                 act.subjectId || group?.subjectId || 'card-prog1',
                                 act.topicIdx !== undefined ? Number(act.topicIdx) : 0,
                                 act.tab || 'activity',
-                                act.itemIdx !== undefined ? Number(act.itemIdx) : 0
+                                act.itemIdx !== undefined ? Number(act.itemIdx) : 0, true, { selectedSection: act.section || act.sectionName, selectedStudent: act.studentId, viewSubmission: true }
                             );
                         }
                     }
@@ -3498,7 +3616,7 @@ function initTeacherPortal() {
                             act.subjectId || group?.subjectId || 'card-prog1',
                             act.topicIdx !== undefined ? Number(act.topicIdx) : 0,
                             act.tab || 'activity',
-                            act.itemIdx !== undefined ? Number(act.itemIdx) : 0
+                            act.itemIdx !== undefined ? Number(act.itemIdx) : 0, true, { selectedSection: act.section || act.sectionName, selectedStudent: act.studentId, viewSubmission: true }
                         );
                     }
                 }
@@ -3542,7 +3660,7 @@ function initTeacherPortal() {
         const submenu = ensureSectionsSubmenu();
         if (!submenu) return;
 
-        const cards = getTeacherSectionCards().filter(card => !card.sectionName?.includes('Grade 10'));
+        const cards = getVisibleTeacherSectionCards();
         if (cards.length === 0) {
             submenu.innerHTML = `
                 <div class="px-4 py-3 text-xs text-gray-400 select-none">
@@ -3583,6 +3701,17 @@ function initTeacherPortal() {
         if (window.sigmaGradesState?.recordMode === 'review' || history.state?.recordMode === 'review') return true;
         try { return JSON.parse(sessionStorage.getItem('sigma-share-record-route-v1') || 'null')?.recordMode === 'review'; }
         catch (_) { return false; }
+    }
+
+    function getVisibleTeacherSectionCards() {
+        let cards = getTeacherSectionCards().filter(card => !card.sectionName?.includes('Grade 10'));
+        const viewingGradebook = !isAdvisoryGradeReview()
+            && window.sigmaGradesState?.activeTab === 'gradebook'
+            && !document.getElementById('section-grades')?.classList.contains('hidden');
+        if (!viewingGradebook && typeof window.filterClassroomCardsToActiveAcademicTerm === 'function') {
+            cards = window.filterClassroomCardsToActiveAcademicTerm(cards);
+        }
+        return cards;
     }
 
     function syncSectionsNavState(showChildren = sectionsSubmenuOpen) {
@@ -3684,7 +3813,7 @@ function initTeacherPortal() {
             subSidebar.style.setProperty('max-height', `calc(100vh - ${targetTop}px - 16px)`, 'important');
         }
 
-        const cards = getTeacherSectionCards();
+        const cards = getVisibleTeacherSectionCards();
         if (cards.length === 0) {
             content.innerHTML = `
                 <div class="py-16 px-4 text-center select-none font-['Inter']">
@@ -3761,15 +3890,30 @@ function initTeacherPortal() {
 
     window.addEventListener('storage', (e) => {
         if (e.key === 'sigma-admin-sections' || e.key === 'sigma-admin-users') {
+            _cachedTeacherSectionCards = null;
             const [cName = '', cSubj = ''] = (currentClassroomKey || '').split('::');
             renderSectionsNavChildren(cName, cSubj);
             if (typeof renderTeacherDashboardClasses === 'function') renderTeacherDashboardClasses();
         }
     });
     window.addEventListener('sigma:section-deployed', () => {
+        _cachedTeacherSectionCards = null;
         const [cName = '', cSubj = ''] = (currentClassroomKey || '').split('::');
         renderSectionsNavChildren(cName, cSubj);
         if (typeof renderTeacherDashboardClasses === 'function') renderTeacherDashboardClasses();
+        const panel = document.getElementById('sub-sidebar');
+        if (panel?.classList.contains('sub-sidebar-visible') && document.getElementById('sub-sidebar-title')?.textContent?.trim() === 'My Classes') {
+            renderClassroomSectionsSidebar(cName, cSubj, true);
+        }
+    });
+    window.addEventListener('sigma:school-year-changed', () => {
+        const [cName = '', cSubj = ''] = (currentClassroomKey || '').split('::');
+        renderSectionsNavChildren(cName, cSubj);
+        if (typeof renderTeacherDashboardClasses === 'function') renderTeacherDashboardClasses();
+        const panel = document.getElementById('sub-sidebar');
+        if (panel?.classList.contains('sub-sidebar-visible') && document.getElementById('sub-sidebar-title')?.textContent?.trim() === 'My Classes') {
+            renderClassroomSectionsSidebar(cName, cSubj, true);
+        }
     });
 
     let teacherClassroomHoverTimer = null;
@@ -4658,25 +4802,25 @@ function initTeacherPortal() {
             ? activeTopicIdx
             : (currentTopicState.subjectId === resolvedSubjectId && Number.isInteger(currentTopicState.topicIdx) ? currentTopicState.topicIdx : 0);
         let resolvedSection = targetSection
-            || currentTopicState.selectedSection
-            || currentClassroomSectionName
-            || (currentClassroomKey ? currentClassroomKey.split('::')[0] : '')
+            || getTeacherSectionForSubject(subject?.name || subject?.title || resolvedSubjectId, resolvedSubjectId)
+            || (currentTopicState.subjectId === resolvedSubjectId ? currentTopicState.selectedSection : '')
             || '';
 
         const mySectionCards = typeof getTeacherSectionCards === 'function' ? getTeacherSectionCards() : [];
         if (mySectionCards.length > 0) {
-            const isMySec = resolvedSection && mySectionCards.some(c => {
-                const sName = (c.sectionName || c.section || '').toLowerCase().trim();
-                const rSec = resolvedSection.toLowerCase().trim();
-                return sName === rSec || sName.includes(rSec) || rSec.includes(sName);
+            const normalize = value => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const subjectKey = normalize(subject?.name || subject?.title || resolvedSubjectId);
+            const subjectCards = mySectionCards.filter(card => {
+                const cardSubject = normalize(card.subject || card.name || card.title);
+                return cardSubject && subjectKey && (cardSubject === subjectKey || cardSubject.includes(subjectKey) || subjectKey.includes(cardSubject));
             });
-            if (!isMySec) {
-                const matchedSubjectSec = mySectionCards.find(c => {
-                    const cSubj = String(c.subject || c.name || '').toLowerCase();
-                    const sSubj = String(subject?.name || resolvedSubjectId || '').toLowerCase();
-                    return cSubj.includes(sSubj) || sSubj.includes(cSubj);
-                });
-                resolvedSection = matchedSubjectSec ? (matchedSubjectSec.sectionName || matchedSubjectSec.section) : (mySectionCards[0].sectionName || mySectionCards[0].section);
+            const relevantCards = subjectCards.length ? subjectCards : mySectionCards;
+            const sectionKey = normalize(resolvedSection);
+            const hasMatchingSection = sectionKey && relevantCards.some(card =>
+                normalize(card.sectionName || card.section) === sectionKey
+            );
+            if (!hasMatchingSection) {
+                resolvedSection = relevantCards[0].sectionName || relevantCards[0].section || '';
             }
         }
 
@@ -4690,11 +4834,7 @@ function initTeacherPortal() {
             resolvedSection = resolveTeacherActiveSection();
         }
         if (resolvedSection) {
-            currentClassroomSectionName = resolvedSection;
-            window.currentClassroomSectionName = resolvedSection;
-            try {
-                localStorage.setItem('sigma-active-classroom-section', resolvedSection);
-            } catch (_) {}
+            syncTeacherActiveClassContext(resolvedSection, subject?.name || subject?.title || resolvedSubjectId);
         }
         let resolvedStudent = (currentTopicState.subjectId === resolvedSubjectId && currentTopicState.selectedSection === resolvedSection && currentTopicState.selectedStudent && currentTopicState.selectedStudent !== 'All') 
             ? currentTopicState.selectedStudent 
@@ -4727,7 +4867,7 @@ function initTeacherPortal() {
                 } else {
                     history.replaceState({ type: 'topic', subjectId: resolvedSubjectId, topicIdx: resolvedTopicIdx, selectedSection: resolvedSection }, '', newHash);
                 }
-                localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'topic', subjectId: resolvedSubjectId, topicIdx: resolvedTopicIdx, selectedSection: resolvedSection }));
+                saveTeacherNavigationState(JSON.stringify({ type: 'topic', subjectId: resolvedSubjectId, topicIdx: resolvedTopicIdx, selectedSection: resolvedSection }));
             }
         }
 
@@ -4808,17 +4948,21 @@ function initTeacherPortal() {
     }
 
     function refreshTeacherTopicUIIfVisible(subjId) {
+        // A visible child of a hidden classroom is not an active Topics page.
+        const displayed = element => Boolean(element && !element.closest('.hidden, [hidden]') && element.getClientRects().length);
+        const secTopicContent = document.getElementById('section-topic-content');
+        const secTopicDetail = document.getElementById('section-topic-detail');
+        const topicContentVisible = displayed(secTopicContent);
+        const topicDetailVisible = displayed(secTopicDetail);
+        const roomTopics = document.getElementById('detail-section-topics');
+        const roomMount = document.getElementById('room-topics-mount');
+        const roomTopicsVisible = Boolean(roomMount && displayed(roomTopics));
+        if (!topicContentVisible && !topicDetailVisible && !roomTopicsVisible) return;
+        const statusMenu = document.getElementById('teacher-grading-status-menu');
+        if (topicContentVisible && statusMenu && !statusMenu.classList.contains('hidden')) return;
         const resolvedSubjectId = (typeof resolveTeacherActiveSubjectId === 'function')
             ? resolveTeacherActiveSubjectId(subjId || currentTopicState?.subjectId)
             : (subjId || currentTopicState?.subjectId || 'card-prog1');
-
-        const secTopicContent = document.getElementById('section-topic-content');
-        const secTopicDetail = document.getElementById('section-topic-detail');
-        const topicContentVisible = Boolean(secTopicContent && !secTopicContent.classList.contains('hidden'));
-        const topicDetailVisible = Boolean(secTopicDetail && !secTopicDetail.classList.contains('hidden'));
-        const roomTopics = document.getElementById('detail-section-topics');
-        const roomMount = document.getElementById('room-topics-mount');
-        const roomTopicsVisible = Boolean(roomMount && roomTopics && !roomTopics.classList.contains('hidden'));
 
         if (roomTopicsVisible && typeof window.renderRoomTopicsPanel === 'function') {
             window.renderRoomTopicsPanel();
@@ -4880,6 +5024,7 @@ function initTeacherPortal() {
     let sigmaLastNavHash = window.location.hash || '';
 
     window.openTopicContent = function (subjectId, topicIdx, tab = 'videos', subIdx = null, pushHistory = true, stateOverrides = {}) {
+    if (pushHistory) window.resetGradingStudentSelection?.(stateOverrides?.selectedStudent);
         try { subjectId = decodeURIComponent(String(subjectId || '')); } catch (_) {}
         if (stateOverrides?.viewSubmission || stateOverrides?._studentViewSubmissionMode || stateOverrides?._sharedViewSubmissionMode) {
             window._skipNextGradebookReset = false;
@@ -4913,9 +5058,8 @@ function initTeacherPortal() {
 
         // Preserve or auto-resolve selected section from current context
         let preservedSection = (stateOverrides && stateOverrides.selectedSection)
-            || currentTopicState.selectedSection
-            || currentClassroomSectionName
-            || (currentClassroomKey ? currentClassroomKey.split('::')[0] : '')
+            || getTeacherSectionForSubject(subject?.name || subject?.title || subjectId, subjectId)
+            || (currentTopicState.subjectId === subjectId ? currentTopicState.selectedSection : '')
             || '';
 
         if (!preservedSection) {
@@ -4928,11 +5072,7 @@ function initTeacherPortal() {
             preservedSection = resolveTeacherActiveSection();
         }
         if (preservedSection) {
-            currentClassroomSectionName = preservedSection;
-            window.currentClassroomSectionName = preservedSection;
-            try {
-                localStorage.setItem('sigma-active-classroom-section', preservedSection);
-            } catch (_) {}
+            syncTeacherActiveClassContext(preservedSection, subject?.name || subject?.title || subjectId);
         }
 
         const subSuffix = isSubMode ? ':submission' : '';
@@ -4948,7 +5088,7 @@ function initTeacherPortal() {
                 } else {
                     history.replaceState(historyState, '', hash);
                 }
-                localStorage.setItem('sigma-teacher-nav-state', JSON.stringify(historyState));
+                saveTeacherNavigationState(JSON.stringify(historyState));
             }
         }
         sigmaLastNavHash = window.location.hash || '';
@@ -5069,6 +5209,7 @@ function initTeacherPortal() {
     window.switchToTopicContent = window.openTopicContent;
 
     window.switchTopicTab = function (tab, assessmentIdx = null, preserveSubMode = false) {
+    if (!preserveSubMode || assessmentIdx == null) window.resetGradingStudentSelection?.();
         if (typeof window.stopAllTopicMedia === 'function') {
             window.stopAllTopicMedia();
         }
@@ -5125,7 +5266,7 @@ function initTeacherPortal() {
             }
         }
         sigmaLastNavHash = window.location.hash || '';
-        localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'topic-content', subjectId, topicIdx, activeTab: tab, videoIdx: currentTopicState.videoIdx, assessmentIdx: window._tcAssessmentDetailIdx, selectedSection: activeSection, viewSubmission: isSubMode }));
+        saveTeacherNavigationState(JSON.stringify({ type: 'topic-content', subjectId, topicIdx, activeTab: tab, videoIdx: currentTopicState.videoIdx, assessmentIdx: window._tcAssessmentDetailIdx, selectedSection: activeSection, viewSubmission: isSubMode }));
 
         _renderTopicContentMain();
         window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : scrollToTop();
@@ -5342,92 +5483,16 @@ function initTeacherPortal() {
     };
 
     window.navigateTopicStudent = function (direction) {
-        const topicState = (typeof window.currentTopicState !== 'undefined' && window.currentTopicState)
-            ? window.currentTopicState
-            : ((typeof currentTopicState !== 'undefined' && currentTopicState) ? currentTopicState : {});
-
-        const section = topicState.selectedSection
-            || (typeof currentClassroomSectionName !== 'undefined' ? currentClassroomSectionName : '')
-            || (typeof window.activeClassroomSection !== 'undefined' ? window.activeClassroomSection : '')
-            || '';
-        if (!section) return;
-
-        let students = [];
-        if (typeof window.getUnifiedSectionStudents === 'function') {
-            students = window.getUnifiedSectionStudents(section) || [];
-        } else if (typeof studentsBySection !== 'undefined') {
-            students = studentsBySection[section] || [];
-        }
-        if (!students || students.length === 0) return;
-
-        const currentSelected = topicState.selectedStudent || 'All';
-        const curLower = String(currentSelected).trim().toLowerCase();
-
-        // Helper to extract clean name variations for matching
-        const getStudentNameTokens = (s) => {
-            if (!s) return [];
-            if (typeof s === 'string') return [s.trim().toLowerCase()];
-            const tokens = [];
-            if (s.name) tokens.push(s.name.trim().toLowerCase());
-            if (s.fullName) tokens.push(s.fullName.trim().toLowerCase());
-            if (s.firstName && s.lastName) {
-                tokens.push(`${s.lastName}, ${s.firstName}`.trim().toLowerCase());
-                tokens.push(`${s.lastName}, ${s.firstName} ${s.middleName || ''}`.trim().toLowerCase());
-                tokens.push(`${s.firstName} ${s.lastName}`.trim().toLowerCase());
-                tokens.push(`${s.firstName} ${s.middleName || ''} ${s.lastName}`.trim().toLowerCase());
-            }
-            if (s.id) tokens.push(String(s.id).trim().toLowerCase());
-            if (s.uid) tokens.push(String(s.uid).trim().toLowerCase());
-            if (s.lrn) tokens.push(String(s.lrn).trim().toLowerCase());
-            return tokens;
-        };
-
-        // Find current student index with robust matching
-        let currIdx = -1;
-        if (currentSelected && currentSelected !== 'All') {
-            currIdx = students.findIndex(s => {
-                if (!s) return false;
-                const tokens = getStudentNameTokens(s);
-                if (tokens.includes(curLower)) return true;
-                if (curLower.length > 3 && tokens.some(t => t.includes(curLower) || curLower.includes(t))) return true;
-                const sName = typeof s === 'string' ? s : (s.name || s.fullName || '');
-                const sId = typeof s === 'object' ? (s.id || s.uid || s.lrn) : '';
-                if (typeof window.findMatchedUserAccount === 'function') {
-                    const matched = window.findMatchedUserAccount(sId, sName);
-                    if (matched) {
-                        const mTokens = getStudentNameTokens(matched);
-                        if (mTokens.includes(curLower)) return true;
-                    }
-                }
-                return false;
-            });
-        }
-
-        let nextIdx = 0;
-        if (currIdx === -1) {
-            nextIdx = direction > 0 ? 0 : students.length - 1;
-        } else {
-            nextIdx = currIdx + direction;
-            if (nextIdx >= students.length) {
-                nextIdx = 0;
-            } else if (nextIdx < 0) {
-                nextIdx = students.length - 1;
-            }
-        }
-
-        const nextObj = students[nextIdx];
-        const nextStudent = typeof nextObj === 'string'
-            ? nextObj
-            : (nextObj.name || nextObj.fullName || (nextObj.lastName && nextObj.firstName ? `${nextObj.lastName}, ${nextObj.firstName}` : '') || nextObj.id || 'Student');
-
-        if (typeof window.selectTopicStudent === 'function') {
-            window.selectTopicStudent(nextStudent);
-        } else if (window.AssessmentsPage && typeof window.AssessmentsPage.selectStudent === 'function') {
-            window.AssessmentsPage.selectStudent(nextStudent);
-        }
+        window.navigateSubmittedTopicStudent?.(direction);
     };
 
     window.selectTopicStudent = function (name) {
+        const selectionState = window.currentTopicState || (typeof currentTopicState !== 'undefined' ? currentTopicState : {}) || {};
+        window._explicitGradingStudentSelection = {
+            scope: JSON.stringify([selectionState.subjectId, Number(selectionState.topicIdx || 0), Number(window._tcAssessmentDetailIdx ?? selectionState.assessmentIdx ?? 0), selectionState.selectedSection || window.activeClassroomSection || '']),
+            name
+        };
+
         window._gradingStudentListOpen = false;
         document.querySelectorAll('.topic-student-cover, [id$="-grading-student-list-tray"]').forEach(tray => {
             tray.classList.remove('is-open');
@@ -5547,6 +5612,10 @@ function initTeacherPortal() {
         } else {
             window._gradingStudentListOpen = !window._gradingStudentListOpen;
         }
+        if (!window._gradingStudentListOpen) {
+            window.dismissGradingStudentList?.();
+            return;
+        }
         const trays = document.querySelectorAll('[id$="-grading-student-list-tray"], .topic-student-cover');
         if (trays.length > 0) {
             trays.forEach(tray => {
@@ -5607,6 +5676,7 @@ function initTeacherPortal() {
         const edit = document.getElementById('teacher-grading-score-edit');
         if (!input || input.disabled || (edit && edit.disabled)) return;
         if (input.dataset.needsSubmission === '1') return;
+        input.dataset.editorContext = JSON.stringify([currentTopicState.subjectId, currentTopicState.topicIdx, currentTopicState.activeIdx, currentTopicState.selectedSection, currentTopicState.selectedStudent]);
         if (display) display.style.display = 'none';
         input.style.display = 'inline-block';
         input.classList.add('is-selected');
@@ -7553,7 +7623,7 @@ function initTeacherPortal() {
 
         const storedAssigned = draft.assignedStudents[effIdStr] || [];
         const assignedAliases = new Set(storedAssigned.map(value => String(value).trim().toLowerCase()));
-        const assignAll = assignedAliases.has('all') || assignedAliases.has('*');
+        const assignAll = storedAssigned.length === 0 || assignedAliases.has('all') || assignedAliases.has('*');
         if (sectionStudents.length > 0) {
             draft.assignedStudents[effIdStr] = sectionStudents.filter(student => {
                 const aliases = [student.id, student.studentId, student.uid, student.name, student.fullName,
@@ -7572,7 +7642,7 @@ function initTeacherPortal() {
                 const stName = st.name || `${st.lastName || ''}, ${st.firstName || ''}`.trim() || '';
                 return currentAssignedList.includes(stId) || (stName && currentAssignedList.includes(stName));
             }).length;
-        const isAllSelected = (selectedStudentsCount === totalStudentsCount && totalStudentsCount > 0) || isAllWildcard;
+        const isAllSelected = (selectedStudentsCount === totalStudentsCount && (totalStudentsCount > 0 || currentAssignedList.length === 0)) || isAllWildcard;
         const selectedStudentsSummary = isAllSelected
             ? `<span class="inline-flex items-center gap-1.5 text-[#15803d] font-bold"><span class="w-3.5 h-3.5 rounded bg-[#15803d] text-white flex items-center justify-center text-[8.5px] leading-none shrink-0 font-bold shadow-2xs"><i class="fa-solid fa-check"></i></span><span>All</span></span>`
             : `${selectedStudentsCount}/${totalStudentsCount} selected`;
@@ -8034,7 +8104,7 @@ function initTeacherPortal() {
                 foundAss?.rawItem?.selectedQuizId || foundAss?.rawItem?.quizId ||
                 activeSelectedItem?.selectedQuizId
             );
-            const typedAsQuiz = (
+            const typedAsQuiz = !isExplicitNonQuizType && (
                 foundType === 'quiz' || foundType === 'quizzes' ||
                 foundCat === 'quiz' || foundCat === 'quizzes' ||
                 hasLinkedQuiz
@@ -8084,6 +8154,8 @@ function initTeacherPortal() {
         let initAutoSubmitOnExit = true;
         let initGradingMode = '';
         let initEssayGradingMode = '';
+        let quizReviewTypes = { essay: false, enumeration: false, shortAnswer: false };
+        let hasWrittenQuizQuestions = false;
         let initManualReviewEnumeration = false;
         let initManualReviewShort = false;
         let initShowCorrectAnswers = true;
@@ -8098,6 +8170,17 @@ function initTeacherPortal() {
             if (effectiveId) {
                 const quizInfo = findQuizInfo(subjectId, effectiveId, targetTitle, foundAss);
                 const autoHps = quizInfo.points;
+                const attachedQuestions = [quizInfo?.matchedQuiz?.questions, quizInfo?.matchedQuiz?.quizQuestions, quizInfo?.matchedQuiz?.items,
+                    foundAss?.questions, foundAss?.quizQuestions, foundAss?.rawItem?.questions, foundAss?.rawItem?.quizQuestions]
+                    .find(questions => Array.isArray(questions) && questions.length) || [];
+                for (const question of attachedQuestions) {
+                    const type = String(question?.type || question?.questionType || '').toLowerCase().replace(/[_-]+/g, ' ');
+                    if (/essay|paragraph/.test(type)) quizReviewTypes.essay = true;
+                    if (/enum/.test(type)) quizReviewTypes.enumeration = true;
+                    if (/short answer|identification/.test(type)) quizReviewTypes.shortAnswer = true;
+                }
+                hasWrittenQuizQuestions = Object.values(quizReviewTypes).some(Boolean);
+
 
                 const readReleaseMapValue = (map) => {
                     if (!map || typeof map !== 'object') return undefined;
@@ -8151,6 +8234,13 @@ function initTeacherPortal() {
                     initManualReviewEnumeration = Boolean(savedReviewTypes.enumeration);
                     initManualReviewShort = Boolean(savedReviewTypes.shortAnswer);
                 }
+
+                if (!hasWrittenQuizQuestions) {
+                    initEssayGradingMode = 'auto';
+                    draft.assessmentEssayGradingModes[effectiveId] = 'auto';
+                }
+                initManualReviewEnumeration = quizReviewTypes.enumeration && initManualReviewEnumeration;
+                initManualReviewShort = quizReviewTypes.shortAnswer && initManualReviewShort;
 
                 if (draft.assessmentShowCorrectAnswers?.[effectiveId] !== undefined) {
                     initShowCorrectAnswers = Boolean(draft.assessmentShowCorrectAnswers[effectiveId]);
@@ -9168,9 +9258,9 @@ function initTeacherPortal() {
                                         <p class="text-[11px] font-normal text-black-fade block leading-relaxed mt-0.5">This scores the quiz file attached on this material.</p>
                                     </div>
                                     <input type="hidden" id="teacher-schedule-essay-grading-mode" value="${initEssayGradingMode === 'auto' || initEssayGradingMode === 'manual' ? initEssayGradingMode : ''}" />
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1 items-start font-['Inter']">
+                                    <div class="grid grid-cols-1 ${hasWrittenQuizQuestions ? 'sm:grid-cols-2' : ''} gap-3.5 pt-1 items-start font-['Inter']">
                                         <!-- Column 1: Manually Review & its nested sub-checkboxes -->
-                                        <div class="space-y-2.5 sm:space-y-3">
+                                        <div class="space-y-2.5 sm:space-y-3 ${hasWrittenQuizQuestions ? '' : 'hidden'}">
                                             <div onclick="window.selectTeacherScheduleEssayGradingMode?.('manual')" id="teacher-essay-mode-manual"
                                                 class="p-4 rounded-xl border-2 transition-all cursor-pointer select-none flex items-start gap-3.5 ${initEssayGradingMode === 'manual' ? 'border-[#15803d] bg-emerald-50/60 shadow-2xs' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'}">
                                                 <div class="w-5 h-5 rounded-full ${initEssayGradingMode === 'manual' ? 'bg-[#15803d] text-white' : 'border-2 border-slate-300 bg-white'} flex items-center justify-center text-[10px] shrink-0 mt-0.5" id="teacher-essay-mode-manual-icon">
@@ -9184,11 +9274,11 @@ function initTeacherPortal() {
 
                                             <!-- Checkboxes panel: Directly below Manually Review -->
                                             <div id="teacher-manual-review-types" class="space-y-2.5 ${initEssayGradingMode === 'manual' ? '' : 'hidden'}">
-                                                <label class="flex items-start gap-2.5 p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 cursor-pointer select-none transition-all shadow-2xs">
+                                                <label class="flex items-start gap-2.5 p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 cursor-pointer select-none transition-all shadow-2xs ${quizReviewTypes.enumeration ? '' : 'hidden'}">
                                                     <input type="checkbox" id="teacher-manual-review-enumeration" ${initManualReviewEnumeration ? 'checked' : ''} onchange="window.cacheActiveAssessmentGradingSettings?.()" class="w-4 h-4 mt-0.5 rounded text-[#15803d] focus:ring-0 border-slate-300 cursor-pointer accent-[#15803d] shrink-0" />
                                                     <span class="min-w-0"><span class="text-xs font-bold text-slate-900 block leading-tight">Enumeration</span><span class="text-[11px] text-black-fade leading-snug">Listed answers</span></span>
                                                 </label>
-                                                <label class="flex items-start gap-2.5 p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 cursor-pointer select-none transition-all shadow-2xs">
+                                                <label class="flex items-start gap-2.5 p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 cursor-pointer select-none transition-all shadow-2xs ${quizReviewTypes.shortAnswer ? '' : 'hidden'}">
                                                     <input type="checkbox" id="teacher-manual-review-short" ${initManualReviewShort ? 'checked' : ''} onchange="window.cacheActiveAssessmentGradingSettings?.()" class="w-4 h-4 mt-0.5 rounded text-[#15803d] focus:ring-0 border-slate-300 cursor-pointer accent-[#15803d] shrink-0" />
                                                     <span class="min-w-0"><span class="text-xs font-bold text-slate-900 block leading-tight">Short Answer</span><span class="text-[11px] text-black-fade leading-snug">Brief written answers</span></span>
                                                 </label>
@@ -9204,7 +9294,7 @@ function initTeacherPortal() {
                                                 </div>
                                                 <div class="min-w-0 flex-1">
                                                     <div class="text-xs font-bold text-slate-900 leading-tight">Automatic Score</div>
-                                                    <p class="text-[11px] text-black-fade leading-relaxed mt-1 font-normal">Correct answers are scored. Essays are scored perfect automatically.</p>
+                                                    <p class="text-[11px] text-black-fade leading-relaxed mt-1 font-normal">Correct answers are scored.${quizReviewTypes.essay ? ' Essays are scored perfect automatically.' : ''}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -10271,8 +10361,8 @@ function initTeacherPortal() {
             }
         }
 
-        // 3. For assessments, validate that Grading Settings (HPS, Attempts, Time Limit if timed, Category if Activity, Method) are inputted
-        if (category === 'assessments') {
+        // Schedule-only edits preserve existing grading settings without validating hidden fields.
+        if (category === 'assessments' && document.getElementById('teacher-topic-schedule-overlay')?.dataset?._editType !== 'schedule') {
             const pendingIds = draft[meta.pendingKey] || [];
             const targetIds = (pendingIds.length > 0) ? pendingIds : (targetId ? [targetId] : ['0']);
             const activeIdStr = String(targetId || (pendingIds.length > 0 ? pendingIds[0] : '0'));
@@ -10323,7 +10413,7 @@ function initTeacherPortal() {
                     foundCat === 'performance' || foundCat === 'performancetasks' || foundCat === 'performancetask' || foundCat === 'pt'
                 );
                 const hasLinkedQuiz = Boolean(it?.selectedQuizId || it?.quizId || it?.rawItem?.selectedQuizId || it?.rawItem?.quizId);
-                const typedAsQuiz = foundType === 'quiz' || foundType === 'quizzes' || foundCat === 'quiz' || foundCat === 'quizzes' || hasLinkedQuiz;
+                const typedAsQuiz = !isExplicitNonQuizType && (foundType === 'quiz' || foundType === 'quizzes' || foundCat === 'quiz' || foundCat === 'quizzes' || hasLinkedQuiz);
                 const isQuiz = typedAsQuiz || (!isExplicitNonQuizType && !foundType && !foundCat && (titleStr.includes('quiz') || idStr.toLowerCase().includes('quiz')));
                 const isAct = foundType === 'activity' || foundType === 'activities' || foundCat === 'activity' || foundCat === 'activities' || titleStr.includes('activity') || idStr.toLowerCase().includes('activ');
                 return { item: it, isQuiz, isAct, title: it?.title || it?.name || '' };
@@ -11866,7 +11956,18 @@ function initTeacherPortal() {
         window.closeTeacherUnifiedScheduleModal(returnToReleaseModal, category);
     };
 
-    window.saveTeacherUnifiedSchedule = function (category = 'topics', lateResetConfirmed = false) {
+    window.saveTeacherUnifiedSchedule = async function (category = 'topics', lateResetConfirmed = false) {
+        const initialMeta = window.getUnifiedScheduleMeta(category);
+        const initialDraft = window[initialMeta?.draftStateKey];
+        if (initialDraft?._rubricReadPromise) {
+            try { await initialDraft._rubricReadPromise; }
+            catch (error) {
+                console.error('[saveTeacherUnifiedSchedule] Rubric read failed', error);
+                window.showToast?.('The rubric could not be read. Please choose the file again.', 'error');
+                return;
+            }
+            delete initialDraft._rubricReadPromise;
+        }
         if (typeof window.cacheActiveAssessmentGradingSettings === 'function') {
             window.cacheActiveAssessmentGradingSettings();
         }
@@ -11974,7 +12075,8 @@ function initTeacherPortal() {
         }
 
         let config = {
-            publishAll: true,
+            // This form releases explicit IDs, including when correcting an older publish-all save.
+            publishAll: false,
             [meta.releasedIdKey]: (saved && Array.isArray(saved[meta.releasedIdKey])) ? [...saved[meta.releasedIdKey]] : [],
             [meta.hiddenIdKey]: (saved && Array.isArray(saved[meta.hiddenIdKey])) ? [...saved[meta.hiddenIdKey]] : [],
             [meta.scheduleKey]: (saved && saved[meta.scheduleKey] && typeof saved[meta.scheduleKey] === 'object') ? { ...saved[meta.scheduleKey] } : {},
@@ -12272,7 +12374,13 @@ function initTeacherPortal() {
                     window.ensureParentTopicReleased(subjectId, section, idStr);
                     if (foundAss && foundAss.title) window.ensureParentTopicReleased(subjectId, section, foundAss.title);
                 }
-                const isItemQuiz = idStr.toLowerCase().includes('quiz') || String(foundAss?.title || foundAss?.name || '').toLowerCase().includes('quiz') || ((foundAss?.category || foundAss?.type || '')).toLowerCase().includes('quiz') || foundAss?.isQuiz === true || Boolean(foundAss?.selectedQuizId || foundAss?.quizId || foundAss?.rawItem?.selectedQuizId || foundAss?.rawItem?.quizId) || (Array.isArray(foundAss?.questions) && foundAss.questions.length > 0) || (Array.isArray(foundAss?.quizQuestions) && foundAss.quizQuestions.length > 0) || (foundAss?.rawItem && Array.isArray(foundAss.rawItem.questions) && foundAss.rawItem.questions.length > 0) || (document.getElementById('teacher-topic-schedule-overlay')?.dataset?._isQuiz === 'true' && (String(id) === String(draft._targetId) || targetIds.length === 1));
+                const itemTypeValues = [foundAss?.type, foundAss?.materialType, foundAss?.category, foundAss?.kind, foundAss?.assessmentType]
+                    .map(value => String(value || '').trim().toLowerCase());
+                const isExplicitNonQuizItem = itemTypeValues.some(type => ['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance tasks', 'performance', 'performancetasks', 'performancetask', 'pt'].includes(type));
+                const itemComponentRaw = draft.assessmentActivityComponents?.[idStr] ?? draft.assessmentComponents?.[idStr] ?? ((String(idStr) === String(draft._targetId) || isApplyAll) ? activityComponentVal : '');
+                const selectedComponent = String(itemComponentRaw || '').trim().toLowerCase();
+                const selectedAsPerformanceTask = ['pt', 'performance', 'performance task', 'perf. task', 'perf task'].includes(selectedComponent);
+                const isItemQuiz = !selectedAsPerformanceTask && !isExplicitNonQuizItem && (idStr.toLowerCase().includes('quiz') || String(foundAss?.title || foundAss?.name || '').toLowerCase().includes('quiz') || ((foundAss?.category || foundAss?.type || '')).toLowerCase().includes('quiz') || foundAss?.isQuiz === true || Boolean(foundAss?.selectedQuizId || foundAss?.quizId || foundAss?.rawItem?.selectedQuizId || foundAss?.rawItem?.quizId) || (Array.isArray(foundAss?.questions) && foundAss.questions.length > 0) || (Array.isArray(foundAss?.quizQuestions) && foundAss.quizQuestions.length > 0) || (foundAss?.rawItem && Array.isArray(foundAss.rawItem.questions) && foundAss.rawItem.questions.length > 0) || (document.getElementById('teacher-topic-schedule-overlay')?.dataset?._isQuiz === 'true' && (String(id) === String(draft._targetId) || targetIds.length === 1)));
                 const actualQuizRefId = String(foundAss?.selectedQuizId || foundAss?.quizId || foundAss?.rawItem?.selectedQuizId || foundAss?.rawItem?.quizId || '').trim().toLowerCase();
                 const isSelfOrMatId = actualQuizRefId.startsWith('assess-') || actualQuizRefId.startsWith('mat-') || actualQuizRefId.startsWith('card-') || actualQuizRefId === idStr.toLowerCase() || actualQuizRefId === String(foundAss?.id || '').trim().toLowerCase();
                 const cleanRefId = (!isSelfOrMatId && actualQuizRefId && actualQuizRefId !== 'null' && actualQuizRefId !== 'undefined') ? actualQuizRefId : '';
@@ -12371,18 +12479,22 @@ function initTeacherPortal() {
                     }
                 }
 
-                if (isItemQuiz) {
-                    const subjWeights = (typeof getSubjectGradebookWeights === 'function')
-                        ? getSubjectGradebookWeights(subjectId)
-                        : { ww: 25, pt: 50, qa: 25 };
-                    config.assessmentWeights[idStr] = subjWeights.ww;
-                    config.assessmentActivityComponents[idStr] = 'ww';
-                } else {
-                    config.assessmentWeights[idStr] = draft.assessmentWeights?.[idStr] !== undefined ? draft.assessmentWeights[idStr] : weightVal;
-                    config.assessmentActivityComponents[idStr] = draft.assessmentActivityComponents?.[idStr] !== undefined ? draft.assessmentActivityComponents[idStr] : activityComponentVal;
-                }
+                const subjWeights = (typeof getSubjectGradebookWeights === 'function')
+                    ? getSubjectGradebookWeights(subjectId)
+                    : { ww: 25, pt: 50, qa: 25 };
+                const selectedWeight = isItemQuiz
+                    ? subjWeights.ww
+                    : (draft.assessmentWeights?.[idStr] !== undefined ? draft.assessmentWeights[idStr] : weightVal);
+                const selectedGradebookComponent = isItemQuiz
+                    ? 'ww'
+                    : (draft.assessmentActivityComponents?.[idStr] !== undefined ? draft.assessmentActivityComponents[idStr] : activityComponentVal);
                 if (!config.assessmentComponents) config.assessmentComponents = { ...(saved?.assessmentComponents || {}) };
-                config.assessmentComponents[idStr] = config.assessmentActivityComponents[idStr];
+                const componentKeys = [...new Set([idStr, foundAss?.id, foundAss?.materialId, foundAss?.title, foundAss?.name].filter(Boolean).map(String))];
+                componentKeys.forEach(key => {
+                    config.assessmentWeights[key] = selectedWeight;
+                    config.assessmentActivityComponents[key] = selectedGradebookComponent;
+                    config.assessmentComponents[key] = selectedGradebookComponent;
+                });
                 if (foundAss) {
                     foundAss.component = config.assessmentActivityComponents[idStr];
                     foundAss.gradebookComponent = foundAss.component;
@@ -12432,7 +12544,8 @@ function initTeacherPortal() {
                     if (foundAss?.id) config.assessmentManualReviewTypes[String(foundAss.id)] = reviewTypes;
                     if (foundAss?.title) config.assessmentManualReviewTypes[foundAss.title] = reviewTypes;
                 }
-                if (!config.assessmentShowCorrectAnswers) config.assessmentShowCorrectAnswers = { ...(saved?.assessmentShowCorrectAnswers || {}) };
+                // Preserve named quiz settings even when an empty database map arrived as [].
+                config.assessmentShowCorrectAnswers = { ...(config.assessmentShowCorrectAnswers || saved?.assessmentShowCorrectAnswers || {}) };
                 if (draft.assessmentShowCorrectAnswers?.[idStr] !== undefined) {
                     config.assessmentShowCorrectAnswers[idStr] = Boolean(draft.assessmentShowCorrectAnswers[idStr]);
                     if (foundAss?.id) config.assessmentShowCorrectAnswers[String(foundAss.id)] = Boolean(draft.assessmentShowCorrectAnswers[idStr]);
@@ -12872,33 +12985,24 @@ function initTeacherPortal() {
                 chosenStudents = Array.isArray(defaultChosenStudentIds) ? defaultChosenStudentIds.slice() : [];
             }
 
-            // Expand chosen students with all alias representations so any student check succeeds
-            const expandedAssigned = new Set();
-
-            (chosenStudents || []).forEach(cs => {
-                const csStr = String(cs).trim();
-                if (!csStr) return;
-                expandedAssigned.add(csStr);
-                const csLower = csStr.toLowerCase();
-                expandedAssigned.add(csLower);
-
-                const matched = secStudentMap.get(csLower);
-                if (matched) {
-                    if (matched.id) { expandedAssigned.add(String(matched.id)); expandedAssigned.add(String(matched.id).toLowerCase()); }
-                    if (matched.studentId) { expandedAssigned.add(String(matched.studentId)); expandedAssigned.add(String(matched.studentId).toLowerCase()); }
-                    if (matched.uid) { expandedAssigned.add(String(matched.uid)); expandedAssigned.add(String(matched.uid).toLowerCase()); }
-                    if (matched.name) { expandedAssigned.add(String(matched.name)); expandedAssigned.add(String(matched.name).toLowerCase()); }
-                    if (matched.fullName) { expandedAssigned.add(String(matched.fullName)); expandedAssigned.add(String(matched.fullName).toLowerCase()); }
-                    if (matched.firstName && matched.lastName) {
-                        expandedAssigned.add(`${matched.firstName} ${matched.lastName}`);
-                        expandedAssigned.add(`${matched.firstName} ${matched.lastName}`.toLowerCase());
-                        expandedAssigned.add(`${matched.lastName}, ${matched.firstName}`);
-                        expandedAssigned.add(`${matched.lastName}, ${matched.firstName}`.toLowerCase());
-                    }
-                }
+            // Persist canonical account IDs; display-name aliases are not student IDs.
+            const chosenValues = (chosenStudents || []).map(value => String(value).trim());
+            const chosenKeys = new Set(chosenValues.map(value => value.toLowerCase()));
+            const explicitlyAllStudents = chosenValues.some(value => ['all', '*', 'all students', 'everyone'].includes(value.toLowerCase()));
+            const allRosterStudentsSelected = allSecStudents.length > 0 && allSecStudents.every(student => {
+                const aliases = [student.id, student.studentId, student.uid, student.name, student.fullName,
+                    `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+                    `${student.lastName || ''}, ${student.firstName || ''}`.trim()];
+                return aliases.some(value => value && chosenKeys.has(String(value).trim().toLowerCase()));
             });
-
-            const finalAssignedList = Array.from(expandedAssigned);
+            const selectedStudentIds = [...new Set(chosenValues.map(value => {
+                const key = String(value).trim().toLowerCase();
+                const matched = secStudentMap.get(key);
+                return String(matched?.id || matched?.studentId || matched?.uid || value).trim();
+            }).filter(Boolean))];
+            // A wildcard keeps access open for all current and future students
+            // enrolled in this exact subject-section.
+            const finalAssignedList = explicitlyAllStudents || allRosterStudentsSelected ? ['*'] : selectedStudentIds;
             config.assignedStudents[idStr] = [...finalAssignedList];
 
             if (category === 'assessments') {
@@ -12992,6 +13096,16 @@ function initTeacherPortal() {
                 return;
             }
         }
+        if (category === 'assessments' && document.getElementById('teacher-topic-schedule-overlay')?.dataset?._editType === 'schedule') {
+            // Editing dates must not replace grading settings that are absent from this page.
+            for (const key of Object.keys(config)) {
+                if ((key.startsWith('assessment') && !/Schedules$|Dates$/.test(key)) || key.startsWith('default')) {
+                    if (saved && Object.prototype.hasOwnProperty.call(saved, key)) config[key] = saved[key];
+                    else delete config[key];
+                }
+            }
+        }
+
         if (subjectId) {
             let releaseSaved = true;
             if (typeof window.saveUnifiedReleaseConfig === 'function') {
@@ -13033,6 +13147,7 @@ function initTeacherPortal() {
                 if (!Array.isArray(topCfg.hiddenTopicIds)) topCfg.hiddenTopicIds = [];
                 if (!topCfg.topicReleaseDates) topCfg.topicReleaseDates = {};
                 if (!topCfg.topicSchedules) topCfg.topicSchedules = {};
+                topCfg.publishAll = false;
                 uSel.topics.forEach(tid => {
                     const sTid = String(tid);
                     if (!topCfg.releasedTopicIds.map(String).includes(sTid)) topCfg.releasedTopicIds.push(sTid);
@@ -13061,6 +13176,7 @@ function initTeacherPortal() {
                 if (!Array.isArray(lrnCfg.hiddenMaterialIds)) lrnCfg.hiddenMaterialIds = [];
                 if (!lrnCfg.materialReleaseDates) lrnCfg.materialReleaseDates = {};
                 if (!lrnCfg.materialSchedules) lrnCfg.materialSchedules = {};
+                lrnCfg.publishAll = false;
                 uSel.learning.forEach(mid => {
                     const sMid = String(mid);
                     if (!lrnCfg.releasedMaterialIds.map(String).includes(sMid)) lrnCfg.releasedMaterialIds.push(sMid);
@@ -13089,6 +13205,7 @@ function initTeacherPortal() {
                 if (!Array.isArray(assCfg.hiddenMaterialIds)) assCfg.hiddenMaterialIds = [];
                 if (!assCfg.materialReleaseDates) assCfg.materialReleaseDates = {};
                 if (!assCfg.materialSchedules) assCfg.materialSchedules = {};
+                assCfg.publishAll = false;
                 uSel.assessments.forEach(aid => {
                     const sAid = String(aid);
                     if (!assCfg.releasedMaterialIds.map(String).includes(sAid)) assCfg.releasedMaterialIds.push(sAid);
@@ -13106,6 +13223,14 @@ function initTeacherPortal() {
             }
 
             window._unifiedPickerSelection = null;
+        }
+
+        // Wait for database confirmation before announcing a release.
+        try {
+            await window.SigmaAcademicRecords?.flush();
+        } catch (error) {
+            if (!error.sigmaAcademicReported) window.showToast?.(error.message || 'Release could not be saved. Please try again.', 'error');
+            return;
         }
 
         // Dispatch student notifications for released/scheduled items
@@ -13801,12 +13926,23 @@ function initTeacherPortal() {
         };
 
         const resolveItemType = (item) => {
-            const raw = String(item.type || item.category || '').trim().toLowerCase();
-            if (raw === 'quiz' || raw === 'quizzes' || item.quizId || item.selectedQuizId) return 'Quiz';
-            if (raw === 'activity' || raw === 'activities') return 'Activity';
-            if (raw === 'performance task' || raw === 'performance' || raw === 'perf. task') return 'Performance Task';
-            if (raw === 'assignment' || raw === 'assignments') return 'Assignment';
-            if (raw === 'task' || raw === 'tasks') return 'Task';
+            // Trust an explicit material/assessment type before using quiz IDs as a
+            // fallback. Task records can retain a quizId from older imports, which
+            // must not make them render as quizzes in the release panel.
+            const classify = (value) => {
+                const raw = String(value || '').trim().toLowerCase();
+                if (raw.includes('quiz')) return 'Quiz';
+                if (raw.includes('performance') || raw.includes('perf.')) return 'Performance Task';
+                if (raw.includes('assign')) return 'Assignment';
+                if (raw.includes('activ')) return 'Activity';
+                if (raw === 'task' || raw === 'tasks' || raw.startsWith('task ') || raw.startsWith('task-')) return 'Task';
+                return '';
+            };
+            const explicitType = [item.type, item.materialType, item.category, item.kind, item.assessmentType]
+                .map(classify)
+                .find(Boolean);
+            if (explicitType) return explicitType;
+            if (item.quizId || item.selectedQuizId) return 'Quiz';
             return 'Task';
         };
 
@@ -14603,7 +14739,7 @@ function initTeacherPortal() {
         };
 
         const getAssessmentIconClass = (type) => {
-            if (type === 'Quiz') return { icon: 'fa-solid fa-stopwatch text-emerald-600', bg: 'bg-emerald-50 border-emerald-100' };
+            if (String(type || '').trim().toLowerCase().includes('quiz')) return { icon: 'fa-solid fa-stopwatch text-emerald-600', bg: 'bg-emerald-50 border-emerald-100' };
             return { icon: 'fa-solid fa-clipboard-list text-amber-600', bg: 'bg-amber-50 border-amber-100' };
         };
 
@@ -16131,6 +16267,13 @@ function initTeacherPortal() {
             currentTopicState.selectedStudent = getPersistedTopicStudent(currentTopicState.subjectId, nextSection);
         }
         currentTopicState.selectedSection = nextSection;
+        const topicSubject = getTopicSubject(currentTopicState.subjectId);
+        if (nextSection) {
+            syncTeacherActiveClassContext(
+                nextSection,
+                topicSubject?.name || topicSubject?.title || window.currentClassroomSubject || currentClassroomMeta?.subject || ''
+            );
+        }
         window._tcAssessmentDetailIdx = null;
 
         document.querySelectorAll('#topic-content-section-select, #topic-detail-section-select, #assessments-section-select, .topic-section-select').forEach(sel => {
@@ -16182,7 +16325,7 @@ function initTeacherPortal() {
 
         return `
             <div class="space-y-4 mt-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div class="teacher-topic-gradebook-file-panel handout-card group flex items-center gap-6 p-6 bg-white border border-gray-100 rounded-[22px] sharp-shadow hover:border-slate-300 hover:bg-slate-50/50 transition-all cursor-pointer" onclick="switchTab('nav-grades')">
+                <div class="teacher-topic-gradebook-file-panel handout-card group flex items-center gap-6 p-6 bg-white border border-gray-100 rounded-[22px] sharp-shadow hover:border-slate-300 hover:bg-slate-50/50 transition-all cursor-pointer" onclick="window.openTeacherClassroomGradebook?.()">
                     <div class="w-14 h-14 rounded-2xl bg-icc-light flex items-center justify-center text-icc flex-shrink-0">
                         <i class="fa-solid fa-book text-xl"></i>
                     </div>
@@ -16212,6 +16355,18 @@ function initTeacherPortal() {
         }
         const page = document.getElementById('section-topic-content');
         if (!page) return;
+        const gradeDraft = document.getElementById('teacher-grading-score-input');
+        const gradeContext = JSON.stringify([currentTopicState.subjectId, currentTopicState.topicIdx, currentTopicState.activeIdx, currentTopicState.selectedSection, currentTopicState.selectedStudent]);
+        // A live record/catalog refresh must not replace the score the teacher is editing.
+        // Changing the student or assessment still renders its own panel normally.
+        if (gradeDraft?.classList.contains('is-selected') && gradeDraft.dataset.editorContext === gradeContext) return;
+        if (window._pendingTeacherStatusSave?.context === gradeContext) return;
+        const renderContext = JSON.stringify([currentTopicState.subjectId, currentTopicState.topicIdx, currentTopicState.activeTab,
+            currentTopicState.activeIdx, currentTopicState.selectedSection, currentTopicState.selectedStudent]);
+        const preserveScroll = page.dataset.renderContext === renderContext;
+        const savedWindowScroll = { left: window.scrollX, top: window.scrollY };
+        const savedScrollAreas = preserveScroll ? [...document.querySelectorAll('#main-content, #layout-wrapper, #section-topic-content, #topic-content-main, #topic-right-section')]
+            .map(element => ({ id: element.id, top: element.scrollTop, left: element.scrollLeft })) : [];
 
         const { subjectId, topicIdx, activeTab } = currentTopicState;
         const videoIdx = currentTopicState.videoIdx;
@@ -16443,6 +16598,20 @@ function initTeacherPortal() {
 
         window.relocateAssessmentPrimaryAction?.(page);
 
+        page.dataset.renderContext = renderContext;
+        if (preserveScroll) {
+            const restoreScroll = () => {
+                if (page.dataset.renderContext !== renderContext) return;
+                for (const area of savedScrollAreas) {
+                    const element = document.getElementById(area.id);
+                    if (element) { element.scrollTop = area.top; element.scrollLeft = area.left; }
+                }
+                window.scrollTo({ ...savedWindowScroll, behavior: 'instant' });
+            };
+            restoreScroll();
+            requestAnimationFrame(restoreScroll);
+        }
+
         if (typeof _bindTopicContentEvents === 'function') {
             _bindTopicContentEvents();
         }
@@ -16658,8 +16827,13 @@ function initTeacherPortal() {
 
             const activeItemCat = String(ass.category || ass.type || '').toLowerCase();
             const assTitle = String(ass.title || ass.name || '').toLowerCase();
-            const isAssQuiz = (ass.isQuiz === true || ass.isScheduleQuiz === true || Boolean(ass.quizId || ass.selectedQuizId) || (Array.isArray(ass.questions) && ass.questions.length > 0) || (Array.isArray(ass.quizQuestions) && ass.quizQuestions.length > 0) || activeItemCat.includes('quiz') || assTitle.includes('quiz'));
-            const directCat = isAssQuiz ? 'quiz' : (ass.category || (activeItemCat.includes('perf') ? 'perf. task' : activeItemCat.includes('activ') ? 'activity' : 'assignment'));
+            const explicitNonQuizType = [ass.category, ass.materialType, ass.type, ass.kind, ass.assessmentType, ass.rawItem?.category, ass.rawItem?.materialType, ass.rawItem?.type, ass.rawItem?.kind, ass.rawItem?.assessmentType]
+                .map(value => String(value || '').trim())
+                .find(value => /(?:\b(?:task|tasks|assignment|assignments|activity|activities|performance|perf)\b|^pt$)/i.test(value));
+            const explicitNonQuiz = Boolean(explicitNonQuizType);
+            const isAssQuiz = !explicitNonQuiz && (ass.isQuiz === true || ass.isScheduleQuiz === true || Boolean(ass.quizId || ass.selectedQuizId) || (Array.isArray(ass.questions) && ass.questions.length > 0) || (Array.isArray(ass.quizQuestions) && ass.quizQuestions.length > 0) || activeItemCat.includes('quiz') || assTitle.includes('quiz'));
+            const explicitNonQuizCategory = /performance|perf/i.test(explicitNonQuizType || '') ? 'perf. task' : /activ/i.test(explicitNonQuizType || '') ? 'activity' : 'assignment';
+            const directCat = isAssQuiz ? 'quiz' : (explicitNonQuiz ? explicitNonQuizCategory : (ass.category || (activeItemCat.includes('perf') ? 'perf. task' : activeItemCat.includes('activ') ? 'activity' : 'assignment')));
             
             let itemIdx = activeIdx;
             const catItems = (typeof getCategoryDetails === 'function') ? (getCategoryDetails(directCat) || []) : [];
@@ -17211,7 +17385,7 @@ function initTeacherPortal() {
         if (navId === 'nav-attendance') {
             if (!sectionFeatureInit.attendance) {
                 sectionFeatureInit.attendance = true;
-                setTimeout(() => setupAttendanceCalendar(), 100);
+                setTimeout(() => window.setupAttendanceCalendar?.(), 100);
             }
             return;
         }
@@ -17233,6 +17407,8 @@ function initTeacherPortal() {
     }
 
     function showSection(id) {
+        const previousSection = document.querySelector('.dynamic-section:not(.hidden)');
+        if (previousSection?.id !== id) window.dismissGradingStudentList?.();
         hideAllSections();
         const earlyStyle = document.getElementById('early-dashboard-style');
         if (earlyStyle) earlyStyle.remove();
@@ -17313,6 +17489,8 @@ function initTeacherPortal() {
     };
 
     function switchTab(navId, pushHistory = true, subTab = null) {
+        window.dismissGradingStudentList?.();
+        if (pushHistory) document.documentElement.classList.remove('sigma-teacher-route-pending');
         document.getElementById('record-nav-title')?.remove();
         const previousHeader=document.getElementById('nav-context-text');
         if(previousHeader?.classList.contains('advisory-header-title')){
@@ -17364,7 +17542,7 @@ function initTeacherPortal() {
                 } else {
                     history.replaceState({ type: 'tab', navId, subTab }, '', '#' + pageKey);
                 }
-                localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'tab', navId, pageKey, subTab }));
+                saveTeacherNavigationState(JSON.stringify({ type: 'tab', navId, pageKey, subTab }));
             }
         }
 
@@ -17661,11 +17839,7 @@ function initTeacherPortal() {
                 if (yearSelect) yearSelect.value = String(now.getFullYear());
                 if (monthSelect) monthSelect.value = String(now.getMonth());
             }
-            setTimeout(() => {
-                if (typeof setupAttendanceCalendar === 'function') {
-                    setupAttendanceCalendar();
-                }
-            }, 40);
+            setTimeout(() => window.setupAttendanceCalendar?.(), 40);
         } else {
             document.body.classList.remove('calendar-page-mode');
             window._preserveCalendarDateOnNextOpen = false;
@@ -17704,9 +17878,17 @@ function initTeacherPortal() {
         });
     });
 
+    let pendingTeacherNavigationHash = null;
     const setupNavigationHistory = () => {
         if (location.hash === '#school-profile-view') { window.SigmaSchoolProfileView?.open(false); return; }
         const hash = window.location.hash || '';
+        if (/^#(?:classroom|topic|topic-content|topic-detail):/.test(hash) && !window.SigmaAssignedClassrooms?.isReady?.()) {
+            pendingTeacherNavigationHash = hash;
+            document.documentElement.classList.add('sigma-teacher-route-pending');
+            return;
+        }
+        pendingTeacherNavigationHash = null;
+        document.documentElement.classList.remove('sigma-teacher-route-pending');
 
         // 1. High-Priority Hash Check (Deep Links)
         // If we have a hash that looks like a deep link, use it immediately regardless of state
@@ -17767,7 +17949,7 @@ function initTeacherPortal() {
                         const correctedHash = `#classroom:${encodeURIComponent(className)}:${encodeURIComponent(subject)}:${initialTab}`;
                         history.replaceState({ type: 'classroom', className, subject, initialTab, teacherId: teacherUid }, '', correctedHash);
                     } else {
-                        switchTab('nav-classes', false);
+                        switchTab('nav-dashboard', false);
                         return;
                     }
                 }
@@ -17894,7 +18076,7 @@ function initTeacherPortal() {
 
         if (!hash) {
             history.replaceState({ type: 'tab', navId: 'nav-dashboard' }, '', `${window.location.pathname}${window.location.search}`);
-            localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({
+            saveTeacherNavigationState(JSON.stringify({
                 type: 'tab',
                 navId: 'nav-dashboard',
                 pageKey: 'dashboard'
@@ -17971,6 +18153,25 @@ function initTeacherPortal() {
         }
     };
 
+    window.addEventListener('sigma:assigned-classrooms-updated', () => {
+        if (pendingTeacherNavigationHash === null) return;
+        if ((window.location.hash || '') !== pendingTeacherNavigationHash) {
+            pendingTeacherNavigationHash = null;
+            document.documentElement.classList.remove('sigma-teacher-route-pending');
+            return;
+        }
+        if (window.SigmaAssignedClassrooms?.isReady?.()) {
+            _cachedTeacherSectionCards = null;
+            setupNavigationHistory();
+            window.alignClassroomAttendanceViewport?.();
+        } else if (window.SigmaAssignedClassrooms?.error?.()) {
+            // Keep the requested URL for recovery on reconnect, while showing a usable page.
+            switchTab('nav-dashboard', false);
+            document.documentElement.classList.remove('sigma-teacher-route-pending');
+            window.showToastNotification?.('Unable to load your classes. Reconnect to open this classroom.', 'error');
+        }
+    });
+
     window.addEventListener('popstate', (event) => {
         if (location.hash === '#school-profile-view') { window.SigmaSchoolProfileView?.open(false); return; }
         const fromHash = sigmaLastNavHash;
@@ -17978,6 +18179,11 @@ function initTeacherPortal() {
         sigmaLastNavHash = landedHash;
 
         if (window._isProcessingPopstate || window._isProcessingBack) {
+            return;
+        }
+
+        if (/^#(?:classroom|topic|topic-content|topic-detail):/.test(window.location.hash || '') && !window.SigmaAssignedClassrooms?.isReady?.()) {
+            setupNavigationHistory();
             return;
         }
 
@@ -18563,18 +18769,33 @@ function initTeacherPortal() {
     }
     window.toggleClassroomSettingsMenu = toggleClassroomSettingsMenu;
 
+    async function persistCurrentClassroomCommentMode(mode) {
+        const section = currentClassroomSectionName || (currentClassroomKey ? currentClassroomKey.split('::')[0] : '');
+        const subject = (currentClassroomMeta ? currentClassroomMeta.subject : '') || (currentClassroomKey ? currentClassroomKey.split('::').slice(1).join('::') : '');
+        const switches = [...document.querySelectorAll('#classroom-comments-toggle-switch, #classroom-comments-toggle-switch-legacy, [id*="classroom-comments-toggle"]')];
+        switches.forEach(control => { control.disabled = true; });
+        try {
+            if (typeof window.SigmaAnnouncements?.setClassroomCommentMode !== 'function') throw new Error('Classroom comments are temporarily unavailable. Refresh and try again.');
+            await window.SigmaAnnouncements.setClassroomCommentMode(section, subject, mode === 'enabled');
+            saveCurrentCommentMode(mode);
+            applyClassroomSettingsUI();
+            renderRoomAnnouncementsFeed();
+            window.SigmaAnnouncements.refreshAllFeeds?.();
+        } catch (error) {
+            applyClassroomSettingsUI();
+            window.SigmaAnnouncements?.showToast?.({ title: 'Comment setting not saved', message: error.message || 'Please try again.', type: 'error' });
+        } finally {
+            switches.forEach(control => { control.disabled = false; });
+        }
+    }
+
     window.handleClassroomCommentsRowClick = function (event) {
         if (event) {
             event.stopPropagation();
         }
         const currentMode = getCurrentCommentMode();
         const newMode = (currentMode === 'enabled') ? 'disabled' : 'enabled';
-        saveCurrentCommentMode(newMode);
-        applyClassroomSettingsUI();
-        renderRoomAnnouncementsFeed();
-        if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.refreshAllFeeds === 'function') {
-            window.SigmaAnnouncements.refreshAllFeeds();
-        }
+        persistCurrentClassroomCommentMode(newMode);
     };
 
     window.toggleCurrentClassroomComments = function (event) {
@@ -18588,12 +18809,7 @@ function initTeacherPortal() {
             const currentMode = getCurrentCommentMode();
             newMode = (currentMode === 'enabled') ? 'disabled' : 'enabled';
         }
-        saveCurrentCommentMode(newMode);
-        applyClassroomSettingsUI();
-        renderRoomAnnouncementsFeed();
-        if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.refreshAllFeeds === 'function') {
-            window.SigmaAnnouncements.refreshAllFeeds();
-        }
+        persistCurrentClassroomCommentMode(newMode);
     };
 
     window.openCurrentClassroomCustomizer = function () {
@@ -18703,7 +18919,11 @@ function initTeacherPortal() {
                             act.tab || 'activity',
                             act.itemIdx !== undefined ? Number(act.itemIdx) : 0,
                             true,
-                            { selectedSection: act.sectionName || act.section || className }
+                            {
+                                selectedSection: act.sectionName || act.section || className,
+                                selectedStudent: act.studentId || act.uid || act.authorId || '',
+                                viewSubmission: true
+                            }
                         );
                     }
                 }
@@ -18875,7 +19095,7 @@ function initTeacherPortal() {
             } else {
                 history.replaceState({ type: 'classroom', className, subject, initialTab, teacherId: currentTeacherUid }, '', hash);
             }
-            localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'classroom', className, subject, initialTab, teacherId: currentTeacherUid }));
+            saveTeacherNavigationState(JSON.stringify({ type: 'classroom', className, subject, initialTab, teacherId: currentTeacherUid }));
         }
 
         currentClassroomKey = `${className}::${subject}`;
@@ -18954,6 +19174,7 @@ function initTeacherPortal() {
             currentTopicState.selectedStudent = 'All';
             window.currentTopicState = currentTopicState;
         }
+        syncTeacherActiveClassContext(effectiveSection, effectiveSubject);
 
         // Sync section dropdown in DOM immediately
         const secSelects = document.querySelectorAll('#topic-content-section-select, #topic-detail-section-select, #assessments-section-select, .topic-section-select');
@@ -19403,7 +19624,7 @@ function initTeacherPortal() {
                 } else {
                     history.replaceState({ type: 'classroom', className: currentClassroomSectionName, subject, initialTab: effectiveTab }, '', hash);
                 }
-                localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'classroom', className: currentClassroomSectionName, subject, initialTab: effectiveTab }));
+                saveTeacherNavigationState(JSON.stringify({ type: 'classroom', className: currentClassroomSectionName, subject, initialTab: effectiveTab }));
             }
         }
 
@@ -19435,9 +19656,8 @@ function initTeacherPortal() {
         const analyticsSection = document.getElementById('detail-section-analytics');
         if (analyticsSection) analyticsSection.classList.add('hidden');
         if (effectiveTab === 'attendance') {
-            // Reset scroll so the table snaps back to today's column cleanly on re-entry
-            attendanceLastScrollLeft = -1;
-            renderClassroomAttendanceTab(true);
+            // Reset the shared attendance engine, including its current-month viewport.
+            window.enterClassroomAttendance?.();
         } else if (effectiveTab === 'members') {
             renderTeacherMembersTab(currentClassroomSectionName, currentClassroomMeta ? currentClassroomMeta.subject : '');
         } else if (effectiveTab === 'topics') {
@@ -19478,8 +19698,21 @@ function initTeacherPortal() {
     };
 
     window.openTeacherClassroomGradebook = function () {
-        let section = currentClassroomSectionName || window.currentClassroomSectionName || '';
-        let subject = (currentClassroomMeta && currentClassroomMeta.subject) ? currentClassroomMeta.subject : (window.currentClassroomSubject || '');
+        const topicState = window.currentTopicState || currentTopicState;
+        const topicSurfaceVisible = ['section-topic-detail', 'section-topic-content', 'detail-section-topics', 'detail-section-materials']
+            .some(id => {
+                const element = document.getElementById(id);
+                return element && !element.classList.contains('hidden');
+            });
+        const topicSubject = topicSurfaceVisible && topicState?.subjectId ? getTopicSubject(topicState.subjectId) : null;
+        let section = (topicSurfaceVisible && topicState?.selectedSection)
+            || currentClassroomSectionName
+            || window.currentClassroomSectionName
+            || '';
+        let subject = (topicSubject?.name || topicSubject?.title)
+            || (currentClassroomMeta && currentClassroomMeta.subject)
+            || window.currentClassroomSubject
+            || '';
 
         if (!section || !subject) {
             const hash = (window.location.hash || '').replace(/^#/, '');
@@ -19513,34 +19746,18 @@ function initTeacherPortal() {
         const normSec = cleanStr(section);
         const normSub = cleanStr(subject);
 
-        // 1. Exact match on both section and subject
-        let match = assigned.find(a => {
-            const aSec = cleanStr(a.sectionName || a.section || a.name);
-            const aSub = cleanStr(a.subject || a.title);
-            return (aSec === normSec) && (aSub === normSub);
-        });
-
-        // 2. Loose match on both
-        if (!match) {
-            match = assigned.find(a => {
-                const aSec = cleanStr(a.sectionName || a.section || a.name);
-                const aSub = cleanStr(a.subject || a.title);
-                const secMatch = (aSec === normSec || aSec.includes(normSec) || normSec.includes(aSec));
-                const subMatch = (aSub === normSub || aSub.includes(normSub) || normSub.includes(aSub));
-                return secMatch && subMatch;
-            });
+        // Match the selected room as a section/subject pair. If a renamed subject
+        // has one unique exact section, use its canonical assignment record; never
+        // fall back to the first section for the same subject.
+        let match = assigned.find(a =>
+            cleanStr(a.sectionName || a.section || a.name) === normSec &&
+            cleanStr(a.subject || a.title) === normSub
+        );
+        if (!match && normSec) {
+            const sectionMatches = assigned.filter(a => cleanStr(a.sectionName || a.section || a.name) === normSec);
+            if (sectionMatches.length === 1) match = sectionMatches[0];
         }
-
-        // 3. Fallback: match on subject first (as long as it belongs to the assigned teacher's subjects)
-        if (!match && assigned.length > 0) {
-            match = assigned.find(a => {
-                const aSub = cleanStr(a.subject || a.title);
-                return aSub === normSub || aSub.includes(normSub) || normSub.includes(aSub);
-            }) || assigned.find(a => {
-                const aSec = cleanStr(a.sectionName || a.section || a.name);
-                return aSec === normSec || aSec.includes(normSec) || normSec.includes(aSec);
-            }) || assigned[0];
-        }
+        if (!match) match = syncTeacherActiveClassContext(section, subject);
 
         if (!match) {
             match = {
@@ -19595,7 +19812,8 @@ function initTeacherPortal() {
             window.saveSigmaGradesState();
         }
 
-        switchTab('nav-grades', true, 'gradebook');
+        const open = () => switchTab('nav-grades', true, 'gradebook');
+        return window.withGradebookReadCache ? window.withGradebookReadCache(open) : open();
     };
     window.openClassroomGradebook = window.openTeacherClassroomGradebook;
     window.openTeacherClassroomAnalytics = function () {
@@ -19768,7 +19986,7 @@ function initTeacherPortal() {
                     <!-- Students Grades Table -->
                     <div class="teacher-grades-modal-table border border-slate-200 rounded-xl sm:rounded-2xl overflow-hidden bg-white shadow-xs">
                         <div class="overflow-x-auto">
-                            <table data-sigma-paginate class="w-full text-left border-collapse text-xs" style="--report-grade-columns:${reportQuarters.length + 1}">
+                            <table class="w-full text-left border-collapse text-xs" style="--report-grade-columns:${reportQuarters.length + 1}">
                                 <thead>
                                     <tr class="bg-[#15803d] text-white select-none">
                                         <th class="px-3 sm:px-4 py-2 sm:py-3 font-semibold text-white tracking-normal font-['Inter'] border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Students</th>
@@ -21049,7 +21267,8 @@ function initTeacherPortal() {
         updateCarousel();
     }
 
-    // --- Attendance Calendar (Full-Screen Design with Full-Height White Panel) ---
+    // --- Attendance Calendar fallback (shared controller is loaded from calendar.js) ---
+    if (typeof window.setupAttendanceCalendar !== 'function') {
     let attendanceCurrentDate = new Date();
     let selectedCalendarDate = {
         year: attendanceCurrentDate.getFullYear(),
@@ -21921,6 +22140,7 @@ function initTeacherPortal() {
         renderCalendarRightPanel(selectedCalendarDate.year, selectedCalendarDate.month, selectedCalendarDate.day);
     }
     window.setupAttendanceCalendar = setupAttendanceCalendar;
+    }
 
     // Safe stubs for Add Event modal handlers (automated schedule)
     window.openCalendarAddEventModal = function () {};
@@ -23773,8 +23993,13 @@ function initTeacherPortal() {
             if (ass) {
                 const activeItemCat = String(ass.category || ass.type || '').toLowerCase();
                 const assTitle = String(ass.title || ass.name || '').toLowerCase();
-                const isAssQuiz = (ass.isQuiz === true || ass.isScheduleQuiz === true || Boolean(ass.quizId || ass.selectedQuizId) || (Array.isArray(ass.questions) && ass.questions.length > 0) || (Array.isArray(ass.quizQuestions) && ass.quizQuestions.length > 0) || activeItemCat.includes('quiz') || assTitle.includes('quiz'));
-                category = isAssQuiz ? 'quiz' : (ass.category || (activeItemCat.includes('perf') ? 'perf. task' : activeItemCat.includes('activ') ? 'activity' : 'assignment'));
+                const explicitNonQuizType = [ass.category, ass.materialType, ass.type, ass.kind, ass.assessmentType, ass.rawItem?.category, ass.rawItem?.materialType, ass.rawItem?.type, ass.rawItem?.kind, ass.rawItem?.assessmentType]
+                    .map(value => String(value || '').trim())
+                    .find(value => /(?:\b(?:task|tasks|assignment|assignments|activity|activities|performance|perf)\b|^pt$)/i.test(value));
+                const explicitNonQuiz = Boolean(explicitNonQuizType);
+                const isAssQuiz = !explicitNonQuiz && (ass.isQuiz === true || ass.isScheduleQuiz === true || Boolean(ass.quizId || ass.selectedQuizId) || (Array.isArray(ass.questions) && ass.questions.length > 0) || (Array.isArray(ass.quizQuestions) && ass.quizQuestions.length > 0) || activeItemCat.includes('quiz') || assTitle.includes('quiz'));
+                const explicitNonQuizCategory = /performance|perf/i.test(explicitNonQuizType || '') ? 'perf. task' : /activ/i.test(explicitNonQuizType || '') ? 'activity' : 'assignment';
+                category = isAssQuiz ? 'quiz' : (explicitNonQuiz ? explicitNonQuizCategory : (ass.category || (activeItemCat.includes('perf') ? 'perf. task' : activeItemCat.includes('activ') ? 'activity' : 'assignment')));
 
                 const catItems = (typeof getCategoryDetails === 'function') ? (getCategoryDetails(category) || []) : [];
                 const activeId = String(ass.id || '').trim().toLowerCase();
@@ -24175,11 +24400,31 @@ function initTeacherPortal() {
             ? window.getAssessmentReleaseConfig(subjectId, targetSection)
             : null;
 
+        const normalizeGradebookComponent = (value) => {
+            const raw = String(value || '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+            if (raw === 'ww' || raw.includes('written')) return 'ww';
+            if (raw === 'pt' || raw.includes('performance') || raw.includes('perf.')) return 'pt';
+            if (raw === 'qa' || raw.includes('quarter') || raw.includes('exam')) return 'qa';
+            return '';
+        };
+
+        const getAssessmentTypeValues = (item, matType, matCat) => [
+            matType, matCat, item?.type, item?.category, item?.materialType, item?.kind, item?.assessmentType,
+            item?.rawItem?.type, item?.rawItem?.category, item?.rawItem?.materialType, item?.rawItem?.kind, item?.rawItem?.assessmentType
+        ].map(value => String(value || '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ')).filter(Boolean);
+
+        const isExplicitNonQuizType = (item, matType, matCat) => {
+            const nonQuizTypes = new Set(['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance tasks', 'performance', 'perf. task', 'perf task', 'pt']);
+            return getAssessmentTypeValues(item, matType, matCat).some(type => nonQuizTypes.has(type));
+        };
+
         const isQuizEntity = (item, matType, matCat, matTitle) => {
             const t = String(matType || item?.type || item?.rawItem?.type || '').trim().toLowerCase();
             const c = String(matCat || item?.category || item?.rawItem?.category || '').trim().toLowerCase();
             const title = String(matTitle || item?.title || item?.name || item?.rawItem?.title || item?.rawItem?.name || '').trim().toLowerCase();
 
+            // An explicit Task/Assignment/Activity/PT category wins over stale quiz links or quiz-like IDs.
+            if (isExplicitNonQuizType(item, matType, matCat)) return false;
             if (t.includes('quiz') || c.includes('quiz') || title.includes('quiz')) return true;
             if (item) {
                 if (item.isQuiz === true || item.isScheduleQuiz === true) return true;
@@ -24194,46 +24439,25 @@ function initTeacherPortal() {
 
         const getItemConfiguredComponent = (item) => {
             if (!item) return '';
-            if (isQuizEntity(item)) {
-                return 'ww';
-            }
-            const directComp = String(item.component || item.gradebookComponent || item.assessmentComponent || item.activityComponent || item.rawItem?.component || item.rawItem?.gradebookComponent || '').trim().toLowerCase();
-            if (directComp === 'ww' || directComp === 'pt' || directComp === 'qa') return directComp;
-            if (directComp.includes('written')) return 'ww';
-            if (directComp.includes('perf')) return 'pt';
-            if (directComp.includes('quarter') || directComp.includes('exam')) return 'qa';
 
+            // The section's saved per-item choice is authoritative; item metadata can be stale.
             if (config) {
-                const idCandidates = [
-                    item.id,
-                    item.materialId,
-                    item.quizId,
-                    item.selectedQuizId,
-                    item.title,
-                    item.name,
-                    item.rawItem?.id,
-                    item.rawItem?.title
-                ].filter(Boolean);
-
-                for (let i = 0; i < idCandidates.length; i++) {
-                    const cStr = String(idCandidates[i]);
-                    const cLower = cStr.trim().toLowerCase();
-                    const maps = [config.assessmentActivityComponents, config.assessmentComponents];
-                    for (let m = 0; m < maps.length; m++) {
-                        const map = maps[m];
-                        if (map && typeof map === 'object') {
-                            if (map[cStr]) {
-                                const val = String(map[cStr]).trim().toLowerCase();
-                                if (val === 'ww' || val === 'pt' || val === 'qa') return val;
-                            }
-                            if (map[cLower]) {
-                                const val = String(map[cLower]).trim().toLowerCase();
-                                if (val === 'ww' || val === 'pt' || val === 'qa') return val;
-                            }
-                        }
+                const idCandidates = [item.id, item.materialId, item.title, item.name, item.rawItem?.id, item.rawItem?.materialId, item.rawItem?.title, item.rawItem?.name, item.quizId, item.selectedQuizId]
+                    .filter(Boolean);
+                const maps = [config.assessmentActivityComponents, config.assessmentComponents];
+                for (const candidate of idCandidates) {
+                    const key = String(candidate);
+                    for (const map of maps) {
+                        if (!map || typeof map !== 'object') continue;
+                        const value = normalizeGradebookComponent(map[key] ?? map[key.trim().toLowerCase()]);
+                        if (value) return value;
                     }
                 }
             }
+
+            const directComp = normalizeGradebookComponent(item.component || item.gradebookComponent || item.assessmentComponent || item.activityComponent || item.rawItem?.component || item.rawItem?.gradebookComponent || '');
+            if (directComp) return directComp;
+            if (isQuizEntity(item)) return 'ww';
             return '';
         };
 
@@ -24241,32 +24465,22 @@ function initTeacherPortal() {
             const t = String(matType || item?.type || '').trim().toLowerCase();
             const c = String(matCat || item?.category || '').trim().toLowerCase();
             const title = String(matTitle || item?.title || item?.name || '').trim().toLowerCase();
-
             const isQuiz = isQuizEntity(item, matType, matCat, matTitle);
-
-            // QUIZZES AUTOMATICALLY AND STRICTLY BELONG TO WRITTEN WORK (WW / QUIZ) AND NEVER TO PERFORMANCE TASK (PT)
-            if (isQuiz) {
-                return baseCat === 'quiz';
-            }
-
             const cfgComp = getItemConfiguredComponent(item);
 
-            if (cfgComp === 'pt') {
-                return baseCat === 'perf. task';
-            }
+            // Honor an explicit PT/QA component before quiz-link heuristics.
+            if (cfgComp === 'pt') return baseCat === 'perf. task';
+            if (cfgComp === 'qa') return baseCat === 'qa';
+            if (isQuiz) return baseCat === 'quiz';
             if (cfgComp === 'ww') {
                 if (baseCat === 'perf. task' || baseCat === 'qa') return false;
-                if (t.includes('activ') || c.includes('activ') || title.includes('activ')) {
-                    return baseCat === 'activity';
-                }
+                if (t.includes('activ') || c.includes('activ') || title.includes('activ')) return baseCat === 'activity';
                 return baseCat === 'assignment';
             }
-            if (cfgComp === 'qa') {
-                return baseCat === 'qa';
-            }
 
+            const explicitNonQuiz = isExplicitNonQuizType(item, matType, matCat);
             if (baseCat === 'assignment') return !isQuiz && (t === 'assignment' || t === 'assignments' || t === 'task' || t === 'tasks' || c === 'assignment' || c === 'assignments' || c === 'task' || c === 'tasks' || title.startsWith('assignment') || title.startsWith('task') || t.includes('assign') || c.includes('assign') || t.includes('task') || c.includes('task'));
-            if (baseCat === 'quiz') return isQuiz || t === 'quiz' || t === 'quizzes' || c === 'quiz' || c === 'quizzes' || title.startsWith('quiz') || t.includes('quiz') || c.includes('quiz');
+            if (baseCat === 'quiz') return !explicitNonQuiz && (isQuiz || t === 'quiz' || t === 'quizzes' || c === 'quiz' || c === 'quizzes' || title.startsWith('quiz') || t.includes('quiz') || c.includes('quiz'));
             if (baseCat === 'activity') return !isQuiz && (t === 'activity' || t === 'activities' || c === 'activity' || c === 'activities' || title.startsWith('activity') || t.includes('activ') || c.includes('activ'));
             if (baseCat === 'perf. task') return !isQuiz && (t === 'performance task' || t === 'performance tasks' || t === 'perf. task' || t === 'performance' || c === 'performance task' || c === 'perf. task' || c === 'performance' || title.startsWith('perf') || title.startsWith('performance') || t.includes('perf') || c.includes('perf'));
             if (baseCat === 'qa') return !isQuiz && (t === 'qa' || t === 'quarterly assessment' || t === 'exam' || t === 'quarterly exam' || c === 'qa' || c === 'exam' || title.includes('periodical exam') || title.includes('exam'));
@@ -24323,11 +24537,28 @@ function initTeacherPortal() {
         const getTopicDataFn = window.getTopicData || (typeof getTopicData === 'function' ? getTopicData : null);
         let data = getTopicDataFn ? getTopicDataFn(subjectId) : null;
         if (data) {
-            const quarterTopics = Array.isArray(data[`q${currentQ}Topics`]) && data[`q${currentQ}Topics`].length > 0
-                ? data[`q${currentQ}Topics`]
-                : (currentQ === 1 && Array.isArray(data.topics) ? data.topics : []);
+            // q1Topics is also the legacy routing catalog and can contain every quarter.
+            // Keep its original indices while selecting the topic's actual quarter.
+            const quarterTopics = [];
+            const topicIds = new Set();
+            for (let q = 1; q <= 4; q++) {
+                const topics = Array.isArray(data[`q${q}Topics`]) ? data[`q${q}Topics`] : [];
+                topics.forEach((topic, tIdx) => {
+                    const key = topic.id || topic;
+                    if (topicIds.has(key)) return;
+                    topicIds.add(key);
+                    const topicQuarter = Number(String(topic.quarter || `q${q}`).replace(/\D/g, '')) || q;
+                    if (topicQuarter === currentQ) quarterTopics.push({ topic, tIdx });
+                });
+            }
+            if (!topicIds.size && Array.isArray(data.topics)) {
+                data.topics.forEach((topic, tIdx) => {
+                    const q = Number(String(topic.quarter || 'q1').replace(/\D/g, '')) || 1;
+                    if (q === currentQ) quarterTopics.push({ topic, tIdx });
+                });
+            }
 
-            quarterTopics.forEach((topic, tIdx) => {
+            quarterTopics.forEach(({ topic, tIdx }) => {
                 if (targetSection && topic && topic.section) {
                     const cleanSec = String(targetSection).trim().toLowerCase();
                     const topSec = String(topic.section).trim().toLowerCase();
@@ -24419,8 +24650,9 @@ function initTeacherPortal() {
             sub.materials.forEach((m, idx) => {
                 if (isFakeAssessment(m)) return;
                 if (isMatchingType(m.type, m.category || m.materialType, m.title || m.name, m)) {
-                    const mQ = m.quarter ? parseInt(String(m.quarter).replace(/\D/g, ''), 10) : null;
-                    if (!mQ || mQ === currentQ) {
+                    const parentTopic = m.topicId != null ? (sub.topics || []).find(t => String(t.id) === String(m.topicId)) : null;
+                    const mQ = parseInt(String(parentTopic?.quarter || m.quarter || 'q1').replace(/\D/g, ''), 10) || 1;
+                    if (mQ === currentQ) {
                         if (targetSection && (m.section || m.sectionName)) {
                             const cleanSec = String(targetSection).trim().toLowerCase();
                             const matSec = String(m.section || m.sectionName).trim().toLowerCase();
@@ -24512,7 +24744,13 @@ function initTeacherPortal() {
         }
         const offline = window.getOfflineAssessments?.(subjectKey, sectionKey, qKey, normCat === 'pt' ? 'perf. task' : normCat) || [];
         result = [...result, ...offline.map(item => ({ ...item, itemIdx: -1, rawItem: item }))];
-        result.sort((a, b) => (Date.parse(a.createdAt || a.date || '') || 0) - (Date.parse(b.createdAt || b.date || '') || 0));
+        // Group assessment columns by curriculum topic before comparing dates.
+        // Keep itemIdx unchanged: existing scores use that category index.
+        result.sort((a, b) => {
+            const topicA = Number.isInteger(a.topicIdx) && a.topicIdx >= 0 ? a.topicIdx : Number.MAX_SAFE_INTEGER;
+            const topicB = Number.isInteger(b.topicIdx) && b.topicIdx >= 0 ? b.topicIdx : Number.MAX_SAFE_INTEGER;
+            return topicA - topicB || (Date.parse(a.createdAt || a.date || '') || 0) - (Date.parse(b.createdAt || b.date || '') || 0);
+        });
         _categoryDetailsCache[cacheKey] = result;
         return result;
     }
@@ -26699,7 +26937,7 @@ const wwDisplay = (wwPct !== null && wwPct !== undefined) ? `${(Number(wwPct) * 
 
     // Restore the requested route before revealing the initial page content.
     setupNavigationHistory();
-    document.documentElement.classList.remove('sigma-teacher-route-pending');
+    if (pendingTeacherNavigationHash === null) document.documentElement.classList.remove('sigma-teacher-route-pending');
     window.alignClassroomAttendanceViewport?.();
 
 
@@ -27111,17 +27349,6 @@ const wwDisplay = (wwPct !== null && wwPct !== undefined) ? `${(Number(wwPct) * 
         clearTimeout(teacherResizeTimer);
         teacherResizeTimer = setTimeout(() => {
             if (wasMobile !== isMobile || heightExpanded || widthExpanded) {
-                if (!isMobile) {
-                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-                    document.documentElement.scrollTop = 0;
-                    document.body.scrollTop = 0;
-
-                    const leftRail = document.getElementById('sigma-panels-container');
-                    if (leftRail) leftRail.scrollTop = 0;
-                    const rightRail = document.querySelector('.home-dashboard-panels');
-                    if (rightRail) rightRail.scrollTop = 0;
-                }
-
                 if (typeof renderTeacherAnnouncements === 'function') {
                     renderTeacherAnnouncements();
                 }

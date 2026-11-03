@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__.'/ai_record_store.php';
+require_once __DIR__.'/generated_assessments.php';
 /** Persist generation on the server, before the browser polls its completed job. */
 function sigmaRecordQuizResult(PDO $db,string $owner,array $input,array $result,?int $timestamp=null): void {
+    sigmaSaveGeneratedQuiz($db,$owner,$input,$result,$timestamp??time());
     $count=count($result['questions']??[]);
     $response=json_encode($result['questions']??[],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
     if(strlen($response)>96000)$response="Generated $count questions.";

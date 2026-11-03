@@ -103,12 +103,12 @@
         document.getElementById(id)?.remove();
         const modal = document.createElement('div');
         modal.id = id;
-        modal.className = 'sigma-modal-overlay';
+        modal.className = 'sigma-modal-overlay shared-excel-export-modal';
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
         modal.setAttribute('aria-label', title);
         const periodOptions = (items, selected) => items.map(period => `<label class="shared-export-period"><input type="radio" name="${id}-period" value="${escape(period.value)}" ${period.disabled ? 'disabled' : ''} ${period.value === selected && !period.disabled ? 'checked' : ''}><span>${escape(period.label)}<small>${escape(period.subtitle || '')}</small></span></label>`).join('');
-        modal.innerHTML = `<button type="button" class="shared-export-exit" aria-label="Close export"><i class="fa-solid fa-xmark"></i></button>
+        modal.innerHTML = `<button type="button" class="shared-export-exit" aria-label="Close export"><i class="fa-solid fa-xmark shared-export-desktop-close" aria-hidden="true"></i><i class="fa-solid fa-chevron-left shared-export-mobile-back" aria-hidden="true"></i></button>
             <div class="sigma-modal-shell"><div class="sigma-modal-panel">
             <div class="sigma-modal-header"><div class="sigma-modal-header-top"><h1 class="sigma-modal-title">${escape(title)}</h1></div></div>
             <div class="sigma-modal-body">${context ? `<p class="shared-export-intro">${escape(context)}</p>` : ''}${periods.length ? `<fieldset class="shared-export-periods"><legend>Export period</legend>${periodOptions(periods, selectedPeriod)}</fieldset>` : ''}<fieldset class="shared-export-options"><legend class="sr-only">Export content</legend>
@@ -257,7 +257,7 @@
                     const numeric = score.value !== null && score.value !== undefined && score.value !== '' && score.value !== '-' && Number.isFinite(Number(score.value));
                     const status = String(score.status || '').toLowerCase();
                     const fill = { missing: 'EFDADA', absent: 'EBEBEB', incomplete: 'FFEDA0', excuse: 'DBDFF0', excused: 'DBDFF0' }[status];
-                    put(r, c, numeric ? Number(score.value) : '', null, { ...input, numFmt: 'General', ...(fill ? { fill: { fgColor: { rgb: fill } } } : {}) });
+                    put(r, c, numeric ? Number(score.value) : '', null, { ...input, alignment: { ...input.alignment, horizontal: 'center' }, numFmt: 'General', ...(fill ? { fill: { fgColor: { rgb: fill } } } : {}) });
                     if (numeric) { sum += Number(score.value); max += Number(group.items[i].max) || 100; }
                     return { cell: address(r, c), hps: address(9, c).replace(/([A-Z]+)(\d+)/, '$1$$$2') };
                 });
@@ -513,6 +513,21 @@
             return data;
         };
         return window.withGradebookReadCache ? window.withGradebookReadCache(run) : run();
+    };
+    window.getGradebookImportContext = function (quarter) {
+        const data = readGradebookExportData(Number(quarter));
+        const scope = window.sigmaGradesState.selectedSubjectSection;
+        const subject = window.getTopicSubject?.(scope.subject) || {};
+        const items = new Map();
+        data.groups.forEach(group => group.items.forEach(item => {
+            const raw = item.rawItem || item;
+            const id = String(raw.id || raw.materialId || raw.assessmentId || item.id || '');
+            const max = Number(item.max || item.maxScore || raw.maxScore || raw.max || raw.points);
+            if (id && max > 0) items.set(id, { id, title: raw.title || item.title || raw.name || 'Assessment', max, group: group.name, isQuiz: !!(raw.quizId || raw.selectedQuizId || /quiz/i.test(String(raw.type || raw.category || raw.kind || ''))) });
+        }));
+        return { subjectId: String(subject.id || scope.subject), subject: data.subject, section: data.section,
+            quarter: Number(quarter), schoolYear: data.schoolYear, school: data.school, teacher: data.teacher,
+            students: data.rows.map(row => ({ id: String(row.id), name: row.name, profile: row.student || {id:String(row.id),name:row.name} })), items: [...items.values()], exportData: data };
     };
     const recordedGrade = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
     const gradebookPeriods = () => {

@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const wrapper = select.parentElement?.classList?.contains('student-view-grades-quarter-control') ? select.parentElement : null;
             if (wrapper) { wrapper.before(details); details.append(select); wrapper.remove(); } else { select.before(details); details.append(select); }
             select.hidden = true; select.addEventListener('change', update); update();
+            window.SigmaReportQuarterMenu?.connect(details);
         });
     };
     syncQuarterChevrons();
@@ -71,7 +72,8 @@ function initStudentPortal() {
     let welcomePanel = localStorage.getItem('sigma-welcome-panel');
     if (!welcomePanel || welcomePanel === 'image/Welcome.jpg' || welcomePanel === '../image/Welcome.jpg') {
         welcomePanel = 'image/ICC Goals.jpeg';
-        localStorage.setItem('sigma-welcome-panel', welcomePanel);
+        // This preference is optional; a full device cache must not stop wiring navigation.
+        try { localStorage.setItem('sigma-welcome-panel', welcomePanel); } catch (_) {}
     }
     const studentImg = document.getElementById('welcome-panel-student-img');
     if (studentImg) {
@@ -588,6 +590,8 @@ function initStudentPortal() {
         time: 'April 8, 2026   8:00 AM'
     };
     function loadSharedState(key, fallback) {
+        const live = window.SigmaAssignedClassrooms?.records(key);
+        if (live !== undefined) return live;
         try {
             const raw = localStorage.getItem(key);
             return raw ? JSON.parse(raw) : fallback;
@@ -930,11 +934,17 @@ function initStudentPortal() {
     let activeAttendanceSubjectFilter = null;
 
     function getStudentAttendanceFromTeacher(studentName, subjectFilter = null) {
+        const activeClass = typeof activeStudentClassroomId !== 'undefined' && activeStudentClassroomId && window.classroomData?.[activeStudentClassroomId];
+        const history = window.SigmaAttendance?.studentHistory?.(subjectFilter, subjectFilter ? activeClass?.section : null);
+        if (history !== undefined) return history.map(row => ({ ...row,
+            subject: window.ClassroomRoom?.formatSubjectTitle?.(row.subject) || row.subject
+        }));
         const SHARED_ATTENDANCE_RECORDS_KEY = 'sigma-attendance-records-v1';
         let recordsByClassroom = {};
         try {
-            const raw = localStorage.getItem(SHARED_ATTENDANCE_RECORDS_KEY);
-            if (raw) recordsByClassroom = JSON.parse(raw);
+            const live = window.SigmaAttendance?.records?.(SHARED_ATTENDANCE_RECORDS_KEY);
+            const raw = live === undefined ? localStorage.getItem(SHARED_ATTENDANCE_RECORDS_KEY) : null;
+            recordsByClassroom = live ?? (raw ? JSON.parse(raw) : {});
         } catch (e) {}
 
         let authUser = null;
@@ -1433,6 +1443,22 @@ function initStudentPortal() {
         if (!body) return;
 
         activeAttendanceSubjectFilter = subjectFilter;
+        const attendance = window.SigmaAttendance;
+        if (attendance?.ready?.() === false) {
+            const status = attendance.status?.();
+            emptyState?.classList.add('hidden');
+            if (pagination) pagination.innerHTML = '';
+            body.innerHTML = status?.message
+                ? '<tr><td colspan="2" class="p-8 text-center"><div role="alert"><p>Attendance could not be loaded.</p><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md student-attendance-retry">Try again</button></div></td></tr>'
+                : '<tr class="student-attendance-loading"><td colspan="2" class="p-8 text-center"><span class="sigma-dot-spinner" role="status" aria-label="Loading attendance"></span></td></tr>';
+            const retry = body.querySelector('.student-attendance-retry');
+            if (retry) retry.onclick = () => {
+                const read = attendance.refresh(true);
+                renderAttendanceHistoryTable(bodyId, paginationId, emptyStateId, subjectFilter);
+                read.catch(() => {});
+            };
+            return;
+        }
 
         // Resolve current student name from auth or profile
         const loggedStudent = (typeof getLoggedInStudentUser === 'function' ? getLoggedInStudentUser() : null) ||
@@ -1733,11 +1759,6 @@ if (overlay) overlay.classList.add('hidden');
             hideStudentClassroomSectionsSidebar();
             renderStudentHomeAnnouncements();
             if (typeof renderStudentHomeDashboardPanels === 'function') renderStudentHomeDashboardPanels();
-            if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.resetToDefaultTab === 'function') {
-                window.SigmaAnnouncements.resetToDefaultTab();
-            } else if (typeof renderInstitutionalAnnouncements === 'function') {
-                renderInstitutionalAnnouncements();
-            }
         }
         else {
             hideStudentClassroomSectionsSidebar();
@@ -2587,6 +2608,37 @@ if (overlay) overlay.classList.add('hidden');
     }
     window.resolveSubjectType = resolveSubjectType;
 
+    function isGradeTeacherAdviser(name, sections, scope) {
+        if (!name || !scope) return false;
+        const key = value => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        const sectionKey = section => key(section.section || section.sectionName || section.name).replace(/^grade\s*\d+\s*[-–]?\s*/i, '');
+        if (!sectionKey(scope)) return false;
+        const gradeKey = section => key(section.gradeLevel || section.grade).replace(/^grade\s*/i, '');
+        const sameClass = section => sectionKey(section) === sectionKey(scope)
+            && key(section.schoolYear) === key(scope.schoolYear)
+            && (!gradeKey(section) || !gradeKey(scope) || gradeKey(section) === gradeKey(scope));
+        const assigned = sections.filter(section => section && !section.isDeleted && key(section.status) !== 'archived' && sameClass(section));
+        const account = window.findMatchedUserAccount?.('', name);
+        const personName = person => typeof person === 'string' ? person : person?.fullName || person?.name || [person?.firstName, person?.middleName, person?.lastName].filter(Boolean).join(' ');
+        const teacher = assigned.flatMap(section => section.teachers || []).find(person => key(personName(person)) === key(name));
+        const teacherId = key(account?.id || account?.uid || teacher?.id || teacher?.uid);
+        const names = new Set([name, personName(account), personName(teacher)].map(key).filter(Boolean));
+        const matches = person => {
+            const id = key(person?.id || person?.uid);
+            if (id && teacherId) return id === teacherId;
+            return names.has(key(personName(person)));
+        };
+        return assigned.some(section => {
+            const adviser = section.adviser;
+            const adviserId = section.adviserId || section.adviserUid || (typeof adviser === 'object' ? adviser?.id || adviser?.uid : '');
+            const adviserName = personName(adviser) || section.adviserName;
+            if (adviserId || adviserName) return matches({ id: adviserId, name: adviserName });
+            return (section.teachers || []).some(person => matches(person) && (key(person.role) === 'adviser' || person.isAdviser === true));
+        });
+    }
+    function renderStudentGradeAdviserBadge(isAdviser) {
+        return isAdviser ? '<span class="student-grade-adviser-badge text-[11px] font-bold text-black bg-[#FFD000] px-2 py-0.5 rounded border border-black/10 tracking-tight font-[\'Inter\'] shrink-0">Adviser</span>' : '';
+    }
     function getSubjectGradeRows() {
         if (!window._gradebookReadCacheActive && typeof window.withGradebookReadCache === 'function') {
             return window.withGradebookReadCache(() => getSubjectGradeRows());
@@ -2605,7 +2657,7 @@ if (overlay) overlay.classList.add('hidden');
         // 1. Gather all enrolled sections/classes for the logged-in student ONLY
         const combinedAdminSections = [];
         const seenStudentSecKeys = new Set();
-        ['sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections'].forEach(key => {
+        (window.SigmaAssignedClassrooms ? ['sigma-admin-sections'] : ['sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections']).forEach(key => {
             const list = getStoredJson(key, []);
             if (Array.isArray(list)) {
                 list.forEach(sec => {
@@ -2694,6 +2746,7 @@ if (overlay) overlay.classList.add('hidden');
                     id: subj.id || `subj-${key}`,
                     name: name,
                     teacher: teacher,
+                    sectionAssignment: subj.sectionAssignment || subj.raw,
                     type: type,
                     q1Percent: subj.q1Percent,
                     q2Percent: subj.q2Percent,
@@ -2723,6 +2776,7 @@ if (overlay) overlay.classList.add('hidden');
                 id: sec.id || `sec-${sec.code || sec.name}`,
                 subject: sec.subject || sec.name,
                 teacher: sec.teacher || (sec.teachers && sec.teachers[0] ? sec.teachers[0].name : 'Subject Teacher'),
+                sectionAssignment: sec,
                 type: sec.type || sec.category || sec.track,
                 q1Percent: sec.q1Percent,
                 q2Percent: sec.q2Percent,
@@ -2743,6 +2797,7 @@ if (overlay) overlay.classList.add('hidden');
                 id: card.id,
                 subject: card.subject || card.name,
                 teacher: card.teacher,
+                sectionAssignment: card,
                 type: card.type || card.category,
                 raw: card
             });
@@ -2805,7 +2860,10 @@ if (overlay) overlay.classList.add('hidden');
             rows.push({
                 id: subject.id,
                 subject: subject.name,
+                topicSubjectId: adminMatch?.id || '',
                 teacher: subject.teacher || 'Subject Teacher',
+                section: subject.sectionAssignment?.section || subject.sectionAssignment?.sectionName || subject.sectionAssignment?.name || student.section || student.gradeSection || '',
+                isAdviser: isGradeTeacherAdviser(subject.teacher, enrolledSections, subject.sectionAssignment),
                 track: finalType,
                 activeQuarters: Array.isArray(data.activeQuarters) && data.activeQuarters.length ? data.activeQuarters : ['q1', 'q2'],
                 term1,
@@ -2825,19 +2883,38 @@ if (overlay) overlay.classList.add('hidden');
 
         return rows;
     }
-    function formatGradeTeacherName(value) {
-        const name = String(value || '').trim();
-        const account = window.findMatchedUserAccount?.('', name);
-        if (account?.firstName && account?.lastName) return `${account.firstName} ${account.lastName}`;
-        if (name.includes(',')) {
-            const [last, first] = name.split(',');
-            return `${first.trim().split(/\s+/)[0]} ${last.trim()}`;
-        }
-        const parts = name.split(/\s+/);
-        if (parts.length <= 2) return name;
-        const last = name.match(/\b(?:de la|dela|de los|del|de|san|santa|van|von)\s+\S+$/i)?.[0] || parts[parts.length - 1];
-        return `${parts[0]} ${last}`;
+    function renderGradeTeacherIdentity(name, isAdviser = false) {
+        const avatar = window.renderUserAvatarHtml?.(name, 'sm', 'student-grade-teacher-avatar') || '';
+        const displayName = escapeHtml(formatGradeTeacherName(name) || 'Teacher');
+        return `${avatar}<span class="inline-flex items-center gap-2 flex-wrap"><span class="student-grade-teacher-full">${displayName}</span><span class="student-grade-teacher-short">${displayName}</span>${renderStudentGradeAdviserBadge(isAdviser)}</span>`;
     }
+    function formatGradeTeacherName(value) {
+        const profile = value && typeof value === 'object' ? value : null;
+        const name = String(profile ? profile.fullName || profile.name || '' : value || '').trim();
+        const account = window.findMatchedUserAccount?.(String(profile?.id || profile?.uid || ''), name) || profile;
+        const firstName = String(account?.firstName || account?.first_name || '').trim();
+        const lastName = String(account?.lastName || account?.last_name || '').trim();
+        if (firstName && lastName) return `${firstName} ${lastName}`;
+        const fallback = String(account?.fullName || account?.full_name || account?.name || name).trim();
+        if (fallback.includes(',')) {
+            const [last, first] = fallback.split(',');
+            return `${first.trim().split(/\s+/)[0] || ''} ${last.trim()}`.trim();
+        }
+        const parts = fallback.split(/\s+/).filter(Boolean);
+        if (parts.length < 3) return fallback;
+        let surnameStart = parts.length - 1;
+        while (surnameStart > 1 && /^(de|del|dela|la|las|los|da|das|do|dos|van|von|san|santa)$/i.test(parts[surnameStart - 1])) surnameStart--;
+        return `${firstName || parts[0]} ${lastName || parts.slice(surnameStart).join(' ')}`;
+    }
+
+    function getStudentSemesterGrade(row, quarters = row.activeQuarters || ['q1', 'q2']) {
+        const configured = [...new Set(quarters.map(value => Number(String(value).replace(/^q/i, ''))))]
+            .filter(quarter => Number.isInteger(quarter) && quarter >= 1 && quarter <= 4);
+        const grades = configured.map(quarter => row[`term${quarter}Val`]);
+        return grades.length && grades.every(Number.isFinite)
+            ? Math.round(grades.reduce((sum, grade) => sum + grade, 0) / grades.length) : null;
+    }
+
     function renderGradesAnalytics(rows, filteredSubjectName = '') {
         rows = Array.isArray(rows) ? rows : [];
 
@@ -2855,25 +2932,12 @@ if (overlay) overlay.classList.add('hidden');
         } catch (_) {}
         rows.forEach(function (row, index) {
             if (typeof window.renderSharedSubjectPerformanceCardHtml === 'function') {
-                const fullTeacherName = String(row.teacher || '').trim();
-                const teacherAccount = window.findMatchedUserAccount?.('', fullTeacherName);
-                let teacherDisplayName = fullTeacherName;
-                if (teacherAccount?.firstName && teacherAccount?.lastName) {
-                    teacherDisplayName = `${teacherAccount.firstName} ${teacherAccount.lastName}`;
-                } else if (fullTeacherName.includes(',')) {
-                    const [last, first] = fullTeacherName.split(',');
-                    teacherDisplayName = `${first.trim().split(/\s+/)[0]} ${last.trim()}`;
-                } else {
-                    const parts = fullTeacherName.split(/\s+/);
-                    if (parts.length > 2) {
-                        const surname = fullTeacherName.match(/\b(?:de la|dela|de los|del|de|san|santa|van|von)\s+\S+$/i)?.[0] || parts[parts.length - 1];
-                        teacherDisplayName = `${parts[0]} ${surname}`;
-                    }
-                }
+                const teacherDisplayName = formatGradeTeacherName(row.teacher);
                 subjectCards += window.renderSharedSubjectPerformanceCardHtml({
                     id: row.id,
                     title: row.subject,
                     teacherName: teacherDisplayName,
+                    teacherIsAdviser: row.isAdviser === true,
                     subtitle: row.track,
                     omitMissingPoints: true,
                     scoreTint: true,
@@ -2959,8 +3023,8 @@ if (overlay) overlay.classList.add('hidden');
             const quarters = [...new Set((subjectRow.activeQuarters || ['q1','q2']).map(q => Number(String(q).replace(/^q/i,''))))].filter(q => q >= 1 && q <= 4);
             const quarterPanelKey = JSON.stringify(['student-topic', subjectRow.id, subjectRow.subject, currentStudentSection]);
             let quarter = window.restorePerformanceQuarter(quarterPanelKey, quarters, studentUser);
-            const subjectId = subjectRow.id;
-            const section = classroomData[subjectId]?.section || currentStudentSection;
+            const subjectId = subjectRow.topicSubjectId || resolveHomeSubjectTopicSourceId(subjectRow.id, subjectRow.subject);
+            const section = subjectRow.section || classroomData[subjectRow.id]?.section || currentStudentSection;
             const pair = document.createElement('div');
             pair.className = 'student-grade-pair';
             card.before(pair);
@@ -3022,7 +3086,7 @@ if (overlay) overlay.classList.add('hidden');
                 slot.innerHTML = window.renderSharedQuarterDropdown(quarters, quarter, () => '');
                 slot.querySelector('summary').setAttribute('aria-label', 'Topic performance quarter');
                 slot.querySelectorAll('button').forEach((button, qIndex) => button.addEventListener('click', () => { quarter = quarters[qIndex]; window.rememberPerformanceQuarter(quarterPanelKey, quarter, studentUser); render(); slot.querySelector('summary').focus(); }));
-                const data = getTopicData(subjectId) || {};
+                const data = getTopicData(subjectId, section) || {};
                 const topics = [];
                 const progressTopics = [];
                 const seen = new Set();
@@ -3096,6 +3160,7 @@ if (overlay) overlay.classList.add('hidden');
             layout = document.getElementById('grades-layout');
         }
         if (!layout) return;
+        if (window.SigmaStudentGradeLoading?.wait(layout, () => renderGradesPage(filterSubject))) return;
         try {
             const allRows = getSubjectGradeRows() || [];
 
@@ -3179,7 +3244,8 @@ if (overlay) overlay.classList.add('hidden');
                                         <td class="px-4 py-4 align-middle text-left font-['Inter'] border-r border-slate-100">
                                             <div class="flex items-center gap-2.5">
                                                 ${(typeof window.renderUserAvatarHtml === 'function' && window.renderUserAvatarHtml(row.teacher, 'sm', 'student-grade-teacher-avatar')) || `<span class="student-grade-teacher-avatar sigma-user-avatar sigma-user-avatar--sm" aria-hidden="true"><i class="fa-solid fa-user text-xs md:text-sm"></i></span>`}
-                                                <span class="text-xs md:text-sm font-medium text-black font-['Inter'] block leading-normal">${row.teacher}</span>
+                                                <span class="text-xs md:text-sm font-medium text-black font-['Inter'] block leading-normal">${escapeHtml(formatGradeTeacherName(row.teacher))}</span>
+                                                ${renderStudentGradeAdviserBadge(row.isAdviser)}
                                             </div>
                                         </td>
                                         <td class="px-4 py-4 text-center align-middle font-['Inter'] border-r border-slate-100">
@@ -3242,10 +3308,7 @@ if (overlay) overlay.classList.add('hidden');
                 const cells = [...tableRow.cells];
                 if (rowIndex > 0) {
                     const row = rows[rowIndex - 1];
-                    const configured = (row.activeQuarters || ['q1', 'q2']).map(value => Number(String(value).replace(/^q/i, '')));
-                    const values = configured.map(quarter => row[`term${quarter}Val`]);
-                    const final = values.length && values.every(Number.isFinite)
-                        ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : null;
+                    const final = getStudentSemesterGrade(row);
                     cells[6].textContent = final === null ? '-' : String(final);
                 }
                 [1, 2, 3, 4].forEach(quarter => { if (!tableQuarters.has(quarter)) cells[quarter + 1].remove(); });
@@ -3272,10 +3335,10 @@ if (overlay) overlay.classList.add('hidden');
             cardsPanel.className='student-grade-cards';
             cardsPanel.setAttribute('aria-label','Subject grade cards');
             cardsPanel.innerHTML=analyticsRows.map(row=>{
-                const values=[row.term1Val,row.term2Val,row.term3Val,row.term4Val,row.overallVal];
+                const values=[row.term1Val,row.term2Val,row.term3Val,row.term4Val,getStudentSemesterGrade(row)];
                 const active = new Set((row.activeQuarters || ['q1','q2']).map(q => Number(String(q).replace(/^q/i,''))).filter(q => q >= 1 && q <= 4));
                 const columns = values.map((value,index) => ({value,index})).filter(({index}) => index === 4 || active.has(index + 1));
-                return `<article class="student-grade-card"><header><div class="student-grade-card-subject"><div>${escapeHtml(row.subject)}</div><span>${escapeHtml(row.track || '')}</span></div><div class="student-grade-card-teacher"><span class="student-grade-card-avatar" aria-hidden="true"><i class="fa-solid fa-user"></i></span><span>${escapeHtml(formatGradeTeacherName(row.teacher))}</span></div></header><dl style="grid-template-columns:repeat(${columns.length},minmax(0,1fr))">${columns.map(({value,index})=>`<div><dt>${index===4?`<span class="student-quarter-full">${window.getGradeSemesterLabel([...active])}</span><span class="student-quarter-short">${window.getGradeSemesterLabel([...active], true)}</span>`:`<span class="student-quarter-full">${['1st','2nd','3rd','4th'][index]} Quarter</span><span class="student-quarter-short">Q${index+1}</span>`}</dt><dd${Number.isFinite(value)?'':' class="student-grade-missing"'}>${Number.isFinite(value)?escapeHtml(String(value)):'-'}</dd></div>`).join('')}</dl></article>`;
+                return `<article class="student-grade-card"><header><div class="student-grade-card-subject"><div>${escapeHtml(row.subject)}</div><span>${escapeHtml(row.track || '')}</span></div><div class="student-grade-card-teacher">${renderGradeTeacherIdentity(row.teacher, row.isAdviser)}</div></header><dl style="grid-template-columns:repeat(${columns.length},minmax(0,1fr))">${columns.map(({value,index})=>`<div><dt>${index===4?`<span class="student-quarter-full">${window.getGradeSemesterLabel([...active])}</span><span class="student-quarter-short">${window.getGradeSemesterLabel([...active], true)}</span>`:`<span class="student-quarter-full">${['1st','2nd','3rd','4th'][index]} Quarter</span><span class="student-quarter-short">Q${index+1}</span>`}</dt><dd${Number.isFinite(value)?'':' class="student-grade-missing"'}>${Number.isFinite(value)?escapeHtml(String(value)):'-'}</dd></div>`).join('')}</dl></article>`;
             }).join('') || '<p class="student-grade-cards-empty">No subjects available.</p>';
             layout.querySelector('.student-grades-summary-panel').after(cardsPanel);
             mountStudentTopicPerformance(cardsPanel, analyticsRows, user);
@@ -3301,6 +3364,9 @@ if (overlay) overlay.classList.add('hidden');
             quarters.forEach(q=>quarterSelect.add(new Option(`${['1st','2nd','3rd','4th'][q-1]} Quarter`,String(q))));
             const quarterKey = 'student-subject-bars';
             quarterSelect.value = String(window.restorePerformanceQuarter(quarterKey, quarters, user));
+            const allAssessmentQuarters = new Option('All Quarters', 'all');
+            allAssessmentQuarters.hidden = true;
+            quarterSelect.add(allAssessmentQuarters);
             let assessmentSubject=null;
             const assessmentHeading=document.createElement('div');
             assessmentHeading.className='student-grade-bar-detail-heading';
@@ -3312,10 +3378,9 @@ if (overlay) overlay.classList.add('hidden');
                     const normalize=value=>String(value||'').trim().toLowerCase().replace(/\s+/g,' ');
                     const classroomId=resolveStudentClassroomId({id:assessmentSubject.id,name:assessmentSubject.subject});
                     const section=classroomData[classroomId]?.section || currentStudentSection;
-                    const assessments=(window.AssessmentsPage?.buildAssessmentRows?.('student')||[]).filter(row=>
-                        normalize(row.subject)===normalize(assessmentSubject.subject)
-                        && normalize(row.section)===normalize(section)
-                        && Number(String(row.quarter||'').replace(/^q/i,''))===q
+                    const assessments=window.AssessmentsPage.selectPerformanceRows(
+                        window.AssessmentsPage.buildAssessmentRows('student'), assessmentSubject.subject, section,
+                        quarterSelect.value
                     );
                     barPanel.querySelector('[data-grade-bars]').innerHTML=assessments.map(row=>{
                         const scored=row.score!==null&&row.score!==undefined&&String(row.score).trim()!==''&&Number.isFinite(Number(row.score))&&Number(row.max)>0;
@@ -3348,25 +3413,20 @@ if (overlay) overlay.classList.add('hidden');
                     const teacher = document.createElement('div');
                     teacher.className='student-grade-bar-teacher';
                     const subjectRow=analyticsRows.find(row=>String(row.id)===title.dataset.subjectId);
-                    const teacherIcon=document.createElement('span');
-                    teacherIcon.className='student-grade-card-avatar';
-                    teacherIcon.setAttribute('aria-hidden','true');
-                    teacherIcon.innerHTML='<i class="fa-solid fa-user"></i>';
-                    const teacherText=document.createElement('span');
-                    teacherText.textContent=formatGradeTeacherName(subjectRow?.teacher);
-                    teacher.append(teacherIcon,teacherText);
+                    teacher.innerHTML=renderGradeTeacherIdentity(subjectRow?.teacher, subjectRow?.isAdviser);
                     heading.append(subjectInfo,teacher,icon);
                     const track=element.querySelector('.student-grade-bar-track');
                     track.dataset.subjectId=title.dataset.subjectId;
                     track.tabIndex=0;track.title='View assessment performance';
                 });
             };
-            quarterSelect.onchange=()=>{window.rememberPerformanceQuarter(quarterKey, Number(quarterSelect.value), user);renderBars();};
+            quarterSelect.onchange=()=>{if(quarterSelect.value !== 'all')window.rememberPerformanceQuarter(quarterKey, Number(quarterSelect.value), user);renderBars();};
             renderBars();
             const openBarAssessments=target=>{
                 const row=analyticsRows.find(row=>String(row.id)===target.dataset.subjectId);
                 if(!row)return;
                 assessmentSubject=row;
+                allAssessmentQuarters.hidden=false;
                 assessmentHeading.hidden=false;
                 assessmentHeading.innerHTML=`<button type="button" data-bars-back title="Back to subjects" aria-label="Back to subjects"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button><div><strong>${escapeHtml(row.subject)}</strong><div class="student-grade-bar-subtitle">Assessment Performance</div></div>`;
                 renderBars();
@@ -3377,7 +3437,7 @@ if (overlay) overlay.classList.add('hidden');
                 if(track&&['Enter',' '].includes(event.key)){event.preventDefault();openBarAssessments(track);}
             });
             barPanel.addEventListener('click',event=>{
-                if(event.target.closest('[data-bars-back]')){assessmentSubject=null;assessmentHeading.hidden=true;assessmentHeading.replaceChildren();renderBars();barPanel.querySelector('.student-grade-bar-assessments')?.focus({preventScroll:true});return;}
+                if(event.target.closest('[data-bars-back]')){assessmentSubject=null;allAssessmentQuarters.hidden=true;if(quarterSelect.value==='all')quarterSelect.value=String(quarters[0]);assessmentHeading.hidden=true;assessmentHeading.replaceChildren();renderBars();barPanel.querySelector('.student-grade-bar-assessments')?.focus({preventScroll:true});return;}
                 const assessment=event.target.closest('.student-grade-bar-assessments,.student-grade-bar-track');
                 if(assessment){openBarAssessments(assessment);return;}
                 const button=event.target.closest('.student-grade-bar-subject');
@@ -3402,7 +3462,7 @@ if (overlay) overlay.classList.add('hidden');
             };
             control.querySelectorAll('[data-view]').forEach(button => button.onclick = () => setView(button.dataset.view,true));
             setView(view);
-            window.refreshOverallGradeInsight?.(layout.querySelector('[data-ai-insight-body]'), analyticsRows);
+            window.refreshOverallGradeInsight?.(layout.querySelector('[data-ai-insight-body]'), allRows);
             initStudentPerformanceSlider(layout);
             layout.querySelectorAll('.grade-view-tab').forEach(button => {
                 
@@ -3628,7 +3688,7 @@ if (overlay) overlay.classList.add('hidden');
         return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
     }
 
-    function getTopicData(subjectId) {
+    function getTopicData(subjectId, customSection = '') {
         if (!subjectId) return null;
         const details = typeof subjectDetails !== 'undefined' ? subjectDetails : {};
         const catalog = typeof curriculumTopicCatalog !== 'undefined' ? curriculumTopicCatalog : {};
@@ -3653,7 +3713,7 @@ if (overlay) overlay.classList.add('hidden');
                            (targetCode && sCode && (sCode === targetCode || sCode.replace(/[^a-z0-9]/g, '') === targetCode));
                 });
             }
-            if (adminSubj && Array.isArray(adminSubj.topics) && adminSubj.topics.length > 0) {
+            if (adminSubj && Array.isArray(adminSubj.topics)) {
                 if (!data) {
                     data = {
                         text: adminSubj.name,
@@ -3671,8 +3731,8 @@ if (overlay) overlay.classList.add('hidden');
                 const isMockTitle = () => false;
 
                 const releaseSection = (typeof window.resolveStudentReleaseSection === 'function')
-                    ? window.resolveStudentReleaseSection('')
-                    : String(window.currentClassroomSectionName || '').trim();
+                    ? window.resolveStudentReleaseSection(customSection)
+                    : String(customSection || window.currentClassroomSectionName || '').trim();
                 let releasedTopicIds = null;
                 if (releaseSection && typeof window.getTopicReleaseConfig === 'function') {
                     const relCfg = window.getTopicReleaseConfig(subjectId, releaseSection);
@@ -3739,7 +3799,7 @@ if (overlay) overlay.classList.add('hidden');
 
                 // Also merge custom topics stored under subject keys
                 try {
-                    const customTopicKeys = [subjectId, cleanCode, `card-${cleanCode}`, adminSubj.code, adminSubj.id].filter(Boolean);
+                    const customTopicKeys = window.SigmaAssignedClassrooms ? [] : [subjectId, cleanCode, `card-${cleanCode}`, adminSubj.code, adminSubj.id].filter(Boolean);
                     const customTopicsList = [];
                     for (const ck of customTopicKeys) {
                         const rawCt = localStorage.getItem(`sigma_custom_topics_${ck}`);
@@ -4747,6 +4807,12 @@ if (overlay) overlay.classList.add('hidden');
     window.switchToTopicPage = switchToTopicPage;
 
     function resolveStudentTopicSubjectId(cardId, subjectName) {
+        const normalize = value => String(value || '').trim().toLowerCase();
+        const catalog = getStoredJson('sigma-admin-subjects', []);
+        const saved = Array.isArray(catalog) && catalog.find(subject =>
+            [subject.id, subject.code, subject.name, ...(subject.curriculum?.legacyAliases || [])]
+                .some(value => value && (normalize(value) === normalize(cardId) || normalize(value) === normalize(subjectName))));
+        if (saved) return saved.id || saved.code;
         const cleanSubject = String(subjectName || '').trim().toLowerCase();
         const cleanId = String(cardId || '').trim().toLowerCase();
         const aliases = {
@@ -4875,6 +4941,8 @@ if (overlay) overlay.classList.add('hidden');
     function buildTopicPage(subjectId, subject, data, statusIconClass) {
         const page = document.getElementById('section-topic-detail');
         if (!page) return;
+        const section = studentMaterialSection();
+        if (ensureStudentTopicReleaseData(subjectId, section, page, () => buildTopicPage(subjectId, subject, data, statusIconClass))) return;
         if (typeof window.buildSharedTopicPage === 'function') {
             window.buildSharedTopicPage(page, subjectId, subject, data, statusIconClass, false);
         }
@@ -4893,8 +4961,15 @@ if (overlay) overlay.classList.add('hidden');
         }
 
         if (topicContentVisible) {
+            if (window._studentSubmissionMode && (window._studentPendingAnswerFiles?.length || window._studentAnswerUploadState?.busy)) return;
             if (typeof _renderTopicContentMain === 'function') {
-                _renderTopicContentMain(subjectId, (_tcTopicIdx !== undefined && _tcTopicIdx !== null) ? _tcTopicIdx : 0, _tcTab || 'videos');
+                const previousSuppression = window._suppressSubmissionScrollToTop;
+                window._suppressSubmissionScrollToTop = true;
+                try {
+                    _renderTopicContentMain(subjectId, (_tcTopicIdx !== undefined && _tcTopicIdx !== null) ? _tcTopicIdx : 0, _tcTab || 'videos');
+                } finally {
+                    window._suppressSubmissionScrollToTop = previousSuppression;
+                }
             }
         } else if (topicDetailVisible) {
             const data = (typeof getTopicData === 'function') ? getTopicData(subjectId) : null;
@@ -4918,11 +4993,88 @@ if (overlay) overlay.classList.add('hidden');
 
     const topicVideos = {};
 
-        function showUnavailableStudentMaterial(subjectId) {
+    const studentMaterialLoads = new Map();
+    function studentMaterialSection(scope = {}) {
+        let storedSection = '';
+        try { storedSection = localStorage.getItem('sigma-active-classroom-section') || ''; } catch (_) {}
+        return String(scope.section || window.currentTopicState?.selectedSection || window.currentClassroomSectionName
+            || window.resolveStudentReleaseSection?.('') || storedSection || '').trim();
+    }
+
+    function studentMaterialReleaseReady(academic, subjectId, section) {
+        if (!academic) return true;
+        if (!subjectId || !section) return Boolean(academic.getPerformanceSnapshot?.().ready);
+        return ['sigma_topic_release', 'sigma_learning_release', 'sigma_assessment_release']
+            .every(prefix => academic.getRelease?.(prefix, subjectId, section)?.ready === true);
+    }
+
+    function ensureStudentTopicReleaseData(subjectId, section, mount, resume) {
+        const academic = window.SigmaAcademicRecords;
+        const selectedSection = studentMaterialSection({ section });
+        if (!academic || studentMaterialReleaseReady(academic, subjectId, selectedSection) || !mount) return false;
+        const route = location.hash;
+        mount.innerHTML = '<div class="p-8 text-center text-slate-500" role="status"><span class="sigma-dot-spinner" aria-hidden="true"></span><p class="mt-3">Loading released topics…</p></div>';
+        const request = subjectId && selectedSection && academic.refreshForScope
+            ? academic.refreshForScope(String(subjectId), selectedSection)
+            : academic.refresh(true);
+        Promise.resolve(request).then(() => {
+            if (location.hash !== route || !mount.isConnected) return;
+            if (!studentMaterialReleaseReady(academic, subjectId, selectedSection)) throw new Error('Release data is not ready');
+            resume();
+        }).catch(() => {
+            if (location.hash !== route || !mount.isConnected) return;
+            mount.innerHTML = '<div class="p-8 text-center text-slate-500" role="alert"><p>Released topics could not be loaded.</p><button type="button" class="sigma-btn sigma-btn-primary mt-4" data-retry-student-topic-release>Try again</button></div>';
+            mount.querySelector('[data-retry-student-topic-release]')?.addEventListener('click', resume);
+        });
+        return true;
+    }
+
+    function waitForStudentMaterialData(resume, scope = {}) {
+        const classrooms = window.SigmaAssignedClassrooms;
+        const academic = window.SigmaAcademicRecords;
+        const subjectId = String(scope.subjectId || '');
+        const section = studentMaterialSection(scope);
+        const catalogReady = !classrooms || classrooms.isReady();
+        const releaseReady = studentMaterialReleaseReady(academic, subjectId, section);
+        if (catalogReady && releaseReady) return false;
+        // Keep the existing school/title header until authorized material names
+        // are ready. Subject IDs and loading messages are not navigation titles.
+        hideAllSections();
+        showSection('section-topic-content');
+        const page = document.getElementById('section-topic-content');
+        if (page) page.innerHTML = window.SigmaContentLoading?.html?.({ page: true }) || '<div class="sigma-pending-content" role="status" aria-label="Loading learning material"><span class="sigma-dot-spinner" aria-hidden="true"></span></div>';
+        const loadKey = `${subjectId}\u0000${section}`;
+        let studentMaterialLoad = studentMaterialLoads.get(loadKey);
+        if (!studentMaterialLoad) {
+            studentMaterialLoad = Promise.all([
+                catalogReady ? Promise.resolve() : classrooms.refresh(),
+                releaseReady ? Promise.resolve() : (subjectId && section && academic.refreshForScope
+                    ? academic.refreshForScope(subjectId, section)
+                    : academic.refresh())
+            ]).then(() => {
+                if ((!classrooms || classrooms.isReady()) && studentMaterialReleaseReady(academic, subjectId, section)) return;
+                throw new Error('Learning data is not available yet');
+            }).finally(() => { studentMaterialLoads.delete(loadKey); });
+            studentMaterialLoads.set(loadKey, studentMaterialLoad);
+        }
+        const route = location.hash;
+        studentMaterialLoad.then(() => {
+            if (location.hash === route && !page?.classList.contains('hidden')) resume();
+        }).catch(() => {
+            if (location.hash !== route || page?.classList.contains('hidden')) return;
+            page.innerHTML = `<section class="p-8"><h2 class="text-lg font-bold">Unable to load this content</h2><p>Please check your connection and try again.</p><button type="button" class="sigma-btn sigma-btn-primary mt-5">Try Again</button></section>`;
+            page.querySelector('button').onclick = resume;
+        });
+        return true;
+    }
+
+    function showUnavailableStudentMaterial(subjectId) {
             hideAllSections();
             showSection('section-topic-content');
             const page = document.getElementById('section-topic-content');
             if (!page) return;
+            const topic = getTopicData(subjectId)?.q1Topics?.[_tcTopicIdx];
+            window.setTopicHeaderBreadcrumb?.(getTopicSubject(subjectId), topic || _tcTopicIdx, topic?.title);
             page.innerHTML = `<section class="bg-white p-6 sm:p-8">
                 <i class="fa-solid fa-lock text-xl text-black-fade" aria-hidden="true"></i>
                 <h2 class="text-lg font-bold mt-4">This content is currently unavailable</h2>
@@ -4952,6 +5104,8 @@ if (overlay) overlay.classList.add('hidden');
 
         window.openTopicContent = function (subjectId, topicIdx, tab = 'videos', videoIdx = null, _fromCard = false, options = null) {
         const pickedSection = options && (options.selectedSection || options.section);
+        const section = studentMaterialSection({ section: pickedSection });
+        if (waitForStudentMaterialData(() => window.openTopicContent(subjectId, topicIdx, tab, videoIdx, _fromCard, options), { subjectId, section })) return;
         if (pickedSection && typeof window.rememberStudentTopicSection === 'function') {
             window.rememberStudentTopicSection(pickedSection, subjectId);
         } else if (typeof window.restoreStudentTopicSection === 'function') {
@@ -5174,7 +5328,12 @@ if (overlay) overlay.classList.add('hidden');
         const currentHash = window.location.hash || '';
         if (currentHash !== hash) {
             const historyState = { page: pageId, subjectId: _tcSubjectId, topicIdx: _tcTopicIdx, tab, assessmentIdx, viewSubmission: isSubMode, submitMode: isSubmitMode };
-            if (window.studentHistoryScreenKey && window.studentHistoryScreenKey(currentHash) === window.studentHistoryScreenKey(hash)) {
+            const currentParts = currentHash.replace(/^#topic-content:/, '').split(':');
+            const returningToList = currentHash.startsWith('#topic-content:') &&
+                currentParts[0] === String(_tcSubjectId) && currentParts[1] === String(_tcTopicIdx) &&
+                currentParts[2] === tab && assessmentIdx == null &&
+                currentParts[3] !== undefined && currentParts[3] !== 'null' && currentParts[3] !== '';
+            if (returningToList || (window.studentHistoryScreenKey && window.studentHistoryScreenKey(currentHash) === window.studentHistoryScreenKey(hash))) {
                 history.replaceState(historyState, '', hash);
             } else {
                 history.pushState(historyState, '', hash);
@@ -5237,6 +5396,11 @@ if (overlay) overlay.classList.add('hidden');
         window.renderTopicContentMain = _renderTopicContentMain;
         const page = document.getElementById('section-topic-content');
         if (!page) return;
+
+        const routeParts = location.hash?.startsWith('#topic-content:') ? location.hash.slice('#topic-content:'.length).split(':') : [];
+        const scopeSubjectId = subjectId || _tcSubjectId || routeParts[0] || (typeof _activeSubjectId !== 'undefined' ? _activeSubjectId : '');
+        const scopeSection = studentMaterialSection();
+        if (waitForStudentMaterialData(() => _renderTopicContentMain(subjectId, topicIdx, tab), { subjectId: scopeSubjectId, section: scopeSection })) return;
 
         let hashSubj = '', hashTIdx = null, hashTab = '', hashItemIdx = null;
         if (typeof window !== 'undefined' && window.location?.hash?.startsWith('#topic-content:')) {
@@ -5438,7 +5602,7 @@ if (overlay) overlay.classList.add('hidden');
         const _scrollX = (typeof window !== 'undefined') ? window.scrollX : 0;
         const _scrollY = (typeof window !== 'undefined') ? window.scrollY : 0;
 
-        page.innerHTML = `
+        const nextTopicHtml = `
             <div class="student-topic-page-shell pt-0 px-0 pb-0 overflow-visible">
                 <!-- Top Header: Category Selection Tabs (Hidden inside material panel / detail view) -->
                 ${!isDetailView ? `
@@ -5462,7 +5626,16 @@ if (overlay) overlay.classList.add('hidden');
                 </div>
             </div>`;
 
+        // Background score/release updates must not restart an unchanged video player.
+        if (effectiveTab === 'videos' && page.querySelector('.video-cinema-player') && page._sigmaVideoPageHtml === nextTopicHtml) return;
+        page.innerHTML = nextTopicHtml;
+        page._sigmaVideoPageHtml = effectiveTab === 'videos' ? nextTopicHtml : null;
+
         window.relocateAssessmentPrimaryAction?.(page);
+        if (window._studentSubmissionMode && document.getElementById('student-answer-files-container')) {
+            const uploadItemIdx = window._scAssessmentDetailIdx ?? window._tcAssessmentDetailIdx ?? 0;
+            window.renderStudentAnswerFilesList?.(effectiveSubjectId, effectiveTab || 'assessments', uploadItemIdx, validIdx);
+        }
 
         if (isDetailView && !window._suppressSubmissionScrollToTop) {
             const _resetDetailScrollToTop = () => {
@@ -5861,7 +6034,7 @@ if (overlay) overlay.classList.add('hidden');
 
         const combinedAdminSections = [];
         const seenStudentSecKeys = new Set();
-        ['sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections'].forEach(key => {
+        (window.SigmaAssignedClassrooms ? ['sigma-admin-sections'] : ['sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections']).forEach(key => {
             const list = getStoredJson(key, []);
             if (Array.isArray(list)) {
                 list.forEach(sec => {
@@ -5943,6 +6116,7 @@ if (overlay) overlay.classList.add('hidden');
                 studentsCount: sec.studentsCount != null ? sec.studentsCount : (sec.students ? sec.students.length : 0),
                 schedule: scheduleParsed,
                 rawSchedule: sec.schedule || '',
+                dailySchedules: sec.dailySchedules || [],
                 startTime: sec.startTime || '',
                 endTime: sec.endTime || '',
                 days: sec.days || [],
@@ -5994,6 +6168,7 @@ if (overlay) overlay.classList.add('hidden');
     window.syncStudentEnrolledClassrooms = syncStudentEnrolledClassrooms;
 
     function getStudentSectionClassItems() {
+        if (window.SigmaAssignedClassrooms) syncStudentEnrolledClassrooms(true);
         if (Object.keys(classroomData).length === 0) {
             syncStudentEnrolledClassrooms();
         }
@@ -6017,6 +6192,7 @@ if (overlay) overlay.classList.add('hidden');
             };
         });
 
+        if (window.SigmaAssignedClassrooms) return defaultClasses;
         let activeData = null;
         try {
             const storedClasses = localStorage.getItem('sigma_student_enrolled_classes');
@@ -6127,7 +6303,7 @@ if (overlay) overlay.classList.add('hidden');
             if (isStudentRowSubmitted(row)) return false;
             const isNoDue = !row.dueDate || row.dueDate === '-' || row.dueDate === 'none' || row.dueDate === 'no-deadline' || String(row.dueDate).toLowerCase() === 'no deadline' || String(row.dueDate).toLowerCase() === 'no due date';
             if (isNoDue) return false;
-            const due = new Date(row.dueDate).getTime();
+            const due = window.SigmaPanels?.assessmentDeadline?.(row) ?? new Date(row.dueDate).getTime();
             if (!due || isNaN(due)) return false;
             const elapsed = now - due;
             // Overdue if past deadline, but automatically drops off if older than 7 days
@@ -6155,7 +6331,7 @@ if (overlay) overlay.classList.add('hidden');
             if (isStudentRowSubmitted(row)) return false;
             const isNoDue = !row.dueDate || row.dueDate === '-' || row.dueDate === 'none' || row.dueDate === 'no-deadline' || String(row.dueDate).toLowerCase() === 'no deadline' || String(row.dueDate).toLowerCase() === 'no due date';
             if (isNoDue) return false;
-            const due = new Date(row.dueDate).getTime();
+            const due = window.SigmaPanels?.assessmentDeadline?.(row) ?? new Date(row.dueDate).getTime();
             return due && !isNaN(due) && due >= now && due <= next24h;
         });
         return filtered
@@ -6183,7 +6359,7 @@ if (overlay) overlay.classList.add('hidden');
                 // Open active assessment without specific deadline
                 return true;
             }
-            const due = new Date(row.dueDate).getTime();
+            const due = window.SigmaPanels?.assessmentDeadline?.(row) ?? new Date(row.dueDate).getTime();
             if (!due || isNaN(due)) return true;
             return due > next24h;
         });
@@ -6267,7 +6443,7 @@ if (overlay) overlay.classList.add('hidden');
                         onItemClick: function (row) {
                             if (typeof window.openTopicContent === 'function') {
                                 const itemIdx = (row.unifiedIdx !== undefined && row.unifiedIdx !== null) ? Number(row.unifiedIdx) : (row.itemIdx !== '' && row.itemIdx !== undefined ? Number(row.itemIdx) : null);
-                                window.openTopicContent(row.subjectId, Number(row.topicIdx || 0), 'assessments', itemIdx);
+                                window.openTopicContent(row.subjectId, Number(row.topicIdx || 0), 'assessments', itemIdx, true, { selectedSection: row.section });
                             }
                         },
                         onSubjectClick: function (row) {
@@ -6517,16 +6693,19 @@ if (overlay) overlay.classList.add('hidden');
 
     activeStudentClassroomId = activeStudentClassroomId || '';
     activeStudentRoomTab = activeStudentRoomTab || 'room';
-    function getStudentClassroomCards() {
+    function getStudentClassroomCards(activeTermOnly = false) {
         if (Object.keys(classroomData || {}).length === 0) {
             syncStudentEnrolledClassrooms();
         }
         const cards = Object.entries(classroomData || {})
             .map(([id, data]) => ({ id, ...data }));
+        const activeTermCards = activeTermOnly && typeof window.filterClassroomCardsToActiveAcademicTerm === 'function'
+            ? window.filterClassroomCardsToActiveAcademicTerm(cards)
+            : cards;
         if (typeof window.sortClassroomCards === 'function') {
-            return window.sortClassroomCards(cards);
+            return window.sortClassroomCards(activeTermCards);
         }
-        return cards.slice().sort((a, b) => {
+        return activeTermCards.slice().sort((a, b) => {
             const subjA = String(a.subject || a.name || '').trim();
             const subjB = String(b.subject || b.name || '').trim();
             const cmp = subjA.localeCompare(subjB, undefined, { sensitivity: 'base', numeric: true });
@@ -6562,7 +6741,7 @@ if (overlay) overlay.classList.add('hidden');
         const submenu = ensureStudentSectionsSubmenu();
         if (!submenu) return;
 
-        const cards = getStudentClassroomCards();
+        const cards = getStudentClassroomCards(true);
         if (cards.length === 0) {
             submenu.innerHTML = `
                 <div class="px-4 py-3 text-xs text-gray-400 select-none">
@@ -6677,8 +6856,11 @@ if (overlay) overlay.classList.add('hidden');
             subSidebar.style.setProperty('max-height', `calc(100vh - ${targetTop}px - 16px)`, 'important');
         }
 
-        const cards = getStudentClassroomCards();
-        if (cards.length === 0 && window.SigmaAssignedClassrooms && !window.SigmaAssignedClassrooms.isReady()) {
+        const cards = getStudentClassroomCards(true);
+        if (cards.length === 0 && window.SigmaAssignedClassrooms?.error?.()) {
+            content.innerHTML = '<div class="py-12 px-4 text-center" role="status"><p>Your classes could not load. Please try again.</p><button type="button" class="mt-3 text-green font-bold" data-retry-classes>Retry</button></div>';
+            content.querySelector('[data-retry-classes]')?.addEventListener('click', () => window.SigmaAssignedClassrooms.refresh(true));
+        } else if (cards.length === 0 && window.SigmaAssignedClassrooms && !window.SigmaAssignedClassrooms.isReady()) {
             content.innerHTML = '<div class="py-16 px-4 text-center" role="status"><i class="fa-solid fa-spinner fa-spin text-black-fade" aria-label="Loading classes"></i></div>';
         } else if (cards.length === 0) {
             content.innerHTML = `
@@ -6948,7 +7130,7 @@ if (overlay) overlay.classList.add('hidden');
                 onItemClick: function (row) {
                     if (typeof window.openTopicContent === 'function') {
                         const itemIdx = (row.unifiedIdx !== undefined && row.unifiedIdx !== null) ? Number(row.unifiedIdx) : (row.itemIdx !== '' && row.itemIdx !== undefined ? Number(row.itemIdx) : null);
-                        window.openTopicContent(row.subjectId || classroomId, Number(row.topicIdx || 0), 'assessments', itemIdx);
+                        window.openTopicContent(row.subjectId || classroomId, Number(row.topicIdx || 0), 'assessments', itemIdx, true, { selectedSection: row.section });
                     }
                 },
                 onSubjectClick: function (row) {
@@ -6977,11 +7159,13 @@ if (overlay) overlay.classList.add('hidden');
         }
         if (typeof window.currentTopicState !== 'undefined' || sectionName) {
             window.currentTopicState = window.currentTopicState || {};
+            window.currentTopicState.subjectId = subjectId;
             if (sectionName) window.currentTopicState.selectedSection = sectionName;
         }
         try {
             if (sectionName) localStorage.setItem('sigma-active-classroom-section', sectionName);
         } catch (e) {}
+        if (ensureStudentTopicReleaseData(subjectId, sectionName, mount, () => window.renderRoomTopicsPanel())) return;
         const topicData = (typeof getTopicData === 'function') ? (getTopicData(subjectId) || { q1Topics: [] }) : { q1Topics: [] };
         const subject = (typeof getTopicSubject === 'function')
             ? (getTopicSubject(subjectId) || { id: subjectId, name: subjectName || 'Subject' })
@@ -6995,6 +7179,21 @@ if (overlay) overlay.classList.add('hidden');
     };
 
     function showClassroomDetail(classroomId, pushState = true, initialTab = null) {
+        if (window.SigmaAssignedClassrooms && !window.SigmaAssignedClassrooms.isReady()) {
+            const requestedHash = window.location.hash;
+            hideAllSections();
+            showSection('section-classroom-detail');
+            const host = document.getElementById('section-classroom-detail');
+            if (host) host.innerHTML = '<div class="student-classroom-loading p-8 text-center" role="status"><span class="sigma-dot-spinner" aria-hidden="true"></span><p>Loading your class…</p></div>';
+            window.SigmaAssignedClassrooms.refresh().then(() => {
+                if (window.location.hash !== requestedHash) return;
+                if (window.SigmaAssignedClassrooms.isReady()) { showClassroomDetail(classroomId, pushState, initialTab); return; }
+                if (!host?.querySelector('.student-classroom-loading')) return;
+                host.innerHTML = '<div class="student-classroom-retry p-8 text-center" role="alert"><p>Your class could not be loaded.</p><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md">Try again</button></div>';
+                host.querySelector('button').onclick = () => showClassroomDetail(classroomId, pushState, initialTab);
+            });
+            return;
+        }
         scrollToTop();
         if (!classroomId) {
             if (typeof window.switchTab === 'function') window.switchTab('nav-classrooms');
@@ -7265,6 +7464,7 @@ if (overlay) overlay.classList.add('hidden');
         if (activeStudentRoomTab === 'attendance') {
             studentAttendancePage = 1;
             renderAttendanceHistoryTable('classroom-attendance-history-body', 'classroom-attendance-pagination-controls', 'classroom-attendance-empty-state', data.subject);
+            if (!window.SigmaAttendance?.ready?.() && !window.SigmaAttendance?.status?.().message) window.SigmaAttendance?.refresh()?.catch(() => {});
         }
 
         const detailRoot = document.getElementById('section-classroom-detail') || content;
@@ -7452,7 +7652,7 @@ if (overlay) overlay.classList.add('hidden');
 
         const reportStudent = window.getLoggedInStudentUser?.() || {};
         for (const quarter of [1, 2, 3, 4]) {
-            match = { ...match, [`term${quarter}Val`]: window.getPublishedSubjectGrade?.(reportStudent, subjectName, sectionName, quarter) ?? null };
+            match = { ...match, [`term${quarter}Val`]: window.getPublishedSubjectGrade?.(reportStudent, subjectName, sectionName, quarter, undefined, cId) ?? null };
         }
         match.overallVal = null;
 
@@ -7506,27 +7706,20 @@ if (overlay) overlay.classList.add('hidden');
         }
 
         const assessmentRows = window.AssessmentsPage?.buildAssessmentRows?.('student') || [];
-        const normalizeAssessmentScope = value => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
-        const assessmentBars = assessmentRows.filter(row =>
-            normalizeAssessmentScope(row.section) === normalizeAssessmentScope(sectionName)
-            && normalizeAssessmentScope(row.subject) === normalizeAssessmentScope(subjectName)
-        ).sort((a, b) => {
-            const quarter = row => Number(String(row.quarter || '').toLowerCase().replace(/^q/, '')) || 0;
-            const index = value => value !== null && value !== undefined && Number.isFinite(Number(value)) ? Number(value) : Number.MAX_SAFE_INTEGER;
-            return quarter(a) - quarter(b)
-                || index(a.topicIdx) - index(b.topicIdx)
-                || index(a.unifiedIdx ?? a.itemIdx) - index(b.unifiedIdx ?? b.itemIdx);
-        }).map(row => {
+        const assessmentBars = window.AssessmentsPage.selectPerformanceRows(
+            assessmentRows, subjectName, sectionName, 'all', cId
+        ).map(row => {
+            const effectiveMax = row.max;
             const hasScore = row.score !== null && row.score !== undefined
                 && String(row.score).trim() !== '' && Number.isFinite(Number(row.score));
             const scored = hasScore
-                && row.max !== null && row.max !== ''
-                && Number.isFinite(Number(row.max)) && Number(row.max) > 0;
+                && effectiveMax !== null && effectiveMax !== ''
+                && Number.isFinite(Number(effectiveMax)) && Number(effectiveMax) > 0;
             return { label: row.activity || 'Assessment',
                 quarter: String(row.quarter || '').toLowerCase().replace(/^q/, ''),
                 score: hasScore ? Number(row.score) : null,
-                maximum: scored ? Number(row.max) : null,
-                val: scored ? Math.max(0, Math.min(100, Number(row.score) / Number(row.max) * 100)) : null };
+                maximum: scored ? Number(effectiveMax) : null,
+                val: scored ? Math.max(0, Math.min(100, Number(row.score) / Number(effectiveMax) * 100)) : null };
         });
         aiInsightMessage = 'No AI assessment insight available yet.';
         const configuredQuarters = Array.isArray(match.activeQuarters) && match.activeQuarters.length
@@ -7536,10 +7729,8 @@ if (overlay) overlay.classList.add('hidden');
             Number(String(quarter).trim().toLowerCase().replace(/^q/, ''))
         ).filter(quarter => Number.isInteger(quarter) && quarter >= 1 && quarter <= 4))].sort((a, b) => a - b);
 
-        const semesterGrades = availableAssessmentQuarters.map(q => match[`term${q}Val`]);
-        if (semesterGrades.length && semesterGrades.every(Number.isFinite)) {
-            finalGradeDisplay = String(Math.round(semesterGrades.reduce((sum, grade) => sum + grade, 0) / semesterGrades.length));
-        }
+        const semesterGrade = getStudentSemesterGrade(match, configuredQuarters);
+        if (semesterGrade !== null) finalGradeDisplay = String(semesterGrade);
         overlay.innerHTML = `
             <div class="curriculum-hub-panel curriculum-release-panel-fixed w-full !max-w-[860px] flex flex-col overflow-hidden font-['Inter'] rounded-2xl sm:rounded-3xl shadow-2xl" style="height: auto; max-height: min(740px, calc(100dvh - 24px)); max-width: 860px;" onclick="event.stopPropagation()">
                 <!-- Modal Header -->
@@ -7575,6 +7766,7 @@ if (overlay) overlay.classList.add('hidden');
                     <!-- AI Subject Insights Box -->
                     <div class="sigma-ai-panel">
                         ${window.renderSigmaAiHeading()}
+                        <p class="text-xs text-black-fade mb-3">Summary of recorded results across quarters</p>
                         <div data-subject-grade-insight class="sigma-ai-panel-body" data-insight-empty="${!hasQData}">
                             ${aiInsightMessage}
                         </div>
@@ -7591,7 +7783,7 @@ if (overlay) overlay.classList.add('hidden');
                                     <h3 class="text-xs sm:text-sm font-bold text-slate-900 leading-tight font-['Inter'] truncate">Assessment Performance</h3>
                                 </div>
                             </div>
-                            <select class="student-assessment-quarter-select" aria-label="Assessment quarter" style="font-size:12px; color:#000; background:white; border:1px solid #e2e8f0; border-radius:6px; padding:5px 8px; flex-shrink:0; max-width:120px; cursor:pointer;">
+                            <select class="student-assessment-quarter-select" aria-label="Assessment quarter" title="Filters the assessment list only" style="font-size:12px; color:#000; background:white; border:1px solid #e2e8f0; border-radius:6px; padding:5px 8px; flex-shrink:0; max-width:120px; cursor:pointer;">
                                 <option value="all">All Quarters</option>
                                 ${availableAssessmentQuarters.map(quarter => `<option value="${quarter}">Q${quarter}</option>`).join('')}
                             </select>
@@ -7678,14 +7870,13 @@ if (overlay) overlay.classList.add('hidden');
         };
         document.body.appendChild(overlay);
         document.body.style.overflow = 'hidden';
-        const refreshGradeInsight = (quarter = 'all') => window.refreshSubjectGradeInsight?.(overlay.querySelector('[data-subject-grade-insight]'), {
-            subject: subjectName, subjectId: subjectName, sectionId: sectionName, quarter,
-            grades: qTerms.filter((_, index) => availableAssessmentQuarters.includes(index + 1) && (quarter === 'all' || String(index + 1) === quarter)).map(term => Number.isFinite(term.val) ? term.val : null),
-            assessments: assessmentBars.filter(row => availableAssessmentQuarters.includes(Number(row.quarter)) && (quarter === 'all' || row.quarter === quarter))
+        const refreshGradeInsight = () => window.refreshSubjectGradeInsight?.(overlay.querySelector('[data-subject-grade-insight]'), {
+            subject: subjectName, subjectId: subjectName, sectionId: sectionName, quarter: 'all',
+            grades: qTerms.map(term => Number.isFinite(term.val) ? term.val : null),
+            assessments: assessmentBars.filter(row => availableAssessmentQuarters.includes(Number(row.quarter)))
         });
         const assessmentQuarterSelect = overlay.querySelector('.student-assessment-quarter-select');
         assessmentQuarterSelect?.addEventListener('change', event => {
-            refreshGradeInsight(event.target.value);
             let visible = 0;
             overlay.querySelectorAll('.student-assessment-quarter-row').forEach(row => {
                 const included = availableAssessmentQuarters.includes(Number(row.dataset.quarter)) && (event.target.value === 'all' || row.dataset.quarter === event.target.value);
@@ -7695,7 +7886,12 @@ if (overlay) overlay.classList.add('hidden');
             });
             overlay.querySelector('.student-assessment-quarter-empty').hidden = visible > 0 || event.target.value === 'all';
         });
-        assessmentQuarterSelect?.dispatchEvent(new Event('change'));
+        if (assessmentQuarterSelect) assessmentQuarterSelect.dispatchEvent(new Event('change'));
+        refreshGradeInsight()?.catch(error => {
+            const host = overlay.querySelector('[data-subject-grade-insight]');
+            if (host?.isConnected) window.renderSigmaLoadStatus?.(host, 'Unable to load grade insights. Try again.', refreshGradeInsight);
+            console.warn('Report insight:', error.message);
+        });
         const viewport = window.visualViewport;
         const syncViewport = () => {
             overlay.style.setProperty('--grades-viewport-height', `${viewport ? viewport.height : window.innerHeight}px`);
@@ -7762,7 +7958,7 @@ if (overlay) overlay.classList.add('hidden');
     function refreshStudentSubjectContent() {
         const normalize = value => String(value || '').toLowerCase().replace(/^(card-|subj-|gen-)/,'').replace(/[^a-z0-9]/g,'');
         let subjects = [];
-        try { subjects = JSON.parse(localStorage.getItem('sigma-admin-subjects') || '[]'); } catch (_) {}
+        try { subjects = loadSharedState('sigma-admin-subjects', []); } catch (_) {}
         const aliases = new Set(subjects.flatMap(subject => [subject.id,subject.code,subject.name,subject.title]).filter(Boolean).map(normalize));
         for (const cache of [curriculumTopicCatalog,dynamicCurriculumSubjects]) {
             Object.keys(cache).forEach(key => { if (aliases.has(normalize(key))) delete cache[key]; });
@@ -7786,21 +7982,7 @@ if (overlay) overlay.classList.add('hidden');
             renderStudentHomeAnnouncements();
         }
 
-        if (e.key === 'sigma-attendance-records-v1') {
-            updateStudentAttendanceStatus();
-            if (typeof renderStudentAttendanceHistory === 'function') {
-                renderStudentAttendanceHistory();
-            }
-            const clsAttendanceBody = document.getElementById('classroom-attendance-history-body');
-            if (clsAttendanceBody) {
-                const cSubj = (activeStudentClassroomId && window.classroomData ? window.classroomData[activeStudentClassroomId]?.subject : null) || activeAttendanceSubjectFilter;
-                renderAttendanceHistoryTable('classroom-attendance-history-body', 'classroom-attendance-pagination-controls', 'classroom-attendance-empty-state', cSubj);
-            }
-            const stdAttendanceBody = document.getElementById('student-attendance-history-body');
-            if (stdAttendanceBody && typeof renderAttendanceHistoryTable === 'function') {
-                renderAttendanceHistoryTable('student-attendance-history-body', 'student-attendance-pagination-controls', 'student-attendance-empty-state', activeAttendanceSubjectFilter);
-            }
-        }
+        if (e.key === 'sigma-attendance-records-v1') queueStudentAttendanceRender();
 
         if (e.key === 'sigma-admin-sections' || e.key === 'sigma-classroom-materials-v1' || e.key === 'sigma_released_videos') {
             const detailSection = document.getElementById('section-classroom-detail');
@@ -7812,21 +7994,23 @@ if (overlay) overlay.classList.add('hidden');
         }
     });
 
-    window.addEventListener('sigma:attendance-changed', () => {
-        updateStudentAttendanceStatus();
-        if (typeof renderStudentAttendanceHistory === 'function') {
-            renderStudentAttendanceHistory();
-        }
-        const clsAttendanceBody = document.getElementById('classroom-attendance-history-body');
-        if (clsAttendanceBody) {
-            const cSubj = (activeStudentClassroomId && window.classroomData ? window.classroomData[activeStudentClassroomId]?.subject : null) || activeAttendanceSubjectFilter;
-            renderAttendanceHistoryTable('classroom-attendance-history-body', 'classroom-attendance-pagination-controls', 'classroom-attendance-empty-state', cSubj);
-        }
-        const stdAttendanceBody = document.getElementById('student-attendance-history-body');
-        if (stdAttendanceBody && typeof renderAttendanceHistoryTable === 'function') {
-            renderAttendanceHistoryTable('student-attendance-history-body', 'student-attendance-pagination-controls', 'student-attendance-empty-state', activeAttendanceSubjectFilter);
-        }
-    });
+    let attendanceRenderFrame = 0;
+    function queueStudentAttendanceRender() {
+        if (attendanceRenderFrame) return;
+        attendanceRenderFrame = requestAnimationFrame(() => {
+            attendanceRenderFrame = 0;
+            updateStudentAttendanceStatus();
+            const classroomBody = document.getElementById('classroom-attendance-history-body');
+            if (classroomBody && !classroomBody.closest('.hidden, [hidden]')) {
+                const subject = (activeStudentClassroomId && window.classroomData?.[activeStudentClassroomId]?.subject) || activeAttendanceSubjectFilter;
+                renderAttendanceHistoryTable('classroom-attendance-history-body', 'classroom-attendance-pagination-controls', 'classroom-attendance-empty-state', subject);
+            }
+            const body = document.getElementById('student-attendance-history-body');
+            if (body && !body.closest('.hidden, [hidden]')) window.renderStudentAttendanceHistory();
+        });
+    }
+    window.addEventListener('sigma:attendance-changed', queueStudentAttendanceRender);
+    window.addEventListener('sigma:attendance-status', queueStudentAttendanceRender);
     //  
 
     function isStudentHomeActive() {
@@ -7922,9 +8106,20 @@ if (overlay) overlay.classList.add('hidden');
         }
     });
     window.addEventListener('sigma:assigned-classrooms-updated', () => {
+        if (window.SigmaAssignedClassrooms?.isReady() && /^#classroom[-:]/.test(location.hash)
+            && document.querySelector('#section-classroom-detail .student-classroom-retry')) {
+            applyHistoryPage(resolvePageStateFromLocation(history.state));
+        }
         syncStudentEnrolledClassrooms(true);
         renderStudentSectionsNavChildren(activeStudentClassroomId);
         renderStudentHomeDashboardPanels();
+        const grades = document.getElementById('section-grades');
+        if (grades && !grades.classList.contains('hidden')) {
+            grades.querySelectorAll('.student-topic-performance').forEach(panel => panel._refreshTaskProgress?.());
+        }
+        if (location.hash.startsWith('#topic-content:') && window.SigmaAssignedClassrooms?.isReady()) {
+            refreshStudentTopicUIIfVisible();
+        }
         const panel = document.getElementById('sub-sidebar');
         if (panel?.classList.contains('sub-sidebar-visible') && document.getElementById('sub-sidebar-title')?.textContent?.trim() === 'My Classes') {
             renderStudentClassroomSectionsSidebar(activeStudentClassroomId, true);
@@ -7937,6 +8132,17 @@ if (overlay) overlay.classList.add('hidden');
         renderStudentSectionsNavChildren(activeStudentClassroomId);
         if (typeof renderStudentHomeDashboardPanels === 'function') {
             renderStudentHomeDashboardPanels();
+        }
+    });
+    window.addEventListener('sigma:school-year-changed', () => {
+        renderStudentSectionsNavChildren(activeStudentClassroomId);
+        renderStudentHomeDashboardPanels();
+        const panel = document.getElementById('sub-sidebar');
+        if (panel?.classList.contains('sub-sidebar-visible') && document.getElementById('sub-sidebar-title')?.textContent?.trim() === 'My Classes') {
+            renderStudentClassroomSectionsSidebar(activeStudentClassroomId, true);
+        }
+        if (document.getElementById('classrooms-grid') && !document.getElementById('classrooms-grid')?.classList.contains('hidden')) {
+            window.SectionsPanel?.render?.('student');
         }
     });
 

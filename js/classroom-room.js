@@ -425,13 +425,34 @@
      * Displays exact meeting days and alternating schedules (e.g. "Mon / Wed / Fri • 8:00 AM - 9:30 AM",
      * "Tue / Thu • 9:45 AM - 11:15 AM", or "Monday – Friday • 8:00 AM - 9:30 AM").
      */
-    function formatScheduleText(scheduleStr) {
-        if (!scheduleStr) return "Monday – Friday • 8:00 AM - 9:30 AM";
-        const str = scheduleStr.trim();
-        if (/(?:mon|tue|wed|thu|fri|sat|sun|daily)/i.test(str)) {
-            return str;
+    function formatScheduleText(scheduleStr, section = {}) {
+        const formatTime = value => {
+            const text = String(value || '').trim();
+            const match = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+            if (!match) return text;
+            const hour = Number(match[1]);
+            if (hour > 23 || Number(match[2]) > 59) return text;
+            return `${hour % 12 || 12}:${match[2]} ${hour >= 12 ? 'PM' : 'AM'}`;
+        };
+        const groups = new Map();
+        for (const slot of Array.isArray(section.dailySchedules) ? section.dailySchedules : []) {
+            if (!slot?.active || !slot.day || !slot.startTime || !slot.endTime) continue;
+            const time = `${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}`;
+            if (!groups.has(time)) groups.set(time, []);
+            const days = groups.get(time);
+            if (!days.includes(slot.day)) days.push(slot.day);
         }
-        return `Monday – Friday • ${str}`;
+        if (groups.size) return Array.from(groups, ([time, days]) => `${days.join(', ')} • ${time}`).join('; ');
+
+        const days = (Array.isArray(section.days) ? section.days.join(', ') : String(section.daysFormatted || section.days || '')).trim();
+        const start = formatTime(section.startTime || section.start_time);
+        const end = formatTime(section.endTime || section.end_time);
+        const saved = String(scheduleStr || '').trim();
+        let time = [start, end].filter(Boolean).join(' - ');
+        if (!time && days) time = saved.match(/\d{1,2}:\d{2}.*$/)?.[0] || '';
+        if (days) return [days, time].filter(Boolean).join(' • ');
+        if (saved) return saved;
+        return time || 'Schedule Available Soon';
     }
 
     function formatSectionLabel(section) {
@@ -467,12 +488,14 @@
         const custom = getCustomTheme(subject, opt.section || opt.className) || getCustomTheme(rawSubject, opt.section || opt.className) || {};
 
         const section = opt.section || opt.className || "ICT-11A";
-        const stripGrade = (s) => String(s || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').replace(/^g\d+\s*[-–]?\s*/i, '').trim().toLowerCase();
+        const stripGrade = (s) => String(s || '').replace(/^(?:(?:grade|g)\s*\d+\s*[-–]?\s*|\d{1,2}\s*[-–]\s*)/i, '').trim().toLowerCase();
         const baseSec = stripGrade(section);
         const normSubj = String(subject || '').trim().toLowerCase();
 
         // 1. Resolve matching section from admin sections
-        const adminSections = getStoredJson('sigma-admin-sections', getStoredJson('sigma-sections-list', []));
+        const adminSections = window.SigmaAssignedClassrooms?.isReady?.()
+            ? window.SigmaAssignedClassrooms.records('sigma-admin-sections')
+            : getStoredJson('sigma-admin-sections', getStoredJson('sigma-sections-list', []));
         let matchedSec = null;
         if (Array.isArray(adminSections)) {
             if (opt.id) {
@@ -483,9 +506,10 @@
                     if (!s) return false;
                     const sName = String(s.name || s.sectionName || '').trim().toLowerCase();
                     const sBase = stripGrade(sName);
-                    const sSubj = String(s.subject || s.assignedSubject || (Array.isArray(s.assignedSubjects) && s.assignedSubjects[0]) || '').trim().toLowerCase();
+                    const subjects = [s.subject, s.assignedSubject, ...(Array.isArray(s.subjects) ? s.subjects : []), ...(Array.isArray(s.assignedSubjects) ? s.assignedSubjects : [])]
+                        .filter(Boolean).map(value => String(value).trim().toLowerCase());
                     const secMatch = (sName === String(section).trim().toLowerCase() || sBase === baseSec);
-                    const subjMatch = (sSubj === normSubj || sSubj.includes(normSubj) || normSubj.includes(sSubj));
+                    const subjMatch = subjects.some(sSubj => sSubj && (sSubj === normSubj || sSubj.includes(normSubj) || normSubj.includes(sSubj)));
                     return secMatch && subjMatch;
                 });
             }
@@ -499,13 +523,20 @@
             }
         }
 
-        const room = opt.room || matchedSec?.room || meta.defaultRoom || "Lab 1";
+        const savedGrade = matchedSec?.gradeLevel || matchedSec?.grade_level || matchedSec?.grade || opt.gradeLevel || opt.grade || '';
+        const embeddedGrade = String(section).match(/^(?:grade\s*|g)?(\d{1,2})\s*[-\u2013]\s*/i);
+        const gradeNumber = String(savedGrade).match(/\d{1,2}/)?.[0] || embeddedGrade?.[1] || '';
+        const sectionName = String(matchedSec?.name || matchedSec?.sectionName || section)
+            .replace(/^(?:grade\s*|g)?\d{1,2}\s*[-\u2013]\s*/i, '').trim();
+        const bannerSectionLabel = gradeNumber ? `${gradeNumber} - ${sectionName}` : formatSectionLabel(section);
+
+        const room = matchedSec?.room || opt.room || meta.defaultRoom || "Lab 1";
         const formattedRoom = (/^\d+$/.test(String(room).trim())) ? `Room ${room}` : room;
-        const schedule = opt.schedule || matchedSec?.schedule || meta.defaultSchedule || "Mon / Wed / Fri • 8:00 AM - 9:30 AM";
+        const schedule = matchedSec ? (matchedSec.schedule || '') : (opt.schedule || '');
         const watermark = custom.watermark || custom.icon || opt.watermark || opt.icon || meta.watermark || meta.icon || "crest";
         const gradient = custom.gradient || opt.gradient || meta.gradient || "linear-gradient(135deg, #064e3b 0%, #15803d 50%, #166534 100%)";
         const bannerImage = custom.bannerImage || opt.bannerImage || meta.bannerImage || "image/book1.jpg";
-        const displaySchedule = formatScheduleText(schedule);
+        const displaySchedule = formatScheduleText(schedule, matchedSec || opt);
 
         return `
         <div class="classroom-room-hero-banner relative overflow-hidden rounded-[18px] md:rounded-[24px] w-full" style="background: ${gradient};">
@@ -522,7 +553,7 @@
                     </h1>
                     <div class="classroom-room-hero-aside">
                         <button type="button" id="classroom-info-toggle-btn" onclick="window.ClassroomRoom.toggleClassInfo()" class="classroom-banner-info-btn" title="Toggle Class Schedule & Details" aria-label="Toggle Class Schedule & Details">
-                            ${escapeHtml(formatSectionLabel(section))}
+                            ${escapeHtml(bannerSectionLabel)}
                         </button>
                     </div>
                 </div>
@@ -1484,6 +1515,10 @@
             }
         }
 
+        if ((effectiveRole === 'teacher' || effectiveRole === 'student') && typeof window.filterClassroomCardsToActiveAcademicTerm === 'function') {
+            cards = window.filterClassroomCardsToActiveAcademicTerm(cards);
+        }
+
         if (!cards || cards.length === 0) {
             grid.innerHTML = renderClassroomsEmptyStateHtml(effectiveRole);
             grid.classList.remove('hidden');
@@ -1640,6 +1675,15 @@
             }
         });
     }
+        window.addEventListener('sigma:school-year-changed', function () {
+            renderSectionsGrid(activeSectionsRole);
+        });
+        window.addEventListener('sigma:active-semester-changed', function () {
+            renderSectionsGrid(activeSectionsRole);
+        });
+        window.addEventListener('sigma:assigned-classrooms-updated', function () {
+            renderSectionsGrid(activeSectionsRole);
+        });
 
     
     // Authoritative global topic opener from section cards
@@ -1809,6 +1853,9 @@
         const subj = getActiveRoomSubjectName();
         const fullKey = getActiveRoomClassroomKey();
 
+        const serverMode = window.getClassroomCommentMode?.(sec, subj, fullKey);
+        if (serverMode) return serverMode;
+
         if (commentModeByClassroom[fullKey]) return commentModeByClassroom[fullKey];
         if (sec && subj && commentModeByClassroom[`${sec}::${subj}`]) return commentModeByClassroom[`${sec}::${subj}`];
         if (sec && commentModeByClassroom[sec]) return commentModeByClassroom[sec];
@@ -1860,6 +1907,25 @@
     }
     window.applyClassroomSettingsUI = applyClassroomSettingsUI;
 
+    async function persistCurrentClassroomCommentMode(mode) {
+        const section = getActiveRoomSectionName();
+        const subject = getActiveRoomSubjectName();
+        const switches = [...document.querySelectorAll('#classroom-comments-toggle-switch, #classroom-comments-toggle-switch-legacy, [id*="classroom-comments-toggle"]')];
+        switches.forEach(control => { control.disabled = true; });
+        try {
+            if (typeof window.SigmaAnnouncements?.setClassroomCommentMode !== 'function') throw new Error('Classroom comments are temporarily unavailable. Refresh and try again.');
+            await window.SigmaAnnouncements.setClassroomCommentMode(section, subject, mode === 'enabled');
+            saveCurrentCommentMode(mode);
+            applyClassroomSettingsUI();
+            window.SigmaAnnouncements.refreshAllFeeds?.();
+        } catch (error) {
+            applyClassroomSettingsUI();
+            window.SigmaAnnouncements?.showToast?.({ title: 'Comment setting not saved', message: error.message || 'Please try again.', type: 'error' });
+        } finally {
+            switches.forEach(control => { control.disabled = false; });
+        }
+    }
+
     window.toggleCurrentClassroomComments = function (event) {
         if (event && event.stopPropagation) {
             event.stopPropagation();
@@ -1871,11 +1937,7 @@
             const currentMode = getCurrentCommentMode();
             newMode = (currentMode === 'enabled') ? 'disabled' : 'enabled';
         }
-        saveCurrentCommentMode(newMode);
-        applyClassroomSettingsUI();
-        if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.refreshAllFeeds === 'function') {
-            window.SigmaAnnouncements.refreshAllFeeds();
-        }
+        persistCurrentClassroomCommentMode(newMode);
     };
 
     window.handleClassroomCommentsRowClick = function (event) {
@@ -1908,7 +1970,16 @@
     function refreshAttendanceRecords() {
         attendanceRecordsByClassroom = getStoredJson(SHARED_ATTENDANCE_RECORDS_KEY, {});
         const drafts = getStoredJson(attendanceDraftKey(), {});
-        for (const [key, days] of Object.entries(drafts)) attendanceRecordsByClassroom[key] = { ...(attendanceRecordsByClassroom[key] || {}), ...days };
+        for (const [key, days] of Object.entries(drafts)) {
+            attendanceRecordsByClassroom[key] ||= {};
+            for (const [date, draft] of Object.entries(days || {})) {
+                const published = attendanceRecordsByClassroom[key][date];
+                // Submitted attendance stays visible until the teacher enters Edit.
+                // Retain private edits separately so they can still be resumed.
+                if (published?.submitted === true && !attendanceEditingDays[date]) continue;
+                attendanceRecordsByClassroom[key][date] = draft;
+            }
+        }
         return attendanceRecordsByClassroom;
     }
 
@@ -2205,8 +2276,8 @@
                 if (drafts[key]) delete drafts[key][dateString];
             } else { drafts[key] ||= {}; drafts[key][dateString] = { ...recordEntry, _pending: true }; }
         });
-        localStorage.setItem(attendanceDraftKey(), JSON.stringify(drafts));
-        if (isSubmitted) localStorage.setItem(SHARED_ATTENDANCE_RECORDS_KEY, JSON.stringify(published));
+        window.SigmaAttendance.cacheRecords(attendanceDraftKey(), drafts);
+        if (isSubmitted) window.SigmaAttendance.cacheRecords(SHARED_ATTENDANCE_RECORDS_KEY, published);
         else window.SigmaAttendance?.saveDraft?.({section:secName,subjectId:subjName,date:dateString,statuses,excuses});
         try {
             window.dispatchEvent(new CustomEvent('sigma:attendance-changed', {
@@ -2242,11 +2313,13 @@
             const result=await window.SigmaAttendance.submit({action:'submit-many',section,subjectId,days});
             for(const [date,record]of Object.entries(result.records||{})){
                 attendanceEditingDays[date]=false;
-                saveCurrentAttendanceStatuses(days[date].statuses,date,days[date].excuses,{submitted:true,submittedAt:record.submittedAt,updatedAt:record.submittedAt,academic:record});
+                saveCurrentAttendanceStatuses(record.statuses||days[date].statuses,date,record.excuses||days[date].excuses,{submitted:true,submittedAt:record.submittedAt,updatedAt:record.submittedAt,academic:record});
             }
             await window.SigmaAttendance.refresh(true);
             window.selectSubmittedAttendanceDate?.(Object.keys(days).sort().at(-1));
-            window.showToastNotification?.(`Attendance submitted for ${Object.keys(days).length} day(s).`,'success');
+            const ignored=Object.values(result.ignoredEntries||{}).reduce((sum,count)=>sum+(Number(count)||0),0);
+            const message=`Attendance submitted for ${Object.keys(days).length} day(s).`+(ignored?` ${ignored} outdated mark(s) for students outside the current roster were skipped.`:'');
+            window.showToastNotification?.(message,'success');
         }catch(error){window.showToastNotification?.(error.message||'Attendance was not submitted. Your draft is retained.','error');}
         finally{window._sigmaAttendanceSubmitting=false;controls.forEach(button=>{button.disabled=false;button.removeAttribute('aria-busy');button.innerHTML=labels.get(button);});renderClassroomAttendanceTab(false);}
     };
@@ -2368,7 +2441,7 @@
                 const [section, subject] = key.split('::');
                 if (norm(section) === norm(getActiveRoomSectionName()) && norm(subject) === norm(getActiveRoomSubjectName())) delete drafts[key][dateString];
             }
-            localStorage.setItem(attendanceDraftKey(), JSON.stringify(drafts));
+            window.SigmaAttendance.cacheRecords(attendanceDraftKey(), drafts);
             refreshAttendanceRecords();
             delete window.attendanceEditSnapshots[dateString];
         }
@@ -2693,7 +2766,7 @@
         if (scope !== attendanceViewportScope) {
             attendanceViewportScope = scope;
             attendanceShowAllDays = false;
-            const today = new Date();
+            const today = new Date(getTodayLocalDateString() + 'T00:00:00');
             attendanceViewingYear = today.getFullYear();
             attendanceViewingMonth = today.getMonth();
             expandedAttendanceCol = -1;
@@ -2703,7 +2776,9 @@
         // Date selection preserves the current viewport; only scope/month changes reset it.
 
         const oldSlider = container.querySelector('.attendance-grid-container');
-        const isFreshOpen = attendanceLastScrollLeft === -1;
+        const scheduleJustLoaded = oldSlider?.dataset.awaitingAttendanceSchedule === 'true' && window.SigmaAttendance?.ready?.() === true;
+        const isFreshOpen = attendanceLastScrollLeft === -1 || scheduleJustLoaded;
+        if (isFreshOpen) attendanceLastScrollLeft = -1;
         const currentScrollLeft = (!oldSlider) ? -1 : oldSlider.scrollLeft;
         if (!isFreshOpen && currentScrollLeft >= 0) {
             attendanceLastScrollLeft = currentScrollLeft;
@@ -2715,10 +2790,12 @@
 
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const daysInMonth = new Date(attendanceViewingYear, attendanceViewingMonth + 1, 0).getDate();
-        const visibleAttendanceDays = Array.from({length:daysInMonth},(_,i)=>i+1).filter(day=>attendanceShowAllDays || scheduledAttendanceDate(`${attendanceViewingYear}-${String(attendanceViewingMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`));
         const todayNow = new Date(getTodayLocalDateString() + 'T00:00:00');
         const isCurrentMonth = (todayNow.getMonth() === attendanceViewingMonth && todayNow.getFullYear() === attendanceViewingYear);
         const todayDay = todayNow.getDate();
+        // Keep today's position visible even when this subject does not meet today.
+        // Nonscheduled dates retain their read-only guard.
+        const visibleAttendanceDays = Array.from({length:daysInMonth},(_,i)=>i+1).filter(day=>attendanceShowAllDays || (isCurrentMonth && day===todayDay) || scheduledAttendanceDate(`${attendanceViewingYear}-${String(attendanceViewingMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`));
         const BLANK_ATTENDANCE_COLS_COUNT = 24;
 
         const dailyStatuses = [];
@@ -3162,6 +3239,7 @@
 
         const slider = container.querySelector('.attendance-grid-container');
         if (slider) {
+            slider.dataset.awaitingAttendanceSchedule = String(window.SigmaAttendance?.ready?.() === false);
             if (expandedAttendanceCol !== -1) {
                 if (attendanceLastScrollLeft >= 0) {
                     slider.scrollLeft = attendanceLastScrollLeft;
@@ -3202,6 +3280,22 @@
         });
     }
     window.renderClassroomAttendanceTab = renderClassroomAttendanceTab;
+    window.enterClassroomAttendance = function () {
+        if (isStudentAttendancePortal()) return;
+        const today = new Date(getTodayLocalDateString() + 'T00:00:00');
+        attendanceViewingYear = today.getFullYear();
+        attendanceViewingMonth = today.getMonth();
+        attendanceSelectedDay = -1;
+        expandedAttendanceCol = -1;
+        attendanceLastScrollLeft = -1;
+        attendanceEditingDays = {};
+        window.attendanceEditingDays = attendanceEditingDays;
+        renderClassroomAttendanceTab(true);
+        // Entering the page reads publication even if an older draft cannot sync.
+        window.SigmaAttendance?.refresh(true)?.catch(error => {
+            window.showToastNotification?.(error.message || 'Attendance could not refresh. Try again.', 'error');
+        });
+    };
     window.findAttendanceClassroomRecord = findAttendanceClassroomRecord;
     window.getAttendanceStudents = getAttendanceStudents;
     window.getCurrentAttendanceStatuses = getCurrentAttendanceStatuses;

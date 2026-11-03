@@ -108,7 +108,7 @@ html body .attendance-import-month .sigma-quarter-dropdown-menu{min-width:100%;f
  .attendance-import-month{margin:12px 0 16px}
  html body .attendance-import-month summary{min-width:160px;min-height:40px;font-size:12px;line-height:18px}
  html body .attendance-import-month .sigma-quarter-dropdown-menu button{font-size:12px;min-height:38px}
- #attendance-export-modal.attendance-import[data-stage=review] .attendance-import-table{width:calc(100% + 32px);max-width:none;margin-left:-16px;margin-right:-16px}
+ #attendance-export-modal.attendance-import[data-stage=review] .attendance-import-table{width:100%;max-width:100%;margin-left:0;margin-right:0}
 }
 
 #sigma-universal-ask-overlay[data-attendance-import-discard] #sigma-ask-actions{display:grid!important;grid-template-columns:1fr 1fr}
@@ -122,8 +122,8 @@ html body #attendance-export-modal .attendance-import-month .sigma-quarter-dropd
 .attendance-import-table{cursor:grab}
 .attendance-import-table.is-dragging,.attendance-import-table.is-dragging *{cursor:grabbing!important;user-select:none!important}
 @media(min-width:768px){
- #attendance-export-modal.attendance-import[data-stage=review]{overflow-x:auto!important;scrollbar-gutter:stable}
- #attendance-export-modal.attendance-import[data-stage=review] .attendance-import-table{overflow:visible;width:max-content;min-width:100%;max-width:none}
+ #attendance-export-modal.attendance-import[data-stage=review]{overflow-x:hidden!important;scrollbar-gutter:stable}
+ #attendance-export-modal.attendance-import[data-stage=review] .attendance-import-table{overflow-x:auto;overflow-y:hidden;width:100%;min-width:0;max-width:100%}
 }
 @media(max-width:767px){
  html body #attendance-export-modal .attendance-import-month{--quarter-control-width:170px;width:170px!important;height:38px!important}
@@ -132,3 +132,9 @@ html body #attendance-export-modal .attendance-import-month .sigma-quarter-dropd
 }
 
 @media(max-width:639px){#attendance-day-filter.attendance-transfer-menu{width:160px;padding:6px;border-radius:12px}#attendance-day-filter button{min-height:38px;padding:8px 10px;gap:10px;font-size:12px;line-height:18px}}
+
+/* Contain wide worksheets within the form; only the dates pan horizontally. */
+html body #attendance-export-modal.attendance-import :is(.sigma-modal-panel,.sigma-modal-body,.attendance-import-workspace,[data-content]) { min-width:0!important;max-width:100%;box-sizing:border-box; }
+html body #attendance-export-modal.attendance-import .attendance-import-table { width:100%;max-width:100%;min-width:0;overflow-x:auto;overflow-y:hidden;box-sizing:border-box; }
+html body #attendance-export-modal.attendance-import .attendance-import-table table { width:max-content;min-width:100%;max-width:none; }
+html body #attendance-export-modal.attendance-import .sigma-modal-footer { max-width:100%;box-sizing:border-box; }

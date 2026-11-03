@@ -94,7 +94,7 @@ function lifecycleAuthorize(string $actor): void {
 function lifecycleChange(PDO $db, string $table, string $id, string $action, string $actor, string $confirmation = ''): void {
     if($table==='announcement_comments'){lifecycleCommentChange($db,$id,$action,$actor,$confirmation);return;}
     if (!in_array($table, lifecycleTables($db), true) || !in_array($action, ['remove', 'restore', 'purge'], true) || $id === '' || strlen($id) > 128) throw new InvalidArgumentException('Invalid record action.');
-    $yearLock = in_array($table,['school_years','subjects'],true) || ($table === 'sections' && $action === 'restore');
+    $yearLock = in_array($table,['school_years','subjects','sections'],true);
     if ($yearLock) sigmaLockSchoolYearWrites($db);
     $ownsTransaction = !$db->inTransaction();
     if ($ownsTransaction) $db->beginTransaction();
@@ -127,7 +127,7 @@ function lifecycleChange(PDO $db, string $table, string $id, string $action, str
         }
         if ($table === 'subjects' && in_array($action,['remove','purge'],true)) sigmaAssertSubjectRemovable($db,$record);
         if ($table === 'school_years' && in_array($action,['remove','purge'],true)) sigmaAssertSchoolYearRemovable($db,$record);
-        if ($table === 'sections' && $action === 'restore') sigmaRequireSectionSchoolYear($db,(string)$record['school_year']);
+        if ($table === 'sections') sigmaAssertSectionMutable($db,$record);
         if ($table === 'users' && ($id === '0000000' || $id === $actor || preg_replace('/[\s_-]+/', '', strtolower($record['role'])) === 'masteradmin')) throw new RuntimeException('The master administrator or your own account cannot be removed.');
         if ($action === 'purge') {
             if (!$record['is_deleted']) throw new RuntimeException('Soft-delete the record before permanently deleting it.');

@@ -4,6 +4,9 @@
  */
 
 const QUIZ_STORAGE_KEY = 'sigma_quiz_storage';
+function cacheQuizEditorValue(key, value) {
+    try { localStorage.setItem(key, value); } catch (_) {}
+}
 // crash-recovery / autosave session — scoped per user so one user's draft
 // never bleeds into another user's editor session
 function _getQuizSessionKey() {
@@ -98,6 +101,9 @@ function initUserAvatar() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Portals reuse quiz dialogs, but the standalone editor must not initialize
+    // its workspace or fetch its library on every dashboard visit.
+    if (!document.getElementById('quiz-editor-workspace')) return;
     if (typeof window.updateGlobalSYDisplay === 'function') {
         window.updateGlobalSYDisplay();
     }
@@ -132,7 +138,7 @@ function saveSessionSnapshot() {
                        currentQuizTitle !== 'Untitled Quiz')
             ? currentQuizTitle
             : code.replace(/^#/, ''); // use code as title when user never named the quiz
-        localStorage.setItem(_getQuizSessionKey(), JSON.stringify({
+        cacheQuizEditorValue(_getQuizSessionKey(), JSON.stringify({
             id:        currentQuizId,
             code:      code,
             title:     title,
@@ -140,6 +146,7 @@ function saveSessionSnapshot() {
             icon:      currentQuizIcon  || 'fa-bolt-lightning',
             color:     currentQuizColor || '#FFD000',
             questions: questions,
+            generalImages: window.quizGeneralImages || [],
             savedAt:   Date.now()
         }));
     } catch(e) {}
@@ -227,6 +234,8 @@ function _saveBeforeExit() {
                 questions: JSON.parse(JSON.stringify(questions || []))
             });
         }
+        const imageEntry=library.find(q=>q.id===savedId);
+        if(imageEntry)imageEntry.generalImages=JSON.parse(JSON.stringify(window.quizGeneralImages||[]));
         saveStoredQuizLibrary(library);
         // ── Server storage mode: also persist to MySQL ────────────────────
         if (window.SIGMA_USE_SERVER_STORAGE && typeof window.saveQuizToServer === 'function') {
@@ -254,6 +263,17 @@ function resolveEditorQuiz(quizId) {
     return null;
 }
 
+async function fetchEditorQuiz(quizId) {
+    if (!window.SigmaDatabase?.fetch) return null;
+    const query = `?id=${encodeURIComponent(quizId)}`;
+    const url = typeof resolveQuizApiUrl === 'function' ? resolveQuizApiUrl(query) : new URL('php/api/quiz_library.php' + query, location.href).href;
+    const response = await window.SigmaDatabase.fetch(url, { cache: 'no-store', foreground: true });
+    if (!response.ok) throw new Error('The saved quiz could not be loaded. Please try again.');
+    const result = await response.json();
+    if (!result.success || !Array.isArray(result.quiz?.questions) || !result.quiz.questions.length) return null;
+    return result.quiz;
+}
+
 async function initQuizCreator() {
     if (!await window.SigmaSessionNavigation?.ensureVerified()) return;
     const creatorUser = window.getTabSessionUser?.();
@@ -271,8 +291,8 @@ async function initQuizCreator() {
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed) && parsed.some(q => q && String(q.id).startsWith('quiz-seed-'))) {
                 const cleaned = parsed.filter(q => q && !String(q.id).startsWith('quiz-seed-'));
-                localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(cleaned));
-                localStorage.setItem('sigma-quiz-storage-library', JSON.stringify(cleaned));
+                cacheQuizEditorValue(QUIZ_STORAGE_KEY, JSON.stringify(cleaned));
+                cacheQuizEditorValue('sigma-quiz-storage-library', JSON.stringify(cleaned));
             }
         }
     } catch (e) {}
@@ -284,15 +304,14 @@ async function initQuizCreator() {
 
     let loadedQuiz = null;
     if (!loadedQuiz && targetId && (quizMode === 'edit' || quizMode === 'customize')) {
-        loadedQuiz = resolveEditorQuiz(targetId);
-        if (!loadedQuiz && typeof window.fetchQuizLibraryFromServer === 'function') {
-            await window.fetchQuizLibraryFromServer();
-            loadedQuiz = resolveEditorQuiz(targetId);
-        }
+        try { loadedQuiz = await fetchEditorQuiz(targetId); }
+        catch (error) { console.warn('[SIGMA] Quiz content could not be loaded:', error); }
+        if (!window.SIGMA_USE_SERVER_STORAGE && !loadedQuiz) loadedQuiz = resolveEditorQuiz(targetId);
         if (!loadedQuiz) {
             window.showValidationToast?.({ title: 'Quiz could not be loaded', message: 'The saved questions could not be found. Open the library and try again.', type: 'warning' });
             return;
         }
+        window._quizIsAIGenerated = Boolean(loadedQuiz.isAi || loadedQuiz.is_ai || loadedQuiz.source === 'ai');
     }
 
     const titleHeading = document.getElementById('page-quiz-title-heading');
@@ -318,6 +337,7 @@ async function initQuizCreator() {
             if (titleHeading) titleHeading.textContent = 'Edit Quiz';
             window.updateNavBarQuizTitle(currentQuizTitle);
             questions = JSON.parse(JSON.stringify(quiz.questions || []));
+            window.quizGeneralImages = JSON.parse(JSON.stringify(quiz.generalImages || []));
             questions.forEach(q => {
                 if (q.points === undefined || q.points === null || isNaN(parseInt(q.points))) {
                     q.points = 0;
@@ -325,7 +345,7 @@ async function initQuizCreator() {
                     q.points = parseInt(q.points);
                 }
             });
-            localStorage.setItem('sigma_active_quiz_creator_id', quiz.id);
+            cacheQuizEditorValue('sigma_active_quiz_creator_id', quiz.id);
         }
     } else if (quizMode === 'customize' && targetId) {
         const quiz = loadedQuiz;
@@ -339,6 +359,7 @@ async function initQuizCreator() {
             if (titleHeading) titleHeading.textContent = 'Customize Quiz';
             window.updateNavBarQuizTitle(currentQuizTitle);
             questions = JSON.parse(JSON.stringify(quiz.questions || []));
+            window.quizGeneralImages = JSON.parse(JSON.stringify(quiz.generalImages || []));
             questions.forEach(q => {
                 if (q.points === undefined || q.points === null || isNaN(parseInt(q.points))) {
                     q.points = 0;
@@ -359,8 +380,10 @@ async function initQuizCreator() {
         if (titleHeading) titleHeading.textContent = 'Create Quiz';
         window.updateNavBarQuizTitle(currentQuizTitle !== 'Custom Quiz' ? currentQuizTitle : '');
         questions = [];
+        window.quizGeneralImages = [];
     }
 
+    window.renderQuizGeneralImages();
     renderQuestions();
     updateStats();
     if (typeof window.recordInitialQuizSnapshot === 'function') {
@@ -506,6 +529,7 @@ window.renderQuizGeneralImages = function () {
     if (!container) return;
     if (!window.quizGeneralImages || window.quizGeneralImages.length === 0) {
         container.innerHTML = '';
+        window.syncQuizSaveButtonState?.();
         return;
     }
 
@@ -555,6 +579,7 @@ window.renderQuizGeneralImages = function () {
             </div>
         </div>
     `).join('');
+    window.syncQuizSaveButtonState?.();
 };
 
 window.toggleAddDropdown = function (forceState) {
@@ -1333,15 +1358,7 @@ function renderQuestions() {
 
             if (window.SigmaQuizComponents && typeof window.SigmaQuizComponents.renderQuestionCard === 'function') {
                 mainContainer.innerHTML = window.SigmaQuizComponents.renderQuestionCard(q, idx, isAnswerKeyOpen, isNewlyAdded);
-                if(q.bloomLevel){
-                    const review=document.createElement('div');review.className='flex flex-col sm:flex-row sm:items-center gap-2 p-3 text-xs sm:text-sm border border-slate-200 rounded-xl mb-3';
-                    const label=document.createElement('label');label.textContent='Thinking Skill';label.htmlFor='quiz-question-bloom-review';
-                    const select=document.createElement('select');select.id='quiz-question-bloom-review';select.className='min-w-0 border border-slate-200 rounded-lg p-2 bg-white';
-                    ['Remember','Understand','Apply','Analyze','Evaluate','Create'].forEach(level=>select.add(new Option(level,level)));select.value=q.bloomLevel;
-                    select.onchange=()=>{q.bloomLevel=select.value;q.bloomRationale='Reviewed by author.';window.syncQuizSaveButtonState?.();};
-                    const note=document.createElement('span');note.className='text-black-fade leading-relaxed break-words';note.textContent=q.bloomRationale||'';
-                    review.append(label,select,note);mainContainer.prepend(review);
-                }
+
             } else {
                 window.SigmaContentLoading.render(mainContainer, {label:'Loading question'});
             }
@@ -1556,6 +1573,8 @@ window.getQuizContentSnapshot = function () {
             answers: Array.isArray(q.answers) ? q.answers.map(a => String(a || '').trim()) : [],
             answerIndex: (q.answerIndex !== undefined && q.answerIndex !== null && !isNaN(parseInt(q.answerIndex))) ? parseInt(q.answerIndex) : null,
             points: parseInt(q.points) || 0,
+            image: q.image || '',
+            imageTitle: q.imageTitle || '',
             rubric: (q.rubric || '').trim()
         }))
     });
@@ -1979,7 +1998,10 @@ window.showSaveQuizIndicator = function (state = 'saving', message = '', duratio
         { id, placement:'top-center', compact:state !== 'error', persistent:state === 'saving', duration });
 };
 
+let quizSavePending = false;
 window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = false) {
+    if (quizSavePending) return;
+    quizSavePending = true;
     const title = currentQuizTitle || (questions[0]?.question ? (questions[0].question.slice(0, 40) + ' Quiz') : 'Custom Quiz');
     const desc = currentQuizDesc || '';
 
@@ -1990,7 +2012,7 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
         try {
             currentQuizIcon = window.normalizeQuizIcon(currentQuizIcon);
             const totalPoints = questions.reduce((acc, q) => acc + (parseInt(q.points) || 0), 0);
-            const library = getStoredQuizLibrary();
+            const library = JSON.parse(JSON.stringify(getStoredQuizLibrary()));
 
             const activeUser = window.getQuizActiveUser ? window.getQuizActiveUser() : null;
             if (!activeUser?.id) { window.showToast?.('Sign in before saving a quiz.', 'error'); window.SigmaFeedback.dismiss('quiz-save'); return; }
@@ -2062,7 +2084,7 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
                 }
             }
             if (!savedQuizId) {
-                savedQuizId = 'quiz-' + Date.now();
+                savedQuizId = currentQuizId || ('quiz-' + Date.now());
                 let generatedCode = currentQuizCode;
                 if (!generatedCode) {
                     const digits = String(savedQuizId).replace(/[^0-9]/g, '').slice(-4) || String(Math.floor(1000 + Math.random() * 9000));
@@ -2103,18 +2125,26 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
             if (savedQuizId) {
                 try {
                     const url = new URL(window.location.href);
+                    url.searchParams.delete('new');
                     url.searchParams.set('mode', 'edit');
                     url.searchParams.set('id', savedQuizId);
                     window.history.replaceState({ quizId: savedQuizId }, '', url.toString());
                 } catch(e) {}
-                localStorage.setItem('sigma_active_quiz_creator_id', savedQuizId);
+                cacheQuizEditorValue('sigma_active_quiz_creator_id', savedQuizId);
             }
 
-            if (await saveStoredQuizLibrary(library) === false) throw new Error('Quiz could not be saved. Keep this page open and try again.');
+            const entry = library.find(q => q.id === savedQuizId);
+            if (!entry) throw new Error('Quiz content is unavailable. Keep this page open and try again.');
+            entry.generalImages = JSON.parse(JSON.stringify(window.quizGeneralImages || []));
+            if (window.SIGMA_USE_SERVER_STORAGE) {
+                if (typeof window.saveQuizToServer !== 'function' || !await window.saveQuizToServer(entry)) {
+                    throw new Error('The database save was not confirmed. Your changes remain open here. Try saving again.');
+                }
+            } else if (await saveStoredQuizLibrary(library) === false) throw new Error('Quiz could not be saved. Keep this page open and try again.');
 
             // Sync changes across all attached subject topics and materials
             if (typeof window.syncQuizUpdatesAcrossAllSubjectsAndMaterials === 'function') {
-                window.syncQuizUpdatesAcrossAllSubjectsAndMaterials(savedQuizId, {
+                try { window.syncQuizUpdatesAcrossAllSubjectsAndMaterials(savedQuizId, {
                     title: title,
                     desc: desc,
                     totalPoints: totalPoints,
@@ -2123,24 +2153,19 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
                     icon: currentQuizIcon,
                     color: currentQuizColor,
                     code: currentQuizCode
-                });
+                }); } catch (_) {}
             }
 
-            // ── Server storage mode: also persist to MySQL ────────────────────
-            if (window.SIGMA_USE_SERVER_STORAGE && typeof window.saveQuizToServer === 'function') {
-                const entry = library.find(q => q.id === savedQuizId);
-                if (entry && !await window.saveQuizToServer(entry)) throw new Error('Quiz changes are kept in this browser, but the live save was not confirmed. Try saving again.');
-            }
             saveSessionSnapshot();
             initialQuizSavedSnapshot = window.getQuizContentSnapshot();
             window.syncQuizSaveButtonState();
 
             // Broadcast storage change to other tabs and opener
-            localStorage.setItem('sigma_pending_selected_quiz_id', savedQuizId);
-            localStorage.setItem('sigma_quiz_updated', JSON.stringify({ id: savedQuizId, code: currentQuizCode, title, points: totalPoints, questionsCount: questions.length, timestamp: Date.now() }));
-            localStorage.setItem('sigma_materials_broadcast', Date.now().toString());
-            localStorage.setItem('sigma_storage_sync', Date.now().toString());
-            localStorage.setItem('sigma_quiz_broadcast', Date.now().toString());
+            cacheQuizEditorValue('sigma_pending_selected_quiz_id', savedQuizId);
+            cacheQuizEditorValue('sigma_quiz_updated', JSON.stringify({ id: savedQuizId, code: currentQuizCode, title, points: totalPoints, questionsCount: questions.length, timestamp: Date.now() }));
+            cacheQuizEditorValue('sigma_materials_broadcast', Date.now().toString());
+            cacheQuizEditorValue('sigma_storage_sync', Date.now().toString());
+            cacheQuizEditorValue('sigma_quiz_broadcast', Date.now().toString());
             try {
                 window.dispatchEvent(new CustomEvent('sigma_quiz_updated', { detail: { quizId: savedQuizId, title, points: totalPoints, questionsCount: questions.length } }));
             } catch (e) {}
@@ -2183,7 +2208,7 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
             window.showSaveQuizIndicator('success', isDraft ? 'Draft saved successfully!' : 'Quiz saved to library!');
         } catch (error) {
             window.showSaveQuizIndicator('error', error.message || 'Quiz could not be saved. Keep this page open and try again.');
-        }
+        } finally { quizSavePending = false; }
     }, 400);
 };
 
@@ -2257,6 +2282,8 @@ window.openQuizLibraryModal = function () {
     window.setLibraryModalFilter('all');
     if (modal) {
         modal.classList.remove('hidden');
+        const list = document.getElementById('library-modal-quizzes-list');
+        if (list) list.scrollTop = 0;
         syncBodyScrollLock();
         setTimeout(() => {
             if (searchInput) searchInput.focus();
@@ -2610,7 +2637,14 @@ window._renderSingleLibraryModalCard = function (quiz, currentQuizId) {
         refCode = `#QZ-${refDigits.padStart(4, '0')}`;
     }
     if (!refCode.startsWith('#')) refCode = '#' + refCode;
-    const date = quiz.createdAt || (quiz.updatedAt ? new Date(quiz.updatedAt).toLocaleDateString() : 'Saved');
+    const rawDate = String(quiz.createdAt || quiz.updatedAt || '').trim();
+    const dateParts = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const parsedDate = dateParts
+        ? new Date(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3]))
+        : new Date(rawDate);
+    const date = rawDate && !Number.isNaN(parsedDate.getTime())
+        ? parsedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : (rawDate || 'Saved');
 
     const authorInfo = (typeof window.resolveQuizAuthor === 'function') ? window.resolveQuizAuthor(quiz) : {
         authorId: quiz.authorId || '',
@@ -2676,6 +2710,7 @@ window._renderSingleLibraryModalCard = function (quiz, currentQuizId) {
                         <p class="text-xs text-black-fade font-medium leading-snug truncate">
                             By <span class="text-black-fade font-semibold">${escapeHtml(authorDisplay)}</span> <span class="text-[10px] text-black-fade font-normal">(${escapeHtml(authorRoleDisplay)})</span>
                         </p>
+                        <p class="text-[10px] text-black-fade/80 font-normal leading-snug">${escapeHtml(date)}</p>
                     </div>
                 </div>
                 ${checkmarkHtml}
@@ -2685,8 +2720,6 @@ window._renderSingleLibraryModalCard = function (quiz, currentQuizId) {
                     <span class="whitespace-nowrap font-medium">${count} ${count === 1 ? 'Question' : 'Questions'}</span>
                     <span>•</span>
                     <span class="whitespace-nowrap font-medium flex items-center gap-1">${points} <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> Pts</span>
-                    <span>•</span>
-                    <span class="whitespace-nowrap text-[11px]">${escapeHtml(date)}</span>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <span class="font-mono text-black/70 text-[11px]">${refCode.replace(/^#/, '')}</span>
@@ -2806,7 +2839,8 @@ window.confirmResumeDraft = function (quizId, event) {
 };
 
 window.loadQuizIntoEditor = function (quizId, openInNewTab = false) {
-    const selectedQuiz = resolveEditorQuiz(quizId);
+    const selectedQuiz = resolveEditorQuiz(quizId) || (window.SIGMA_USE_SERVER_STORAGE
+        ? getStoredQuizLibrary().find(quiz => String(quiz.id) === String(quizId) && Number(quiz.questionsCount) > 0) : null);
     if (!selectedQuiz) {
         window.showValidationToast?.({ title: 'Quiz could not be loaded', message: 'This quiz has no saved questions available. Please try again after the library finishes loading.', type: 'warning' });
         return false;
@@ -2868,10 +2902,12 @@ function syncBodyScrollLock() {
     const aiModal = document.getElementById('ai-generator-modal');
     const discardModal = document.getElementById('ai-discard-modal');
     const confirmModal = document.getElementById('ai-confirm-generate-modal');
+    const libraryModal = document.getElementById('open-quiz-library-modal');
 
     const isAnyModalOpen = (aiModal && !aiModal.classList.contains('hidden')) ||
                            (discardModal && !discardModal.classList.contains('hidden')) ||
-                           (confirmModal && !confirmModal.classList.contains('hidden'));
+                           (confirmModal && !confirmModal.classList.contains('hidden')) ||
+                           (libraryModal && !libraryModal.classList.contains('hidden'));
 
     if (isAnyModalOpen) {
         document.body.classList.add('overflow-hidden');
@@ -2899,10 +2935,12 @@ const resolveCourseMaterialsApiUrl = () => {
 window.resolveCourseMaterialsApiUrl = resolveCourseMaterialsApiUrl;
 
 let courseMaterialsPending = null;
-window.fetchCourseMaterialsFromDB = function () {
+let courseMaterialsLoadedAt = 0, courseMaterialsOwner = '';
+window.fetchCourseMaterialsFromDB = function (force = false) {
     if (!window.SigmaSessionNavigation?.isVerified()) return Promise.resolve();
     if (courseMaterialsPending) return courseMaterialsPending;
     const owner=String(window.SigmaDatabase.currentUser()?.id||'');
+    if(!force&&courseMaterialsOwner===owner&&Date.now()-courseMaterialsLoadedAt<30000)return Promise.resolve();
     courseMaterialsPending=(async()=>{ try {
         const url = resolveCourseMaterialsApiUrl();
         const res = await window.SigmaDatabase.fetch(url, { cache:'no-store' });
@@ -2911,6 +2949,7 @@ window.fetchCourseMaterialsFromDB = function () {
         if (data && data.success && Array.isArray(data.records)) {
             if(String(window.SigmaDatabase.currentUser()?.id||'')!==owner)return;
             window._dbCourseSubjects = data.records;
+            courseMaterialsLoadedAt=Date.now();courseMaterialsOwner=owner;
             if (typeof window.renderMaterialPickerItems === 'function') {
                 window.renderMaterialPickerItems();
             }
@@ -2923,7 +2962,7 @@ window.fetchCourseMaterialsFromDB = function () {
 
 // Initial background fetch from MySQL
 window.fetchCourseMaterialsFromDB();
-for (const name of ['sigma:database-session-ready','online']) window.addEventListener(name, () => window.fetchCourseMaterialsFromDB());
+for (const name of ['sigma:database-session-ready','online']) window.addEventListener(name, () => window.fetchCourseMaterialsFromDB(true));
 
 window.getRealCourseMaterials = function () {
     const materialsMap = {};
@@ -3128,8 +3167,7 @@ window.getRealCourseMaterials = function () {
                     author: matAuthor,
                     authorRole: matAuthorRole,
                     desc: mat.description || mat.instructions || `${gradeLevel} ${section} • ${format} learning resource`,
-                    badge: `${type}: ${matTitle}`,
-                    prompt: `Course Material (${type.toUpperCase()}): "${matTitle}" from ${cleanSubjectName} (${gradeLevel} - ${section}), file: ${filePanel}. Content details: ${mat.description || mat.instructions || matTitle}. Foundational learning competencies and curriculum facts.`
+                    badge: `${type}: ${matTitle}`
                 });
             });
         });
@@ -3168,8 +3206,7 @@ window.getRealCourseMaterials = function () {
                             author: vAuthor,
                             authorRole: vAuthorRole,
                             desc: v.description || 'Recorded instructional demonstration and video lecture',
-                            badge: `Video: ${vTitle}`,
-                            prompt: `Video Lecture: "${vTitle}" from ${vSubj}, file: ${filePanel}. Topics covered: ${v.description || vTitle}. Procedures and practical applications.`
+                            badge: `Video: ${vTitle}`
                         });
                     });
                 }
@@ -3296,7 +3333,12 @@ window.backToAIGeneratorMain = function (e) {
     if (mainView && borrowView) {
         // Add all newly selected materials from this picker session to the loaded materials set
         if (window._borrowPickerSelectedSet && window._borrowPickerSelectedSet.size > 0) {
-            window._borrowPickerSelectedSet.forEach(k => borrowedMaterialsSet.add(k));
+            const materials=window.getRealCourseMaterials();
+            window._borrowPickerSelectedSet.forEach(k => {
+                borrowedMaterialsSet.add(k);
+                // Prepare the actual document while the author chooses quiz settings.
+                void window.SigmaQuizGeneration.materialText(materials[k]).catch(()=>{});
+            });
             window._borrowPickerSelectedSet.clear();
         }
 
@@ -3548,16 +3590,29 @@ window.renderMaterialPickerItems = function () {
     listContainer.innerHTML = html;
 };
 
+window.autoSizeAIGenInstructions = function (textarea) {
+    const input = textarea || document.getElementById('ai-gen-topic');
+    if (!input) return;
+    const caretAtEnd = input.selectionStart === input.value.length && input.selectionEnd === input.value.length;
+    input.style.setProperty('height', 'auto', 'important');
+    const styles = window.getComputedStyle(input);
+    const minHeight = Number.parseFloat(styles.minHeight) || 76;
+    const maxHeight = Number.parseFloat(styles.maxHeight) || Math.min(260, Math.floor(window.innerHeight * 0.32));
+    const contentHeight = Math.max(minHeight, input.scrollHeight);
+    const height = Math.min(contentHeight, maxHeight);
+    input.style.setProperty('height', `${height}px`, 'important');
+    const needsScroll = contentHeight > height + 1;
+    input.style.setProperty('overflow-y', needsScroll ? 'auto' : 'hidden', 'important');
+    if (needsScroll && caretAtEnd) input.scrollTop = input.scrollHeight;
+};
+window.addEventListener('resize', () => window.autoSizeAIGenInstructions(), { passive: true });
+
 function renderBorrowedMaterials() {
     const listContainer = document.getElementById('ai-borrowed-badges-list');
-    const topicInput = document.getElementById('ai-gen-topic');
     if (!listContainer) return;
 
     if (borrowedMaterialsSet.size === 0) {
         listContainer.innerHTML = '';
-        if (topicInput) {
-            topicInput.value = '';
-        }
         if (typeof window.syncAIGenerateButtonState === 'function') {
             window.syncAIGenerateButtonState();
         }
@@ -3566,12 +3621,10 @@ function renderBorrowedMaterials() {
 
     const materialsMap = (typeof window.getRealCourseMaterials === 'function') ? window.getRealCourseMaterials() : {};
     let html = '';
-    const prompts = [];
 
     borrowedMaterialsSet.forEach(key => {
         const data = materialsMap[key];
         if (!data) return;
-        prompts.push(data.prompt);
 
         let icon = 'fa-file-lines';
         if (data.category === 'video') {
@@ -3594,9 +3647,6 @@ function renderBorrowedMaterials() {
 
     listContainer.innerHTML = html;
 
-    if (topicInput) {
-        topicInput.value = prompts.join('\n\n---\n\n');
-    }
     if (typeof window.syncAIGenerateButtonState === 'function') {
         window.syncAIGenerateButtonState();
     }
@@ -3763,14 +3813,19 @@ window.processAIGenFile = async function (file) {
     currentAIGenFile = file;
     currentAIGenFileText = '';
     window.displayAIGenUploadedFileCard(file);
+    const fileMeta=document.getElementById('ai-gen-file-meta');
+    if(fileMeta)fileMeta.textContent='Reading document...';
+    window.syncAIGenerateButtonState();
 
     try {
         const extractedText = await window.SigmaQuizGeneration.readFile(file);
         if(currentAIGenFile!==file)return;
         currentAIGenFileText = extractedText;
+        window.displayAIGenUploadedFileCard(file);
     } catch (error) {
         if(currentAIGenFile!==file)return;
         currentAIGenFileText = '';
+        if(fileMeta)fileMeta.textContent='Document could not be read';
         window.showWarningToast?.(error.message);
         const warning=document.getElementById('ai-gen-validation-warning');
         const text=document.getElementById('ai-gen-warning-text');
@@ -3947,14 +4002,18 @@ window.syncAIGenerateButtonState = function () {
     const ready=window.quizGenerationHasSource();
     const settings=document.getElementById('ai-generation-settings');
     if(settings){settings.hidden=!ready;settings.classList.toggle('hidden',!ready);}
-    const valid=window.SigmaQuizGeneration?.sync()!==false;
-    const button=document.getElementById('ai-generate-submit-btn');
-    if(!button)return;
-    button.disabled=!ready||!valid||button.dataset.generating==='true';
-    button.classList.toggle('opacity-40',button.disabled);
-    button.classList.toggle('cursor-not-allowed',button.disabled);
-    button.classList.toggle('pointer-events-none',button.disabled);
-    button.classList.toggle('cursor-pointer',!button.disabled);
+    const valid=window.SigmaQuizGeneration?.sync()===true;
+    const busy=document.getElementById('ai-generate-submit-btn')?.dataset.generating==='true';
+    ['ai-generate-submit-btn','ai-confirm-generate-btn'].forEach(id=>{
+        const button=document.getElementById(id);
+        if(!button)return;
+        button.disabled=!ready||!valid||busy;
+        button.setAttribute('aria-disabled',String(button.disabled));
+        button.classList.toggle('opacity-40',button.disabled);
+        button.classList.toggle('cursor-not-allowed',button.disabled);
+        button.classList.toggle('pointer-events-none',button.disabled);
+        button.classList.toggle('cursor-pointer',!button.disabled);
+    });
 };
 
 let pendingSwitchSourceOption = null;
@@ -4030,7 +4089,10 @@ window.applySwitchAIGenSourceOption = function (option) {
             window.clearAIGenUploadedFile(null, true);
         }
         const topicInput = document.getElementById('ai-gen-topic');
-        if (topicInput) topicInput.value = '';
+        if (topicInput) {
+            topicInput.value = '';
+            window.autoSizeAIGenInstructions?.(topicInput);
+        }
     }
 
     if (option !== 'borrow') {
@@ -4055,8 +4117,8 @@ window.switchAIGenSourceOption = function (option) {
     const borrowTab = document.getElementById('ai-source-tab-borrow');
     const currentOption = (borrowTab && borrowTab.classList.contains('bg-white')) ? 'borrow' : 'upload';
 
-    // If clicking the already-active tab, do nothing
-    if (currentOption === option) return;
+    // The default tab is already active on first open; still initialize its source lock.
+    if (currentOption === option) { window.syncAIGenerateButtonState(); return; }
 
     // --- Check if current tab has data ---
     let hasCurrentData = false;
@@ -4131,6 +4193,8 @@ window.openAIGeneratorModal = function () {
 
         // Reset to default tab (Borrow Material) on every open
         window.switchAIGenSourceOption('borrow');
+        window.syncAIGenerateButtonState();
+        requestAnimationFrame(() => window.autoSizeAIGenInstructions?.(topicInput));
         if (typeof window.syncAIDropdownLabels === 'function') {
             window.syncAIDropdownLabels();
         }
@@ -4213,7 +4277,10 @@ window.confirmDiscardAIGenerator = function () {
     const countInput = document.getElementById('ai-gen-count');
     const mediumRadio = document.querySelector('input[name="ai-difficulty"][value="Medium"]');
 
-    if (topicInput) topicInput.value = '';
+    if (topicInput) {
+        topicInput.value = '';
+        window.autoSizeAIGenInstructions?.(topicInput);
+    }
     if (engineSelect) engineSelect.value = 'gemini';
     if (typeSelect) typeSelect.value = 'Mixed';
     if (countInput) countInput.value = '5';
@@ -4572,8 +4639,10 @@ window.executeAIQuestionGeneration = async function () {
     const difficultyRadio = document.querySelector('input[name="ai-difficulty"]:checked');
     window.closeAIConfirmGenerateModal();
     submitBtn.dataset.generating = 'true';
+    submitBtn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin text-xs"></i><span>Preparing material...</span>';
+    document.getElementById('ai-gen-validation-warning')?.classList.add('hidden');
     window.syncAIGenerateButtonState();
-    const stopPreparing = () => { delete submitBtn.dataset.generating; window.syncAIGenerateButtonState(); };
+    const stopPreparing = () => { delete submitBtn.dataset.generating; submitBtn.innerHTML='<i class="fa-solid fa-bolt text-xs text-[#FFD000]"></i><span>Generate Questions</span>'; window.syncAIGenerateButtonState(); };
 
     const borrowPanel = document.getElementById('ai-panel-borrow');
     const isBorrowActive = borrowPanel && !borrowPanel.classList.contains('hidden');
@@ -4588,12 +4657,12 @@ window.executeAIQuestionGeneration = async function () {
         if(isBorrowActive){
             const map=window.getRealCourseMaterials();
             const entries=Array.from(borrowedMaterialsSet).map(key=>map[key]);
-            const texts=[];
-            for(const entry of entries)texts.push(await window.SigmaQuizGeneration.materialText(entry));
+            const texts=await Promise.all(entries.map(entry=>window.SigmaQuizGeneration.materialText(entry)));
             fileContent=texts.join('\n\n---\n\n');
             topic=entries.map(entry=>entry.title).join(', ');
         }else fileContent=currentAIGenFileText;
         if(!fileContent.trim())throw new Error('The selected material has no readable text.');
+        if(new TextEncoder().encode(fileContent).length>60000)throw new Error('The selected documents contain too much text. Borrow fewer documents or upload a shorter excerpt (up to 60,000 bytes).');
     }catch(error){window.showWarningToast?.(error.message);stopPreparing();return;}
 
     const selectedType = typeSelect?.value || 'Mixed';
@@ -4627,7 +4696,7 @@ window.executeAIQuestionGeneration = async function () {
         apiUrl.pathname = apiUrl.pathname.replace(/subjects\.php$/, 'quiz_ai.php');
         const response = await window.SigmaDatabase.fetch(apiUrl.href, {
             method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-            timeoutMs: 120000, autoReconnect: false, foreground: true,
+            timeoutMs: 15000, autoReconnect: false, foreground: true,
             body: JSON.stringify({ source: fileContent, type: selectedType, difficulty, ...blueprint })
         });
         let result = await response.json();
@@ -4636,7 +4705,7 @@ window.executeAIQuestionGeneration = async function () {
             const owner=String(window.SigmaDatabase.currentUser()?.id||'');
             while(Date.now()<deadline){
                 if(String(window.SigmaDatabase.currentUser()?.id||'')!==owner)throw new Error('The signed-in account changed.');
-                await new Promise(resolve=>setTimeout(resolve,2000));
+                await new Promise(resolve=>setTimeout(resolve,1000));
                 let statusResponse,status;
                 try{statusResponse=await window.SigmaDatabase.fetch(apiUrl.href+'?jobId='+encodeURIComponent(result.jobId),{foreground:true,timeoutMs:15000,autoReconnect:false});status=await statusResponse.json();}
                 catch(error){if(['TypeError','TimeoutError','AbortError','SyntaxError'].includes(error.name))continue;throw error;}
@@ -4657,6 +4726,9 @@ window.executeAIQuestionGeneration = async function () {
         window._quizAiModel = result.model;
         window._quizAiProvider = result.provider;
         window._quizAiGenerationId = result.generationId;
+        if (result.logSaved) {
+            try { cacheQuizEditorValue('sigma_quiz_broadcast', Date.now().toString()); } catch (_) {}
+        }
         try {
             const user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
             const uploadedFileName = currentAIGenFile?.name || '';
@@ -4696,7 +4768,6 @@ window.executeAIQuestionGeneration = async function () {
     } finally {
         if (submitBtn) {
             delete submitBtn.dataset.generating;
-            submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fa-solid fa-bolt text-xs text-[#FFD000]"></i><span>Generate Questions</span>';
             window.syncAIGenerateButtonState();
         }
@@ -4764,7 +4835,10 @@ window.closeImportQuestionsModal = function (force = false) {
         modal.classList.add('hidden');
     }
     currentImportFile = null;
-    if (textarea) textarea.value = '';
+    if (textarea) {
+        textarea.value = '';
+        textarea.placeholder = 'What is the capital of the Philippines?\nDefine photosynthesis.\nWhat are the three branches of government?';
+    }
     const fileInput = document.getElementById('import-file-input');
     if (fileInput) fileInput.value = '';
     const card = document.getElementById('import-uploaded-file-card');
@@ -4806,7 +4880,7 @@ window.previewSampleQuizTemplate = function (type = 'notes', format = 'txt') {
     const isNotes = (type === 'notes');
     const prefix = isNotes ? 'Lesson_Notes_Template' : 'Question_Sheet_Template';
     const fileName = `${prefix}.${format}`;
-    const fileUrl = `Document files/${fileName}`;
+    const fileUrl = new URL(`Document%20files/${encodeURIComponent(fileName)}`, document.baseURI).href;
 
     // PDF: Keep original browser viewer
     if (format === 'pdf') {
@@ -4893,20 +4967,21 @@ window.displayImportUploadedFileCard = function (file) {
 
     card.classList.remove('hidden');
 
-    // Lock description / paste textarea to imported document
+    // Keep the uploaded file as the source. This field is for optional extra
+    // questions, so don't duplicate the extracted file text here.
     if (textarea) {
-        textarea.readOnly = true;
-        textarea.classList.add('is-locked');
+        textarea.readOnly = false;
+        textarea.classList.remove('is-locked');
     }
     if (lockedBadge) {
-        lockedBadge.classList.remove('hidden');
-        lockedBadge.classList.add('inline-flex');
+        lockedBadge.classList.add('hidden');
+        lockedBadge.classList.remove('inline-flex');
     }
     if (pasteLabel) {
-        pasteLabel.textContent = 'Questions extracted from document:';
+        pasteLabel.textContent = 'Additional Questions (optional):';
     }
     if (helper) {
-        helper.innerHTML = '<span class="text-amber-800 font-semibold"><i class="fa-solid fa-lock text-[9px] mr-1"></i>Text area is locked to imported file.</span> To edit or paste manually, click <i class="fa-solid fa-trash-can text-[10px] text-red-500 mx-0.5"></i> on the file above to remove it.';
+        helper.textContent = 'The uploaded file will be read during conversion. Add extra questions here only if needed; leave blank to use the file by itself.';
     }
 };
 
@@ -4934,9 +5009,9 @@ window.clearImportUploadedFile = function (event) {
     if (pasteSection) pasteSection.classList.remove('hidden');
 
     if (textarea) {
-        textarea.value = '';
         textarea.readOnly = false;
         textarea.classList.remove('is-locked');
+        textarea.placeholder = 'What is the capital of the Philippines?\nDefine photosynthesis.\nWhat are the three branches of government?';
     }
     if (lockedBadge) {
         lockedBadge.classList.add('hidden');
@@ -5010,81 +5085,51 @@ window.processImportedFile = async function (file) {
     }
 
     currentImportFile = file;
-    window.displayImportUploadedFileCard(file);
-    window.updateConvertQuestionsBtnState();
-
     const textarea = document.getElementById('import-paste-textarea');
-
-    try {
-        if ((ext === 'docx' || ext === 'doc') && window.mammoth) {
-            const arrayBuffer = await file.arrayBuffer();
-            const result = await window.mammoth.extractRawText({ arrayBuffer: arrayBuffer });
-            if (textarea && result.value) {
-                textarea.value = result.value;
-                window.updateImportPreviewCounter();
-            }
-        } else if (ext === 'pdf' && window.pdfjsLib) {
-            if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
-                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-            }
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-            let fullText = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                const pageText = textContent.items.map(item => item.str).join(' ');
-                fullText += pageText + '\n\n';
-            }
-            if (textarea && fullText.trim()) {
-                textarea.value = fullText.trim();
-                window.updateImportPreviewCounter();
-            }
-        } else if (ext === 'pptx' && window.JSZip) {
-            const arrayBuffer = await file.arrayBuffer();
-            const zip = await window.JSZip.loadAsync(arrayBuffer);
-            const slideFiles = Object.keys(zip.files).filter(name => /^ppt\/slides\/slide\d+\.xml$/i.test(name));
-            slideFiles.sort((a, b) => {
-                const numA = parseInt(a.match(/slide(\d+)\.xml/i)?.[1] || '0', 10);
-                const numB = parseInt(b.match(/slide(\d+)\.xml/i)?.[1] || '0', 10);
-                return numA - numB;
-            });
-            let fullText = '';
-            for (const slidePath of slideFiles) {
-                const xmlStr = await zip.files[slidePath].async('string');
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlStr, 'text/xml');
-                const textNodes = xmlDoc.getElementsByTagName('a:t');
-                let slideText = '';
-                for (let j = 0; j < textNodes.length; j++) {
-                    slideText += (textNodes[j].textContent || '') + ' ';
-                }
-                if (slideText.trim()) {
-                    fullText += slideText.trim() + '\n\n';
-                }
-            }
-            if (textarea && fullText.trim()) {
-                textarea.value = fullText.trim();
-                window.updateImportPreviewCounter();
-            }
-        } else if (ext === 'txt' || ext === 'md' || ext === 'csv') {
-            const rawText = await file.text();
-            if (textarea && rawText) {
-                textarea.value = rawText;
-                window.updateImportPreviewCounter();
-            }
-        }
-    } catch (err) {
-        console.warn('Error reading imported file content:', err);
+    if (textarea) {
+        // Keep the optional field for extra questions only. Read the uploaded file
+        // once, when Convert is clicked, instead of duplicating its contents here.
+        textarea.readOnly = false;
+        textarea.classList.remove('is-locked');
+        textarea.placeholder = 'Optional: add extra questions here, one per line.';
     }
 
+    window.displayImportUploadedFileCard(file);
+    window.updateImportPreviewCounter();
     window.updateConvertQuestionsBtnState();
 };
+
+window.autoSizeImportQuestionsTextarea = function (textarea) {
+    const input = textarea || document.getElementById('import-paste-textarea');
+    if (!input) return;
+
+    const caretAtEnd = input.selectionStart === input.value.length && input.selectionEnd === input.value.length;
+    input.style.setProperty('height', 'auto', 'important');
+
+    const styles = window.getComputedStyle(input);
+    const isMobile = window.matchMedia('(max-width: 639.98px)').matches;
+    const minHeight = Number.parseFloat(styles.minHeight) || (isMobile ? 140 : 180);
+    const configuredMax = Number.parseFloat(styles.maxHeight);
+    const maxHeight = Number.isFinite(configuredMax) && configuredMax > 0
+        ? configuredMax
+        : Math.min(isMobile ? 220 : 320, Math.floor(window.innerHeight * (isMobile ? 0.3 : 0.38)));
+    const contentHeight = Math.max(minHeight, input.scrollHeight);
+    const height = Math.min(contentHeight, maxHeight);
+
+    input.style.setProperty('height', `${height}px`, 'important');
+    const needsScroll = contentHeight > height + 1;
+    input.style.setProperty('overflow-y', needsScroll ? 'auto' : 'hidden', 'important');
+    if (needsScroll && caretAtEnd) input.scrollTop = input.scrollHeight;
+};
+
+window.addEventListener('resize', () => window.autoSizeImportQuestionsTextarea(), { passive: true });
 
 window.updateImportPreviewCounter = function () {
     const textarea = document.getElementById('import-paste-textarea');
     const counter = document.getElementById('import-detected-count');
     if (!textarea) return;
+
+    window.autoSizeImportQuestionsTextarea(textarea);
 
     const text = textarea.value.trim();
     if (!text) {
@@ -5104,8 +5149,172 @@ window.updateImportPreviewCounter = function () {
     window.updateConvertQuestionsBtnState();
 };
 
+window.parseImportedQuestionSheet = function (rawText) {
+    if (!rawText || !rawText.trim()) return null;
+
+    const normalized = String(rawText)
+        .replace(/\r\n?/g, '\n')
+        .replace(/[\u2012-\u2015\u2212\uFFFD]/g, '-')
+        .replace(/\u00a0/g, ' ');
+    const answerKeyIndex = normalized.search(/\bANSWER\s+KEY\b/i);
+    const questionHeading = /(?:^|\s)(?:[IVX]+\s*[.)]\s*)?QUESTIONS?\s*(?=\d{1,2}\s*[.)]\s*[A-Za-z])/i.exec(normalized);
+    if (!questionHeading) return null;
+
+    const questionStart = questionHeading.index + questionHeading[0].length;
+    const questionText = normalized.slice(questionStart, answerKeyIndex >= questionStart ? answerKeyIndex : normalized.length).trim();
+    const keyText = answerKeyIndex >= 0 ? normalized.slice(answerKeyIndex) : '';
+
+    const answerRows = new Map();
+    const answerRowPattern = /(?:^|\s)(\d{1,2})\s+([\s\S]*?)\s+(\d+(?:\.\d+)?)\s+(Multiple\s+Choice|True\s*(?:\/|or)\s*False|Identification|Short\s+Answer|Essay|Matching(?:\s+Type)?|Enumeration)(?=\s+(?:\d{1,2}\s+|Total\b)|$)/gi;
+    let answerRow;
+    while ((answerRow = answerRowPattern.exec(keyText))) {
+        answerRows.set(Number(answerRow[1]), {
+            answer: answerRow[2].trim(),
+            points: Number(answerRow[3]),
+            type: answerRow[4].replace(/\s+/g, ' ').trim()
+        });
+    }
+
+    const starts = [];
+    const questionStartPattern = /(?:^|\s)(\d{1,2})\s*[.)]\s+(?=[A-Za-z])/g;
+    let questionMatch;
+    let expectedNumber = 1;
+    while ((questionMatch = questionStartPattern.exec(questionText))) {
+        const number = Number(questionMatch[1]);
+        if (number !== expectedNumber) continue;
+        const leadingWhitespace = questionMatch[0].match(/^\s*/)?.[0].length || 0;
+        starts.push({ number, index: questionMatch.index + leadingWhitespace });
+        expectedNumber++;
+        if (answerRows.size && starts.length >= Math.max(...answerRows.keys())) break;
+    }
+    if (!starts.length) return null;
+
+    const normalizedType = (value, prompt, tail) => {
+        const source = String(value || '').toLowerCase();
+        if (/multiple\s+choice/.test(source)) return 'Multiple Choice';
+        if (/true\s*(?:\/|or)\s*false/.test(source)) return 'True or False';
+        if (/identification/.test(source)) return 'Short Answer';
+        if (/matching/.test(source) || /\bmatch\b/i.test(prompt)) return 'Matching Type';
+        if (/enumeration/.test(source) || /^\s*enumerate\b/i.test(prompt)) return 'Enumeration';
+        if (/essay/.test(source) || /^\s*(?:explain|discuss|describe)\b/i.test(prompt)) return 'Essay';
+        if (/\btrue\s+or\s+false\b|\btrue\/false\b/i.test(prompt)) return 'True or False';
+        if (/(?:^|\s)[A-F][.)]\s+/i.test(tail)) return 'Multiple Choice';
+        return 'Short Answer';
+    };
+    const splitLetteredOptions = (source) => {
+        const matches = Array.from(source.matchAll(/(?:^|\s)(?:\(([A-F])\)|([A-F])[.)])\s*/g));
+        const options = new Map();
+        matches.forEach((match, index) => {
+            const letter = String(match[1] || match[2] || '').toUpperCase();
+            const contentStart = match.index + match[0].length;
+            const contentEnd = index + 1 < matches.length ? matches[index + 1].index : source.length;
+            const value = source.slice(contentStart, contentEnd)
+                .split(/\s+_{2,}\s*/)[0]
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (letter && value) options.set(letter, value);
+        });
+        return options;
+    };
+    const distributePoints = (total, count) => {
+        if (!count) return [];
+        const safeTotal = Math.max(count, Math.round(Number(total) || count));
+        const each = Math.floor(safeTotal / count);
+        let remainder = safeTotal - (each * count);
+        return Array.from({ length: count }, () => each + (remainder-- > 0 ? 1 : 0));
+    };
+
+    return starts.map((start, index) => {
+        const end = starts[index + 1]?.index ?? questionText.length;
+        const block = questionText.slice(start.index, end).replace(/^\d{1,2}\s*[.)]\s*/, '').trim();
+        const pointsMatch = /\((\d+(?:\.\d+)?)\s*(?:pts?|points?)\s*\)/i.exec(block);
+        const fallbackPoints = answerRows.get(start.number)?.points || 5;
+        const points = pointsMatch ? Number(pointsMatch[1]) : fallbackPoints;
+        let prompt = (pointsMatch ? block.slice(0, pointsMatch.index) : block).replace(/\s+/g, ' ').trim();
+        let tail = pointsMatch ? block.slice(pointsMatch.index + pointsMatch[0].length).trim() : '';
+        const key = answerRows.get(start.number) || { answer: '', type: '' };
+        const type = normalizedType(key.type, prompt, tail);
+        prompt = prompt.replace(/^True\s+or\s+False\s*:\s*/i, '').replace(/^True\/False\s*:\s*/i, '').trim();
+
+        const result = {
+            type,
+            question: prompt,
+            choices: [],
+            answer: '',
+            answers: [],
+            items: [],
+            itemPoints: [],
+            itemAlternatives: [],
+            requiredCount: 0,
+            pairs: [],
+            rubric: '',
+            evaluationMode: '',
+            points: Math.max(1, Math.round(points || fallbackPoints || 5))
+        };
+
+        if (type === 'Multiple Choice') {
+            const options = splitLetteredOptions(tail);
+            const letters = Array.from(options.keys()).sort();
+            result.choices = letters.map(letter => options.get(letter));
+            if (result.choices.length < 2) result.choices = ['', '', '', ''];
+            const answerLetter = /^\s*([A-F])\s*(?:[-:])?/i.exec(key.answer)?.[1]?.toUpperCase();
+            const answerIndex = answerLetter ? letters.indexOf(answerLetter) : -1;
+            if (answerIndex >= 0 && options.has(answerLetter)) {
+                result.answer = options.get(answerLetter);
+                result.answerIndex = answerIndex;
+            } else if (key.answer) {
+                const matched = result.choices.find(choice => choice.toLowerCase() === key.answer.toLowerCase());
+                if (matched) result.answer = matched;
+            }
+        } else if (type === 'True or False') {
+            result.answer = /^\s*false\b/i.test(key.answer) ? 'False' : (/^\s*true\b/i.test(key.answer) ? 'True' : '');
+        } else if (type === 'Short Answer') {
+            result.answer = key.answer || '';
+            result.answers = result.answer ? [result.answer] : [''];
+        } else if (type === 'Essay') {
+            const rubricMatch = /\(?\s*Rubric\s*:\s*([\s\S]*?)(?:\)|$)/i.exec(tail);
+            result.rubric = rubricMatch ? rubricMatch[1].replace(/\s+/g, ' ').trim() : '';
+            if (/manual\s+review/i.test(key.answer)) result.evaluationMode = 'manual';
+        } else if (type === 'Matching Type') {
+            const options = splitLetteredOptions(tail);
+            const mappings = Array.from(String(key.answer || '').matchAll(/([^,;]+?)\s*[-:]\s*([A-F])\b/g))
+                .map(match => ({ premise: match[1].trim(), letter: match[2].toUpperCase() }));
+            if (mappings.length) {
+                const pairPoints = distributePoints(result.points, mappings.length);
+                result.pairs = mappings.map((mapping, pairIndex) => ({
+                    premise: mapping.premise,
+                    target: options.get(mapping.letter) || mapping.letter,
+                    points: pairPoints[pairIndex]
+                }));
+            } else {
+                const premises = Array.from(tail.matchAll(/_{2,}\s*([\s\S]*?)(?=\s+[A-F][.)]\s+|$)/g))
+                    .map(match => match[1].replace(/\s+/g, ' ').trim()).filter(Boolean);
+                result.pairs = premises.map((premise, pairIndex) => ({ premise, target: options.get(String.fromCharCode(65 + pairIndex)) || '', points: 1 }));
+            }
+        } else if (type === 'Enumeration') {
+            result.items = String(key.answer || '').split(/[,;]\s*/).map(item => item.trim()).filter(Boolean);
+            result.requiredCount = result.items.length || 3;
+            result.itemPoints = distributePoints(result.points, result.requiredCount);
+            result.itemAlternatives = result.items.map(() => []);
+        }
+
+        if (type === 'Matching Type' && !result.pairs.length) {
+            result.pairs = [{ premise: '', target: '', points: 1 }, { premise: '', target: '', points: 1 }];
+        }
+        if (type === 'Enumeration' && !result.items.length) {
+            result.items = ['', '', ''];
+            result.itemPoints = distributePoints(result.points, 3);
+        }
+        if (type === 'Multiple Choice' && result.choices.length < 2) result.choices = ['', '', '', ''];
+        return result;
+    }).filter(question => Boolean(question.question));
+};
+
 window.parseImportedTextToQuestions = function (rawText) {
     if (!rawText || !rawText.trim()) return [];
+
+    const questionSheetQuestions = window.parseImportedQuestionSheet(rawText);
+    if (questionSheetQuestions?.length) return questionSheetQuestions;
 
     const normalized = rawText.replace(/\r\n/g, '\n').trim();
     const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
@@ -5564,8 +5773,8 @@ window.promptDeleteCurrentQuiz = function () {
                             if (raw) {
                                 const lib = JSON.parse(raw);
                                 const filtered = lib.filter(q => q.id !== idToDelete);
-                                localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(filtered));
-                                localStorage.setItem('quizLibrary', JSON.stringify(filtered));
+                                cacheQuizEditorValue(QUIZ_STORAGE_KEY, JSON.stringify(filtered));
+                                cacheQuizEditorValue('quizLibrary', JSON.stringify(filtered));
                             }
                         } catch (e) { /* ignore */ }
                     }
@@ -5643,7 +5852,7 @@ window.makeACopyOfCurrentQuiz = function () {
     saveStoredQuizLibrary(library);
 
     // Broadcast so the library picker in other tabs refreshes
-    localStorage.setItem('sigma_quiz_broadcast', Date.now().toString());
+    cacheQuizEditorValue('sigma_quiz_broadcast', Date.now().toString());
 
     // Open the copy in a new tab in edit mode
     window.open(`quiz-creator.html?mode=edit&id=${encodeURIComponent(newId)}`, '_blank');

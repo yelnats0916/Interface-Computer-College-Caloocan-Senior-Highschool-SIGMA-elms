@@ -8,7 +8,7 @@ i.fa-circle-notch.fa-spin {
 }
 i.fa-spinner.fa-spin::before,i.fa-circle-notch.fa-spin::before { content:none!important; }
 .sigma-dot-spinner.hidden,i.fa-spinner.fa-spin.hidden,i.fa-circle-notch.fa-spin.hidden { display:none; }
-.sigma-content-loading-host { position:relative; }
+.sigma-content-loading-host { position:relative; min-height:var(--sigma-content-loading-min-height,64px); isolation:isolate; }
 .sigma-content-loading-overlay { position:absolute; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; background:var(--sigma-loading-background,#fff); border-radius:inherit; }
 @keyframes sigma-dots-turn { to { transform:rotate(360deg); } }
 @media(prefers-reduced-motion:reduce) { .sigma-dot-spinner,i.fa-spinner.fa-spin,i.fa-circle-notch.fa-spin { animation-duration:2.4s; } }
@@ -32,12 +32,14 @@ i.fa-spinner.fa-spin::before,i.fa-circle-notch.fa-spin::before { content:none!im
 .sigma-content-loading-state .sigma-dot-spinner { --sigma-loader-size:36px; }
 .sigma-content-loading-state--page { min-height:clamp(260px,55vh,560px); }
 .sigma-content-loading-state--page .sigma-dot-spinner { --sigma-loader-size:64px; }
+@media(max-width:767px){.sigma-content-loading-state--page .sigma-dot-spinner{--sigma-loader-size:36px}}
 .sigma-content-loading-state--compact { min-height:100px; padding:16px 12px; gap:12px; }
 .sigma-content-loading-state--inline { width:auto; min-height:0; padding:0; flex-direction:row; justify-content:flex-start; gap:8px; text-align:left; }
 .sigma-content-loading-state--inline .sigma-dot-spinner { --sigma-loader-size:20px; }
 .sigma-table-loading-row > td { padding:0!important; background:#fff; text-align:center; }
 [data-sigma-table-pending] { display:none!important; }
 .sigma-table-loading-row .sigma-content-loading-state { min-height:180px; }
+.sigma-table-loading-row .sigma-content-loading-state { position:sticky; left:0; width:min(100%,var(--sigma-table-loader-width,100%)); max-width:100vw; }
 @media(max-width:640px) {
     .sigma-table-loading-row .sigma-content-loading-state { min-height:130px; padding:20px 12px; }
     .sigma-table-loading-row .sigma-dot-spinner { --sigma-loader-size:28px; }
@@ -52,6 +54,6 @@ html.sigma-teacher-route-pending body #teacher-route-loader .sigma-dot-spinner{-
 
 html.sigma-teacher-route-pending .sigma-skeleton{display:none!important}
 /* Busy action keeps its place in the form while only the dots remain visible. */
-.sigma-action-loading{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;vertical-align:middle;max-width:100%;box-sizing:border-box}
+.sigma-action-loading{display:inline-flex;align-items:center;justify-content:center;min-width:0;vertical-align:middle;max-width:100%;box-sizing:border-box}
 .sigma-action-loading>.sigma-dot-spinner{--sigma-loader-size:32px}
 @media(max-width:767px){.sigma-action-loading>.sigma-dot-spinner{--sigma-loader-size:24px}}

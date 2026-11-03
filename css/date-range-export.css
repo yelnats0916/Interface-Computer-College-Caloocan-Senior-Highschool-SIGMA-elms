@@ -1,10 +1,16 @@
 /* Uses the existing Attendance Sheet export shell and its responsive rules. */
 #sigma-date-range-export .sigma-date-export-fields{display:grid;grid-template-columns:1fr 1fr;gap:24px}
-#sigma-date-range-export label{display:flex;flex-direction:column;gap:12px;font-size:16px;color:#000}
+#sigma-date-range-export .sigma-date-export-fields>label{display:flex;flex-direction:column;gap:12px;font-size:16px;color:#000}
 #sigma-date-range-export h3{margin:0;font-size:16px;font-weight:600;color:#000}
-#sigma-date-range-export input{width:100%;box-sizing:border-box;padding:16px 18px;min-height:56px;border:1px solid #cbd5e1;border-radius:14px;background:#f8fafc;color:#000;font:inherit}
+#sigma-date-range-export .sigma-date-export-fields input[type=date]{width:100%;box-sizing:border-box;padding:16px 18px;min-height:56px;border:1px solid #cbd5e1;border-radius:14px;background:#f8fafc;color:#000;font:inherit}
+#sigma-date-range-export .sigma-date-export-choice{display:flex;flex-direction:row;align-items:center;gap:12px;min-height:72px;padding:12px 16px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-sizing:border-box;color:#000;cursor:pointer;transition:background-color .15s,border-color .15s}
+#sigma-date-range-export .sigma-date-export-choice:hover{border-color:#15803d;background:#f8fafc}
+#sigma-date-range-export .sigma-date-export-choice:has(input:checked){border-color:#15803d;background:#f0fdf4}
+#sigma-date-range-export .sigma-date-export-choice:focus-within{outline:2px solid #15803d;outline-offset:2px}
+#sigma-date-range-export .sigma-date-export-choice input[type=radio]{appearance:auto;flex:0 0 20px;width:20px;height:20px;min-width:20px;min-height:20px;margin:0;padding:0;border:0;background:transparent;accent-color:#15803d}
+#sigma-date-range-export .sigma-date-export-choice span{font-size:14px;line-height:1.4;color:#111827}
 #sigma-date-range-export [data-error]{color:#dc2626;font-size:14px;line-height:1.5}
 #sigma-date-range-export .sigma-modal-footer{justify-content:flex-end!important}
 #sigma-date-range-export .sigma-modal-footer button{display:inline-flex;align-items:center;gap:10px}
-@media(max-width:767px){#sigma-date-range-export .sigma-date-export-fields{grid-template-columns:1fr;gap:20px}#sigma-date-range-export label{font-size:14px}#sigma-date-range-export input{font-size:14px;min-height:46px;padding:12px}}
+@media(max-width:767px){#sigma-date-range-export .sigma-date-export-fields{grid-template-columns:1fr;gap:20px}#sigma-date-range-export .sigma-date-export-fields>label{font-size:14px}#sigma-date-range-export .sigma-date-export-fields input[type=date]{font-size:14px;min-height:46px;padding:12px}#sigma-date-range-export .sigma-date-export-choice{min-height:56px;padding:10px 12px}}
 #sigma-date-range-export form.sigma-modal-panel{margin:0!important}

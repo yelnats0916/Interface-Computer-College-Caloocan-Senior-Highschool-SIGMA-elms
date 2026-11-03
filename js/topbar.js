@@ -1018,138 +1018,11 @@ function initSharedTopbarInteractions() {
             }
         });
 
-        // 2. Scan The Users (Primary: sigma-admin-users) then secondary fallbacks
-        const primaryUsers = (typeof window.getStoredJson === 'function')
-            ? window.getStoredJson('sigma-admin-users', [])
-            : JSON.parse(localStorage.getItem('sigma-admin-users') || '[]');
-
-        const secondaryUserKeys = userRole === 'admin'
-            ? ['sigma-users-list', 'sigma-teacher-users', 'sigma-student-users']
-            : (userRole === 'teacher'
-                ? ['sigma-student-users', 'sigma-teacher-users', 'sigma-users-list']
-                : ['sigma-teacher-users', 'sigma-student-users', 'sigma-users-list']);
-
-        const seenUserIds = new Set();
-
-        const processUserCandidate = (u) => {
-            if (!u) return;
-            const uid = String(u.uid || u.id || u.lrn || u.studentNumber || u.employeeId || '').replace(/^#/, '').trim().toLowerCase();
-            
-            // Exclude current logged in user from suggestions
-            const authUserId = String(currentUserObj.uid || currentUserObj.id || '').replace(/^#/, '').trim().toLowerCase();
-            if (uid && authUserId && uid === authUserId) return;
-
-            const uRole = (u.role || u.type || '').toLowerCase();
-            if (userRole === 'student' && (uRole.includes('admin') || uRole.includes('master'))) return;
-            if (userRole === 'teacher' && uRole.includes('admin') && !uRole.includes('teacher') && !uRole.includes('faculty')) return;
-
-            let fullName = '';
-            if (u.firstName || u.lastName) {
-                // Only First and Last name
-                fullName = [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
-            }
-            if (!fullName) {
-                fullName = (u.fullName || u.name || '').trim();
-                // If full name contains middle names, try to extract first and last
-                const tokens = fullName.split(/\s+/).filter(Boolean);
-                if (tokens.length > 2) {
-                    fullName = `${tokens[0]} ${tokens[tokens.length - 1]}`;
-                }
-            }
-            if (fullName.includes(',') && !u.firstName && !u.lastName) {
-                const [last, first] = fullName.split(',').map(s => s.trim());
-                if (first && last) fullName = `${first} ${last}`;
-            }
-
-            const normKey = fullName.toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (uid && seenUserIds.has(uid)) return;
-            if (normKey && seenUserIds.has(normKey)) return;
-
-            if (uid) seenUserIds.add(uid);
-            if (normKey) seenUserIds.add(normKey);
-
-            if (fullName) {
-                addCandidate(fullName);
-            }
-        };
-
-        if (Array.isArray(primaryUsers)) {
-            primaryUsers.forEach(processUserCandidate);
-        }
-        for (const key of secondaryUserKeys) {
-            try {
-                const list = JSON.parse(localStorage.getItem(key) || '[]');
-                if (Array.isArray(list)) list.forEach(processUserCandidate);
-            } catch (_) {}
-        }
-
-        // 3. Scan LocalStorage for Subjects (scoped to role)
-        const subjectKeys = userRole === 'student'
-            ? ['sigma_classroom_materials', 'sigma_subjects_v2', 'sigma-subjects-list']
-            : ['sigma-admin-subjects', 'sigma-subjects-list', 'sigma_subjects_v2', 'sigma_classroom_materials'];
-
-        for (const key of subjectKeys) {
-            try {
-                const raw = localStorage.getItem(key);
-                if (raw) {
-                    const list = JSON.parse(raw);
-                    if (Array.isArray(list)) {
-                        list.forEach(s => {
-                            if (!s) return;
-                            const name = s.name || s.title || s.subjectName || s.code;
-                            if (name) {
-                                addCandidate(name);
-                            }
-                        });
-                    }
-                }
-            } catch (_) {}
-        }
-
-        // 4. Scan LocalStorage for Sections (scoped to role)
-        const sectionKeys = userRole === 'student'
-            ? []
-            : ['sigma-sections-list', 'sigma_sections', 'sigma-admin-sections'];
-
-        for (const key of sectionKeys) {
-            try {
-                const raw = localStorage.getItem(key);
-                if (raw) {
-                    const list = JSON.parse(raw);
-                    if (Array.isArray(list)) {
-                        list.forEach(sec => {
-                            if (!sec) return;
-                            const name = typeof sec === 'string' ? sec : (sec.name || sec.sectionName);
-                            if (name) {
-                                addCandidate(name);
-                            }
-                        });
-                    }
-                }
-            } catch (_) {}
-        }
-
-        // 5. Sidebar Navigation Links
+        // Suggestions and full results use the same verified directory and class scope.
+        for (const item of window.SigmaSearchData?.results(rawQuery) || []) addCandidate(item.title);
         document.querySelectorAll('#sidebar .nav-link, #sidebar .nav-sublink').forEach(link => {
-            const label = link.querySelector('span')?.textContent?.trim() || link.textContent?.trim();
-            if (label) {
-                addCandidate(label);
-            }
-        });
-
-        // 6. Page Table rows (names/titles only, strictly ignore emails and IDs)
-        document.querySelectorAll('table tbody tr').forEach(row => {
-            row.querySelectorAll('td').forEach(cell => {
-                // If cell contains sub-elements, prioritize name elements to avoid concatenating with "ID: 2222222"
-                const nameNode = cell.querySelector('.user-name, .student-name, .font-bold, .font-semibold, h3, h4, span:first-child');
-                const raw = nameNode ? nameNode.textContent : (cell.childNodes[0]?.textContent || cell.textContent);
-                let text = (raw || '').trim().replace(/ID:\s*[\w\d-]+/gi, '').replace(/\(ID:.*?\)/gi, '').trim();
-                if (text && text.length > 2 && text.length < 50 && !isEmailAddress(text)) {
-                    if (!text.includes('\n') && !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(text) && !/^id[:\s]/i.test(text)) {
-                        addCandidate(text);
-                    }
-                }
-            });
+            if (link.closest('[data-role-access-hidden], [data-permission-hidden]') || link.style.display === 'none') return;
+            addCandidate(link.querySelector('span')?.textContent?.trim() || link.textContent?.trim());
         });
 
         // Sort: items starting with query first, then alphabetical (no mirroring of the typed text)
@@ -1176,6 +1049,11 @@ function initSharedTopbarInteractions() {
         closeMobileSearch();
         executeGlobalSearch(queryText);
     }
+
+    window.addEventListener('sigma:search-data-ready', () => {
+        if (document.activeElement === searchBar) showSearchDropdown();
+        if (document.activeElement?.id === 'mobileSearchInput') renderMobileSearchDropdown();
+    });
 
     function renderSearchDropdown() {
         const dd = ensureSearchDropdown();
@@ -1369,7 +1247,7 @@ function initSharedTopbarInteractions() {
                 }
             } else if (e.key === 'Enter') {
                 e.preventDefault();
-                e.stopPropagation();
+                e.stopImmediatePropagation();
                 if (isVisible && currentIndex >= 0 && items[currentIndex]) {
                     const selectedQuery = items[currentIndex].dataset.query;
                     selectSuggestion(selectedQuery);
@@ -1395,7 +1273,7 @@ function initSharedTopbarInteractions() {
         globalSearchBtn.dataset.searchBound = 'true';
         globalSearchBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            e.stopPropagation();
+            e.stopImmediatePropagation();
             const q = searchBar.value.trim();
             if (q) {
                 addSearchHistory(q);
@@ -1879,6 +1757,7 @@ function initSharedTopbarInteractions() {
                 validSourceCards.forEach(card => {
                     const clone = card.cloneNode(true);
                     clone.classList.remove('sticky', 'top-[106px]');
+                    clone.classList.add('mobile-schedule-card-clone');
                     container.appendChild(clone);
                 });
             } else {

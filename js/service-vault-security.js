@@ -230,15 +230,22 @@
         let response = await request();
         if (response.status === 403 && (await response.clone().json().catch(() => ({}))).code === 'VAULT_AUTH_REQUIRED') {
             token = ''; expires = 0;
-            // Integration requests never open a password prompt as a side effect.
-            // The Configure / Manage AI handlers verify before changing pages.
             if (canceled || requestEpoch !== authorizationEpoch) throw canceledError();
-            if (!/\/users\.php$/.test(api.pathname)) throw Object.assign(new Error('Administrator verification expired. Verify again to continue.'),{code:'VAULT_AUTH_REQUIRED'});
+            const isUserEndpoint = /\/users\.php$/.test(api.pathname);
+            let action = '';
+            try { action = JSON.parse(options.body || '{}').action || ''; } catch (_) {}
+            const aiActions = /^(?:save_ai_(?:routing|vault_key|config|designations)|discover_ai_key|set_active_ai_key|delete_ai_key|test_ai_(?:vault_key|connection))$/;
+            const isAiVaultAction = api.pathname.endsWith('/auth.php') &&
+                String(options.method || 'GET').toUpperCase() === 'POST' && aiActions.test(action);
+            // A protected AI action was explicitly initiated by the administrator.
+            // If the server confirms the vault token expired, ask for verification
+            // and retry once. Other requests keep the existing no-surprise behavior.
+            if (!isUserEndpoint && !isAiVaultAction) throw Object.assign(new Error('Administrator verification expired. Verify again to continue.'),{code:'VAULT_AUTH_REQUIRED'});
             const batchOverlay = document.getElementById('batch-user-overlay');
-            if (batchOverlay && !batchOverlay.classList.contains('hidden')) {
+            if (isUserEndpoint && batchOverlay && !batchOverlay.classList.contains('hidden')) {
                 return response;
             }
-            await authorize(api);
+            await authorize(api, isAiVaultAction ? 'ai' : '');
             response = await request();
         }
         return response;

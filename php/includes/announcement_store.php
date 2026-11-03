@@ -6,6 +6,7 @@ function announcementName(array $actor): string { return trim($actor['full_name'
 function announcementToken($value): string { return strtolower(trim(preg_replace('/\s+/', ' ', preg_replace('/^grade\s*\d+\s*[-–—:]\s*/i', '', (string)$value)))); }
 function announcementSections(PDO $db, array $actor): array {
     $role=announcementRole($actor); $id=(string)$actor['id'];$name=strtolower(announcementName($actor));$result=[];
+    if(in_array($role,['admin','masteradmin'],true))return [];
     foreach($db->query("SELECT * FROM sections WHERE is_deleted=0 AND LOWER(status) NOT IN ('draft','deleted')")->fetchAll(PDO::FETCH_ASSOC) as $section){
         $match=false;
         if($role==='student') {
@@ -48,6 +49,107 @@ function announcementVisible(array $post,array $actor,array $sections): bool {
         foreach(json_decode($section['subjects']??'[]',true)?:[] as $entry)if(announcementToken(is_array($entry)?($entry['name']??$entry['subject']??''):$entry)===$subject)return true;
     }
     return false;
+}
+function announcementCommentToken($value): string {
+    $value=str_replace(['-','_'], ' ', (string)$value);
+    return strtolower(trim(preg_replace('/\s+/', ' ', $value)));
+}
+function announcementCommentScopeSections(PDO $db,array $actor,array $sections): array {
+    if(in_array(announcementRole($actor),['admin','masteradmin'],true)) {
+        return $db->query("SELECT * FROM sections WHERE is_deleted=0 AND LOWER(status) NOT IN ('draft','deleted','archived')")->fetchAll(PDO::FETCH_ASSOC);
+    }
+    return $sections;
+}
+function announcementSectionSubjectNames(array $section): array {
+    $names=[];
+    if(!empty($section['subject']))$names[]=(string)$section['subject'];
+    $raw=$section['subjects']??[];
+    if(is_string($raw))$raw=json_decode($raw,true)?:[];
+    foreach(is_array($raw)?$raw:[] as $entry) {
+        $name=is_array($entry)?($entry['name']??$entry['subject']??$entry['title']??''):$entry;
+        if(is_scalar($name)&&trim((string)$name)!=='')$names[]=(string)$name;
+    }
+    $unique=[];
+    foreach($names as $name){$key=announcementCommentToken($name);if($key!=='')$unique[$key]=(string)$name;}
+    return array_values($unique);
+}
+function announcementResolveCommentClassroom(string $sectionName,string $subjectName,array $sections): ?array {
+    $sectionKey=announcementCommentToken(announcementToken($sectionName));
+    $subjectKey=announcementCommentToken($subjectName);
+    if($sectionKey===''||$subjectKey==='')return null;
+    foreach($sections as $section) {
+        if(announcementCommentToken(announcementToken($section['name']??''))!==$sectionKey)continue;
+        foreach(announcementSectionSubjectNames($section) as $candidate) {
+            if(announcementCommentToken($candidate)===$subjectKey) {
+                $id=(string)($section['id']??'');
+                if($id==='')continue;
+                return ['section'=>$section,'sectionId'=>$id,'subjectName'=>$candidate,'subjectKey'=>$subjectKey];
+            }
+        }
+    }
+    return null;
+}
+function announcementClassroomCommentModes(PDO $db,array $actor,array $sections): array {
+    $scope=announcementCommentScopeSections($db,$actor,$sections);
+    $allowed=[];
+    foreach($scope as $section)if(!empty($section['id']))$allowed[(string)$section['id']]=true;
+    if(!$allowed)return ['lookup'=>[],'client'=>[]];
+    $lookup=[];$client=[];
+    try {
+        $rows=$db->query('SELECT section_id,subject_key,section_name,subject_name,comments_enabled FROM classroom_comment_settings')->fetchAll(PDO::FETCH_ASSOC);
+    } catch(PDOException $error) {
+        // The announcement feed must remain available if a site has not yet
+        // received this optional settings table migration. Per-post defaults
+        // continue to work until the table is installed.
+        if($error->getCode()!=='42S02' && (int)($error->errorInfo[1]??0)!==1146)throw $error;
+        return ['lookup'=>[],'client'=>[]];
+    }
+    foreach($rows as $row) {
+        $sectionId=(string)($row['section_id']??'');
+        if(!isset($allowed[$sectionId]))continue;
+        $subjectKey=announcementCommentToken($row['subject_key']??$row['subject_name']??'');
+        if($subjectKey==='')continue;
+        $enabled=(int)($row['comments_enabled']??0)===1;
+        $lookup[$sectionId.'::'.$subjectKey]=$enabled;
+        $sectionName=trim((string)($row['section_name']??''));
+        $subjectName=trim((string)($row['subject_name']??''));
+        if($sectionName!==''&&$subjectName!=='')$client[$sectionName.'::'.$subjectName]=$enabled?'enabled':'disabled';
+    }
+    return ['lookup'=>$lookup,'client'=>$client];
+}
+function announcementPostCommentMode(PDO $db,array $post,array $actor,array $sections,array $settings): ?bool {
+    $sectionName=(string)($post['sectionName']??'');
+    $subjectName=(string)($post['subject']??'');
+    $key=(string)($post['classroomKey']??'');
+    if($key!=='') {
+        $parts=explode('::',$key,2);
+        if($sectionName===''&&isset($parts[0]))$sectionName=$parts[0];
+        if($subjectName===''&&isset($parts[1]))$subjectName=$parts[1];
+    }
+    if($sectionName==='')$sectionName=(string)($post['audience']??$post['audienceLabel']??'');
+    $resolved=announcementResolveCommentClassroom($sectionName,$subjectName,announcementCommentScopeSections($db,$actor,$sections));
+    if(!$resolved)return null;
+    $settingKey=$resolved['sectionId'].'::'.$resolved['subjectKey'];
+    return array_key_exists($settingKey,$settings['lookup']??[])?(bool)$settings['lookup'][$settingKey]:null;
+}
+function announcementSetClassroomCommentMode(PDO $db,array $actor,array $sections,array $input): void {
+    $role=announcementRole($actor);
+    if(!in_array($role,['teacher','admin','masteradmin'],true))throw new DomainException('Only classroom staff can change student comment settings.');
+    if(!array_key_exists('enabled',$input)||!is_bool($input['enabled']))throw new InvalidArgumentException('Choose whether student comments are enabled.');
+    $sectionName=trim((string)($input['section']??''));
+    $subjectName=trim((string)($input['subject']??''));
+    if(mb_strlen($sectionName)>100||mb_strlen($subjectName)>150)throw new InvalidArgumentException('The classroom name is too long.');
+    $scope=announcementCommentScopeSections($db,$actor,$sections);
+    $resolved=announcementResolveCommentClassroom($sectionName,$subjectName,$scope);
+    if(!$resolved)throw new DomainException('This classroom is not assigned to your account. Refresh the class and try again.');
+    $canonicalSection=trim((string)($resolved['section']['name']??$sectionName));
+    $canonicalSubject=trim((string)$resolved['subjectName']);
+    $stmt=$db->prepare('INSERT INTO classroom_comment_settings(section_id,subject_key,section_name,subject_name,comments_enabled,updated_by) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE section_name=VALUES(section_name),subject_name=VALUES(subject_name),comments_enabled=VALUES(comments_enabled),updated_by=VALUES(updated_by),updated_at=UTC_TIMESTAMP()');
+    $stmt->execute([$resolved['sectionId'],$resolved['subjectKey'],$canonicalSection,$canonicalSubject,$input['enabled']?1:0,(string)$actor['id']]);
+}
+function announcementEffectiveCommentsEnabled(PDO $db,array $post,array $actor,array $sections,array $settings): bool {
+    $mode=announcementPostCommentMode($db,$post,$actor,$sections,$settings);
+    return $mode===null?(!empty($post['commentsEnabled'])):$mode;
 }
 function announcementCanManageComments(array $actor): bool {
     $role=announcementRole($actor);
@@ -113,7 +215,8 @@ function announcementApply(PDO $db,array $actor,array $input,array $sections): v
         if($action==='like') {
             $post['_likedBy']=array_values(array_diff($post['_likedBy']??[],[$actorId]));if(($input['liked']??false)===true)$post['_likedBy'][]=$actorId;
         } elseif($action==='comment') {
-            if(empty($post['commentsEnabled']))throw new DomainException('Comments are closed on this announcement.');
+            $commentSettings=announcementClassroomCommentModes($db,$actor,$sections);
+            if(!announcementEffectiveCommentsEnabled($db,$post,$actor,$sections,$commentSettings))throw new DomainException('Comments are closed for this classroom.');
             $comment=$input['comment']??[];$commentId=(string)($comment['id']??'');$text=trim((string)($comment['text']??''));
             if(!preg_match('/^[a-zA-Z0-9_-]{1,100}$/D',$commentId) || $text==='' || mb_strlen($text)>1000)throw new InvalidArgumentException('Enter a comment of up to 1,000 characters.');
             foreach($post['comments']??[] as $existing)if($existing['id']===$commentId)return;

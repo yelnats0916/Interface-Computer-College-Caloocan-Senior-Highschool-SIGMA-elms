@@ -10,7 +10,7 @@
     function show(content) {
         if (!content) return () => {};
         const previous = states.get(content);
-        if (previous) previous.clear();
+        if (previous) { previous.count++; let released = false; return () => { if (!released) { released = true; previous.release(); } }; }
         const busy = content.getAttribute('aria-busy');
         const hadHost = content.classList.contains('sigma-content-loading-host');
         const overlay = document.createElement('div');
@@ -24,8 +24,10 @@
         content.classList.add('sigma-content-loading-host');
         content.setAttribute('aria-busy', 'true');
         content.appendChild(overlay);
+        const state = {spinner, overlay, count:1};
         const clear = () => {
             if (states.get(content)?.overlay !== overlay) return;
+            if (--state.count > 0) return;
             sizes.unobserve(content);
             overlay.remove();
             if (!hadHost) content.classList.remove('sigma-content-loading-host');
@@ -33,9 +35,11 @@
             else content.setAttribute('aria-busy', busy);
             states.delete(content);
         };
-        states.set(content, {spinner, overlay, clear});
+        state.release = clear;
+        states.set(content, state);
         sizes.observe(content);
-        return clear;
+        let released = false;
+        return () => { if (!released) { released = true; clear(); } };
     }
     // Existing asynchronous panels already render loading icons inside their
     // content regions. Size those icons from that region; keep button icons inline.
@@ -43,7 +47,9 @@
     const iconRegions = new Set();
     const iconSizes = new ResizeObserver(entries => entries.forEach(({target, contentRect}) => {
         target.querySelectorAll(iconSelector).forEach(icon => {
-            if (!icon.closest('button,[role="button"]')) icon.style.setProperty('--sigma-loader-size', `${Math.round(Math.max(20, Math.min(target.hasAttribute('data-sigma-loading-page') ? 72 : 48, Math.min(contentRect.width, contentRect.height) * .18)))}px`);
+            const page = target.hasAttribute('data-sigma-loading-page');
+            const minimum = page ? (contentRect.width >= 768 ? 56 : 36) : 20;
+            if (!icon.closest('button,[role="button"]')) icon.style.setProperty('--sigma-loader-size', `${Math.round(Math.max(minimum, Math.min(page ? 64 : 48, Math.min(contentRect.width, contentRect.height) * .18)))}px`);
         });
         if (!target.querySelector(iconSelector)) { iconSizes.unobserve(target); iconRegions.delete(target); }
     }));
@@ -57,16 +63,19 @@
         });
     }
     new MutationObserver(records => {
-        iconRegions.forEach(region => { if (!region.isConnected) { iconSizes.unobserve(region); iconRegions.delete(region); } });
+        if (records.some(record => record.removedNodes?.length)) iconRegions.forEach(region => { if (!region.isConnected) { iconSizes.unobserve(region); iconRegions.delete(region); } });
         records.forEach(record => {
-        if (record.type === 'attributes') watch(record.target);
+        // Body/sidebar class changes are frequent. ResizeObserver already handles
+        // layout changes; do not scan thousands of descendants on each class toggle.
+        if (record.type === 'attributes') { if (record.target.matches(iconSelector)) watch(record.target); }
         else record.addedNodes.forEach(watch);
         });
     }).observe(document.documentElement, {childList:true, subtree:true, attributes:true, attributeFilter:['class']});
     document.addEventListener('DOMContentLoaded', () => watch(document.body), {once:true});
     function html(options = {}) {
         const mode = options.page ? ' sigma-content-loading-state--page' : options.inline ? ' sigma-content-loading-state--inline' : options.compact ? ' sigma-content-loading-state--compact' : '';
-        return `<span class="sigma-content-loading-state${mode}" role="status" aria-live="polite" aria-busy="true" aria-label="Loading" ${options.page ? 'data-sigma-loading-page' : ''}>
+        const label = String(options.label || 'Loading').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+        return `<span class="sigma-content-loading-state${mode}" role="status" aria-live="polite" aria-busy="true" aria-label="${label}" ${options.page ? 'data-sigma-loading-page' : ''}>
             <span class="sigma-dot-spinner" data-sigma-auto-spinner aria-hidden="true"></span>
         </span>`;
     }
@@ -82,12 +91,12 @@
         const endpoint = target.pathname.split('/').pop().replace('.php', '');
         const selectors = {
             users: '#userTableBody', sections: '#sectionTableBody, #student-roster-body',
-            subjects: '#subjectTableBody', school_years: '#schoolYearTableBody',
+            school_years: '#schoolYearTableBody',
             ai_logs: '#audit-ai-view tbody',
             ai_records: target.searchParams.get('action') === 'logs' ? '#audit-ai-view tbody' : '',
             activity_logs: '#activity-log-rows', authentication_logs: '#audit-auth-view tbody',
             notifications: '#notification-log-rows', notification_logs: '#notification-log-rows',
-            academic_records: '#gradebook-body, #student-attendance-history-body, #classroom-attendance-history-body, #attendanceReportTableBody, #performanceReportTableBody',
+            academic_records: '#gradebook-body, #performanceReportTableBody',
             attendance: '#student-attendance-history-body, #classroom-attendance-history-body, #attendanceReportTableBody',
             maintenance: '#maintenance-history-body'
         };
@@ -104,12 +113,15 @@
             const key = body.id ? `${endpoint}:${body.id}` : '';
             if (!state && (retrievedTables.has(body) || (key && retrievedTableIds.has(key)))) return;
             if (!state) {
-                const columns = body.closest('table')?.querySelector('thead tr')?.children.length || 1;
+                const table = body.closest('table');
+                const columns = Math.max(1, ...Array.from(table?.querySelectorAll('thead tr') || [], row => Array.from(row.cells).reduce((sum, cell) => sum + cell.colSpan, 0)));
                 const row = document.createElement('tr');
                 row.className = 'sigma-table-loading-row';
                 const cell = document.createElement('td');
                 cell.colSpan = columns;
                 cell.innerHTML = html();
+                const scroller = table?.parentElement;
+                cell.firstElementChild.style.setProperty('--sigma-table-loader-width', `${Math.min(scroller?.clientWidth || window.innerWidth, window.innerWidth)}px`);
                 row.append(cell);
                 const emptyId = {
                     'classroom-attendance-history-body': 'classroom-attendance-empty-state',
@@ -134,7 +146,9 @@
         });
         }
         attachTables();
-        const additions = new MutationObserver(attachTables);
+        const additions = new MutationObserver(records => {
+            if (records.some(record => Array.from(record.addedNodes).some(node => node.nodeType === 1 && (node.matches('tbody') || node.querySelector('tbody'))))) attachTables();
+        });
         additions.observe(document.documentElement, {childList: true, subtree: true});
         return () => {
         additions.disconnect();
@@ -192,6 +206,9 @@
         loader.className = 'sigma-action-loading';
         loader.setAttribute('role', 'status');
         loader.setAttribute('aria-label', 'Processing');
+        const layout = getComputedStyle(button);
+        for (const property of ['order','align-self','justify-self','grid-area','margin-left','margin-right','margin-top','margin-bottom','position','top','right','bottom','left','z-index']) loader.style.setProperty(property, layout.getPropertyValue(property));
+        loader.style.flex = layout.flexGrow !== '0' ? layout.flex : '0 1 auto';
         loader.style.width = `${Math.max(40, rect.width)}px`;
         loader.style.height = `${Math.max(32, rect.height)}px`;
         loader.innerHTML = '<span class="sigma-dot-spinner" aria-hidden="true"></span>';

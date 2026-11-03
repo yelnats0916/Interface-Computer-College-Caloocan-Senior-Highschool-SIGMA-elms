@@ -31,6 +31,7 @@ require_once $rootDir . '/php/includes/application_auth.php';
 require_once __DIR__ . '/../includes/activity_audit.php';
 require_once __DIR__ . '/../includes/section_subject_policy.php';
 require_once __DIR__ . '/../includes/section_assignment_validation.php';
+require_once __DIR__ . '/../includes/section_teacher_accounts.php';
 require_once __DIR__ . '/../includes/section_deployment_events.php';
 $databaseActor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator', 'teacher']);
 
@@ -87,8 +88,13 @@ function decodeJsonField($raw, $fallback = []) {
     return is_array($decoded) ? $decoded : $fallback;
 }
 
-function sectionRowToRecord(array $row): array {
+function sectionRowToRecord(array $row, ?array $creationNumbers = null): array {
     global $pdo;
+    static $teacherAccounts = null;
+    if ($teacherAccounts === null) {
+        $teacherAccounts = $pdo->query('SELECT id,full_name,first_name,last_name,role,is_deleted FROM users')->fetchAll(PDO::FETCH_ASSOC);
+    }
+    $row = sigmaSectionTeacherAccounts($row, $teacherAccounts);
     $dailySchedules = decodeJsonField($row['daily_schedules'] ?? null, []);
     $teachers = decodeJsonField($row['teachers'] ?? null, []);
     $subjects = decodeJsonField($row['subjects'] ?? null, []);
@@ -106,7 +112,9 @@ function sectionRowToRecord(array $row): array {
     }
 
     return [
-        'creationNumber' => sigmaTableCreationNumber($pdo, 'sections', (string)$row['id']),
+        'creationNumber' => $creationNumbers !== null
+            ? ($creationNumbers[(string)$row['id']] ?? null)
+            : sigmaTableCreationNumber($pdo, 'sections', (string)$row['id']),
         'id'               => (string) $row['id'],
         'name'             => (string) $row['name'],
         'grade'            => (string) $row['grade_level'],
@@ -172,7 +180,8 @@ try {
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $records = array_map('sectionRowToRecord', $rows);
+        $creationNumbers = $rows ? sigmaCreationNumbersForRecords($pdo, 'sections', $rows) : [];
+        $records = array_map(static fn($row) => sectionRowToRecord($row, $creationNumbers), $rows);
 
         jsonResponse([
             'success' => true,
@@ -198,6 +207,12 @@ try {
             $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
             $actor = (string)$databaseActor['id'];
 
+            sigmaLockSchoolYearWrites($pdo);
+            $pdo->beginTransaction();
+            $targets=$pdo->prepare('SELECT * FROM sections WHERE id=? OR name=? FOR UPDATE');
+            $targets->execute([$targetId,$targetId]);
+            foreach($targets->fetchAll(PDO::FETCH_ASSOC) as $targetSection)sigmaAssertSectionMutable($pdo,$targetSection);
+
             // Look up the exact id to record in lifecycle events
             $findStmt = $pdo->prepare("SELECT id FROM `sections` WHERE `id` = :id OR `name` = :target_name LIMIT 1");
             $findStmt->execute([':id' => $targetId, ':target_name' => $targetId]);
@@ -211,6 +226,8 @@ try {
                 $logStmt->execute([$foundId, $actor]);
             } catch (Throwable $e) {}
 
+            $pdo->commit();
+            $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
             jsonResponse(['success' => true, 'message' => "Section {$targetId} deleted successfully"]);
         }
 
@@ -230,9 +247,9 @@ try {
 
             sigmaLockSchoolYearWrites($pdo);
             $pdo->beginTransaction();
-            $sectionYear=$pdo->prepare('SELECT school_year FROM sections WHERE id=? FOR UPDATE');
-            $sectionYear->execute([$foundId]);
-            sigmaRequireSectionSchoolYear($pdo,(string)$sectionYear->fetchColumn());
+            $targets=$pdo->prepare('SELECT * FROM sections WHERE id=? OR name=? FOR UPDATE');
+            $targets->execute([$targetId,$targetId]);
+            foreach($targets->fetchAll(PDO::FETCH_ASSOC) as $targetSection)sigmaAssertSectionMutable($pdo,$targetSection);
             $stmt = $pdo->prepare("UPDATE `sections` SET `is_deleted` = 0, `deleted_at` = NULL, `deleted_by` = NULL WHERE `id` = :id OR `name` = :target_name");
             $stmt->execute([':id' => $targetId, ':target_name' => $targetId]);
 
@@ -286,6 +303,7 @@ try {
             $pdo->query('SELECT id,name,grade_level,school_year,room,subject,teachers,students,daily_schedules,days,start_time,end_time,status,is_deleted FROM sections')->fetchAll(PDO::FETCH_ASSOC));
         $previousQuery=$pdo->prepare('SELECT subject,subjects,status FROM sections WHERE id=?');$previousQuery->execute([$secId]);
         $previousSection=$previousQuery->fetch(PDO::FETCH_ASSOC)?:null;
+        if(strtolower($previousSection['status']??'')==='archived')throw new DomainException('Archived sections are read-only. Reactivate their school year to return them to Draft.');
         sigmaValidateSectionSubjectAssignments($pdo,$section,$previousSection);
         $upsertSql = "INSERT INTO `sections` (
             `id`, `name`, `grade_level`, `room`, `school_year`,

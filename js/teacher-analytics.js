@@ -131,7 +131,7 @@
             const state = readState(input.teacherId);
             if (!provider) return present(restrictTeacherLinks(rules.validateCards(fallback(input), input), input, root.location.href), state.lastAnalyzed);
             if (!state.usedProvider) return [];
-            try { return present(restrictTeacherLinks((state.cards || []).filter(card => typeof card.title === 'string' && card.analyses?.length === 1 && rules.normalizeActionLabel(card.analyses[0].actionLabel)), input, root.location.href), state.lastAnalyzed); } catch { return []; }
+            try { return present(restrictTeacherLinks((state.cards || []).filter(card => (card.area !== 'attendance-review' || card.attendancePolicyVersion >= 2) && typeof card.title === 'string' && card.analyses?.length === 1 && rules.normalizeActionLabel(card.analyses[0].actionLabel)), input, root.location.href), state.lastAnalyzed); } catch { return []; }
         },
         async analyze({ automatic = false } = {}) {
             if (root.SigmaLiveAnalytics) return root.SigmaLiveAnalytics.analyze({ automatic });

@@ -69,6 +69,23 @@
             learning: new Map((window.getTeacherSubjectLearningMaterials?.(state.subjectId, state.selectedSection) || []).map((item, index) => [String(item.id), index])),
             assessments: new Map((window.getTeacherSubjectAssessments?.(state.subjectId, state.selectedSection) || []).map((item, index) => [String(item.id), index]))
         };
+        // Use the assessment page's canonical topic order, rather than the
+        // legacy collection order (which grouped tasks and quizzes separately).
+        const topics = window.getTeacherAllSubjectTopics?.(state.subjectId, state.selectedSection) || [];
+        if (topics.length && typeof window.getUnifiedTopicAssessments === 'function') {
+            const ordered = new Map();
+            topics.forEach((topic, topicIdx) => {
+                const defaults = ['assignments', 'quiz', 'activity', 'performance', 'assessments']
+                    .flatMap(key => Array.isArray(topic[key]) ? topic[key] : []);
+                const items = window.getUnifiedTopicAssessments('assessments', state.subjectId, topicIdx, defaults, state.selectedSection, topic) || [];
+                items.forEach(item => {
+                    for (const id of [item.id, item.materialId, item.assessmentId, item.origId].filter(value => value != null)) {
+                        if (!ordered.has(String(id))) ordered.set(String(id), ordered.size);
+                    }
+                });
+            });
+            if (ordered.size) materialOrders.assessments = ordered;
+        }
 
         const draftGroups = Array.from(list.querySelectorAll('.topic-picker-card'));
         const draftsByTitle = new Map(draftGroups.map(card => [topicTitle(card), card]));

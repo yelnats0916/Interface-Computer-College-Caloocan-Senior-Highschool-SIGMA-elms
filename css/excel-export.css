@@ -27,3 +27,29 @@
 #gradebook-export-modal .sigma-modal-footer [data-download] { margin-left: auto; }
 @media (min-width: 640px) { .shared-export-exit { top: 40px; right: 40px; width: 48px; height: 48px; } .shared-export-exit i { font-size: 20px; } }
 @media (max-width: 639px) { .shared-export-option { padding: 20px; } .shared-export-option:has(input:checked) { padding: 19px; } }
+
+.shared-excel-export-modal .shared-export-mobile-back{display:none}
+@media(max-width:639px){
+ html body .shared-excel-export-modal{height:100dvh!important;overflow:hidden!important;padding:0!important}
+ html body .shared-excel-export-modal .sigma-modal-shell,
+ html body .shared-excel-export-modal .sigma-modal-panel{height:100dvh!important;min-height:0!important;max-height:100dvh!important;overflow:hidden!important}
+ html body .shared-excel-export-modal .sigma-modal-header{position:relative!important;flex:0 0 auto!important}
+ html body .shared-excel-export-modal .sigma-modal-header-top{min-height:76px;padding:20px 20px 20px 60px!important;box-sizing:border-box}
+ html body .shared-excel-export-modal .sigma-modal-title{font-size:20px!important;line-height:1.4!important;min-width:0;overflow-wrap:break-word}
+ html body .shared-excel-export-modal .shared-export-exit{left:12px;right:auto;top:16px;width:40px;height:40px}
+ html body .shared-excel-export-modal .shared-export-desktop-close{display:none}
+ html body .shared-excel-export-modal .shared-export-mobile-back{display:block;font-size:18px}
+ html body .shared-excel-export-modal .sigma-modal-body{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;padding:24px 20px!important;overscroll-behavior:contain}
+ html body .shared-excel-export-modal .sigma-modal-footer{position:relative!important;bottom:auto!important;flex:0 0 auto!important;margin:0!important;padding:14px 20px calc(14px + env(safe-area-inset-bottom,0px))!important;width:100%!important;box-sizing:border-box}
+ html body .shared-excel-export-modal .sigma-modal-footer [data-download]{min-width:0;max-width:100%;white-space:normal}
+}
+
+@media(max-width:639px){
+ html body .shared-excel-export-modal .sigma-modal-header-top{min-height:64px!important;padding:16px 20px 16px 56px!important}
+ html body .shared-excel-export-modal .sigma-modal-title{font-size:16px!important;line-height:24px!important;font-weight:600!important}
+ html body .shared-excel-export-modal .shared-export-exit{top:12px!important}
+ html body .shared-excel-export-modal .sigma-modal-body{font-size:14px!important}
+ html body .shared-excel-export-modal .shared-export-intro,
+ html body .shared-excel-export-modal .shared-export-title{font-size:14px!important}
+ html body .shared-excel-export-modal .shared-export-subtitle{font-size:13px!important}
+}

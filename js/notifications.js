@@ -216,6 +216,8 @@
 
     // ─── Storage Operations ──────────────────────────────────────────────────
     function getNotifications() {
+        const live = window._sigmaNotificationDatabaseFeed;
+        if (live && live.role === currentRole && live.owner === String(window.SigmaDatabase?.currentUser?.()?.id || '')) return live.records.filter(isVisibleNotification);
         try {
             const saved = localStorage.getItem(NOTIF_STORAGE_KEY);
             if (saved) {
@@ -254,6 +256,9 @@
     }
 
     function saveNotifications(notifs) {
+        const live = window._sigmaNotificationDatabaseFeed;
+        if (live && live.role === currentRole && live.owner === String(window.SigmaDatabase?.currentUser?.()?.id || '')) live.records = notifs;
+        window.SigmaNotifications?.markDatabaseReads?.(notifs.filter(n => n.read && n.serverRecordId).map(n => n.serverRecordId));
         try {
             const existing = JSON.parse(localStorage.getItem(NOTIF_STORAGE_KEY) || '[]');
             const otherRecipients = Array.isArray(existing) ? existing.filter(n => !isVisibleNotification(n)) : [];
@@ -336,16 +341,30 @@
 
     // ─── Feed Rendering State ────────────────────────────────────────────────
     let currentTab = 'all'; // 'all' | 'unread'
-    let isExpanded = false; // toggled by "Previous Notifications"
+    let historyOpened = false; // Older history requires an explicit button click first.
     let visibleLimit = 0;
     let batchSize = INITIAL_LIMIT;
     let loadingOlder = false;
     let hasOlder = false;
     let feedVersion = 0;
+    let renderedFeedOwner = null;
+
+    function setHistoryButtonVisible(visible) {
+        const panel = document.getElementById('noti-dropdown');
+        panel?.toggleAttribute('data-notification-history-open', historyOpened);
+        const wrapper = document.getElementById('noti-prev-wrapper');
+        if (wrapper) {
+            wrapper.hidden = !visible;
+            wrapper.style.setProperty('display', visible ? 'block' : 'none', 'important');
+        }
+        document.getElementById('notiPrevNotificationsBtn')?.setAttribute('aria-expanded', String(historyOpened));
+    }
 
     function loadOlderNotifications() {
-        if (loadingOlder || !hasOlder) return;
+        if (!historyOpened || loadingOlder || !hasOlder) return;
         loadingOlder = true;
+        setHistoryButtonVisible(false);
+        document.querySelector('#noti-dropdown .notif-scroll-area')?.classList.add('can-scroll');
         const version = feedVersion;
         const feed = document.getElementById('noti-dropdown-feed');
         const indicator = document.createElement('div');
@@ -357,9 +376,8 @@
             () => '<div class="sigma-batch-placeholder sigma-batch-placeholder--notification" aria-hidden="true"></div>').join('');
         feed?.appendChild(indicator);
         requestAnimationFrame(() => requestAnimationFrame(() => {
-            loadingOlder = false;
             if (version !== feedVersion) { indicator.remove(); return; }
-            isExpanded = true;
+            loadingOlder = false;
             visibleLimit += batchSize;
             renderFeed();
             indicator.remove();
@@ -385,16 +403,69 @@
         } catch (_) { return null; }
     }
 
-    window.openGradingDetails = function openGradingDetails(notif) {
+    // Resolve the current display index from the immutable assessment ID, never from a historical list position.
+    window.openSubmissionNotification = async function (notif) {
+        const target = notif.target || {}, scope = notif.assignmentScope || {};
+        const section = target.section || target.selectedSection || scope.section;
+        const student = target.studentId || target.selectedStudent || notif.senderId;
+        const norm = value => String(value || '').replace(/^(card|subj|gen)[-_]/i, '').trim().toLowerCase();
+        const findRow = () => {
+            // Routing only needs this class's catalog, not scores for every assessment and student.
+            if (target.itemId && window.getTopicData) {
+                const subjectId = target.subjectId || scope.subjectId;
+                const data = window.getTopicData(subjectId);
+                const topics = data?.topics || data?.q1Topics || [];
+                const order = topics.map((_, index) => index);
+                const hint = Number(target.topicIdx);
+                if (Number.isInteger(hint) && topics[hint]) order.sort((a, b) => (b === hint) - (a === hint));
+                for (const topicIdx of order) {
+                    const topic = topics[topicIdx];
+                    const raw = ['assignments', 'quiz', 'activity', 'performance'].flatMap(key => Array.isArray(topic[key]) ? topic[key] : []);
+                    const items = window.getUnifiedTopicAssessments?.('assessments', subjectId, topicIdx, raw, section, topic) || raw;
+                    const unifiedIdx = items.findIndex(item => String(item.id || item.materialId || item.quizId || item.origId || '') === String(target.itemId));
+                    if (unifiedIdx !== -1) return { subjectId, topicIdx, unifiedIdx, itemId: target.itemId };
+                }
+                return null;
+            }
+            const rows = (window.AssessmentsPage?.buildAssessmentRows('teacher') || []).filter(row =>
+                norm(row.subjectId) === norm(target.subjectId || scope.subjectId) && norm(row.section) === norm(section));
+            if (target.itemId) return rows.find(row => String(row.itemId) === String(target.itemId));
+            const body = String(notif.body || '').toLowerCase();
+            return rows.filter(row => row.activity && (norm(row.activity) === norm(target.materialTitle)
+                || body.includes(String(row.activity).toLowerCase()))).sort((a,b) => b.activity.length - a.activity.length)[0];
+        };
+        const resolveRow = () => window.withGradebookReadCache ? window.withGradebookReadCache(findRow) : findRow();
+        let row = resolveRow();
+        const needsRefresh = !row;
+        if (needsRefresh) {
+            await window.SigmaAcademicRecords?.refresh();
+            row = resolveRow();
+        }
+        if (!row) {
+            window.showToastNotification?.('This assessment could not be found. Open its class to check the submitted work.', 'error');
+            return;
+        }
+        window.openTopicContent?.(row.subjectId, Number(row.topicIdx), 'assessments', Number(row.unifiedIdx ?? row.itemIdx), true,
+            { selectedSection: section, selectedStudent: student, viewSubmission: true, itemId: row.itemId });
+        // Let the destination paint before syncing all classes. The snapshot sync updates the visible submission.
+        if (!needsRefresh) setTimeout(() => {
+            Promise.resolve().then(() => window.SigmaAcademicRecords?.refresh())
+                .catch(error => console.warn('Submission notification refresh:', error.message));
+        }, 0);
+    };
+
+    window.openGradingDetails = async function openGradingDetails(notif) {
         const target = notif.target || {};
         const user = window.getLoggedInStudentUser?.();
         if (!user || (notif.recipientId && ![user.id, user.uid].some(id => String(id) === String(notif.recipientId)))) return;
+        await window.SigmaAcademicRecords?.refresh();
         const row = window.AssessmentsPage?.buildAssessmentRows('student').find(row =>
-            String(row.subjectId) === String(target.subjectId) && Number(row.topicIdx) === Number(target.topicIdx)
-            && Number(row.unifiedIdx) === Number(target.itemIdx) && String(row.section) === String(notif.assignmentScope?.section));
+            String(row.subjectId) === String(target.subjectId) && String(row.section) === String(notif.assignmentScope?.section)
+            && (target.itemId ? String(row.itemId) === String(target.itemId) : Number(row.topicIdx) === Number(target.topicIdx) && Number(row.unifiedIdx) === Number(target.itemIdx)));
         const escape = window.escapeHtml;
         let record = null;
         try { if (row?.submissionKey) record = JSON.parse(localStorage.getItem(row.submissionKey) || 'null'); } catch (_) {}
+        if (target.itemId) record = window.getStudentAssessmentSubmission?.(target.subjectId, 'assessments', row?.unifiedIdx ?? target.itemIdx, row?.topicIdx ?? target.topicIdx, {id:target.itemId,title:target.materialTitle,section:notif.assignmentScope?.section,quarter:row?.quarter}, user) || record;
         const attempt = record?.history?.at(-1) || record?.attempts?.at(-1) || record;
         const feedback = attempt?.aiFeedback || record?.aiFeedback || [];
         const comments = attempt?.teacherFeedback || attempt?.gradingFeedback || record?.teacherFeedback || record?.gradingFeedback || '';
@@ -406,7 +477,7 @@
             <header><h3 id="grading-notification-title">Submission Details</h3></header>
             <div class="sigma-grading-notification-content"><h4>${escape(row?.activity || target.materialTitle || 'Graded Submission')}</h4><p class="text-black-fade">${escape(row?.subject || notif.assignmentScope?.subjectName || '')}</p>
             <div class="sigma-grading-notification-score"><span class="sigma-grading-score-label">Score:</span><strong class="sigma-grading-score-display">${row?.score != null && String(row.score).trim() !== '' && Number.isFinite(Number(row.score)) ? `<span class="sigma-score-earned">${escape(String(row.score))}</span><span class="sigma-score-divider"> / </span><span class="sigma-score-max">${escape(String(row.max))}</span>` : '<span class="sigma-score-unavailable">Unavailable</span>'}</strong></div>
-            <p><strong>${escape(notif.senderName || 'Teacher')}</strong></p>${String(comments).trim() ? `<p>${escape(comments)}</p>` : '<p class="sigma-grading-notification-empty">No teacher comments yet.</p>'}
+            <p><strong>Status:</strong> ${escape(record?.status || row?.status || 'Graded')}</p><p><strong>${escape(notif.courseTeacher?.name || notif.senderName || 'Teacher')}</strong></p>${String(comments).trim() ? `<p>${escape(comments)}</p>` : '<p class="sigma-grading-notification-empty">No teacher comments yet.</p>'}
             <div class="sigma-ai-panel">${window.renderSigmaAiHeading('SIGMA AI Feedback')}<div class="sigma-ai-panel-body">${feedback.length ? window.renderSigmaAiEntries(feedback) : '<p class="sigma-grading-notification-empty" role="status">Waiting for teacher-generated feedback.</p>'}</div></div></div>
             <footer><button type="button" class="sigma-btn sigma-btn-white sigma-modal-btn" data-close>Close</button><button type="button" class="sigma-btn sigma-btn-primary sigma-modal-btn" data-view ${row ? '' : 'disabled'}>View Submission <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></footer></section>`;
         const previous = document.activeElement;
@@ -421,13 +492,20 @@
             }
         };
         modal.querySelectorAll('[data-close]').forEach(button => button.onclick = close);
-        modal.querySelector('[data-view]').onclick = () => { close(); window.openTopicContent?.(target.subjectId, Number(target.topicIdx), target.tab || 'assessments', Number(target.itemIdx), false, { selectedSection: notif.assignmentScope?.section }); };
+        modal.querySelector('[data-view]').onclick = () => { close(); window.openTopicContent?.(target.subjectId, Number(row?.topicIdx ?? target.topicIdx), target.tab || 'assessments', Number(row?.unifiedIdx ?? target.itemIdx), false, { selectedSection: notif.assignmentScope?.section }); };
         modal.onclick = event => { if (event.target === modal) close(); };
         document.body.append(modal); document.addEventListener('keydown', onKey); modal.querySelector('[data-close]').focus();
     }
 
+    function courseworkNotificationForDisplay(notif) {
+        const teacher = currentRole === 'student' ? notif.courseTeacher : null;
+        if (!teacher?.id || teacher.role !== 'Teacher') return notif;
+        return { ...notif, senderId: teacher.id, senderName: teacher.name, senderRole: 'Teacher', senderType: 'teacher', avatarImg: teacher.avatarImg || '' };
+    }
+
     function buildNotificationItem(notif) {
-        if (['submission-graded', 'due-reminder'].includes(notif.type) && String(notif.id || '').startsWith(`${notif.type}:`)) {
+        notif = courseworkNotificationForDisplay(notif);
+        if (!notif.courseTeacher && ['submission-graded', 'due-reminder'].includes(notif.type) && String(notif.id || '').startsWith(`${notif.type}:`)) {
             notif = { ...notif, senderId: '', senderName: 'Coursework Updates', avatarImg: '',
                 senderInitials: '', icon: 'fa-book', senderColor: '#15803d', senderType: 'system' };
             if (notif.type === 'submission-graded') {
@@ -512,6 +590,8 @@
             : notif.type === 'class-announcement' ? 'Class Announcement' : notif.title;
         item.querySelector('.notif-item__context').textContent = `${notificationTitle ? notificationTitle + ' — ' : ''}${notif.body || ''}`;
         if (avatarImage) {
+            avatarImage.loading = 'lazy';
+            avatarImage.decoding = 'async';
             avatarImage.src = notif.avatarImg;
             avatarImage.alt = schoolSender ? 'School logo' : notif.senderName || 'Sender profile';
             avatarImage.onerror = () => {
@@ -543,6 +623,23 @@
                 window.location.hash = 'nav-school-sections';
                 return;
             }
+            if (currentRole === 'admin' && notif.type === 'curriculum-update' && String(notif.senderRole).toLowerCase() === 'teacher') {
+                window.location.hash = 'nav-school-subjects';
+                (async () => {
+                    if (window.fetchSubjectsFromDB && !await window.fetchSubjectsFromDB()) return;
+                    const scope = notif.assignmentScope || {}, target = notif.target || {};
+                    window.openSharedTopicsAndMaterials?.({subjectId: target.subjectId || scope.subjectId, section: scope.section, selectedSection: scope.section});
+                    window.selectCurriculumScope?.(notif.senderId, `${notif.senderName}${scope.section ? ` (${scope.section})` : ''}`);
+                    if (scope.quarter) {
+                        window.currentSubjectMaterialQuarter = scope.quarter;
+                        window.setSubjectTopicQuarter?.(scope.quarter);
+                    }
+                    if (target.topicId) window.expandedSubjectTopicIds = {[target.topicId]: true};
+                    window.renderSubjectTopics?.();
+                    window.renderSubjectMaterials?.();
+                })().catch(error => window.showToastNotification?.(error.message || 'Unable to open this coursework.', 'error'));
+                return;
+            }
             if (notif.type === 'academic-event' && notif.target?.academicDate) {
                 window.openAcademicCalendarDate?.(notif.target.academicDate);
                 return;
@@ -558,6 +655,10 @@
                     cancelText: 'Close',
                     onConfirm: () => window.switchTab?.('nav-school-year', true)
                 });
+                return;
+            }
+            if (notif.type === 'coursework-released' && currentRole === 'student' && notif.target?.classroomId) {
+                window.openClassroomTopics?.(notif.target.classroomId, notif.assignmentScope?.section, notif.assignmentScope?.subjectName);
                 return;
             }
             if (notif.type === 'submission-graded' && currentRole === 'student') {
@@ -580,12 +681,8 @@
                 return;
             }
             if (currentRole === 'teacher' && notif.assignmentScope && typeof window.openTopicContent === 'function') {
-                const target = notif.target || {};
-                window.openTopicContent(target.subjectId, target.topicIdx, target.tab || 'assessments', target.itemIdx, true, {
-                    selectedSection: target.selectedSection || notif.assignmentScope.section,
-                    selectedStudent: target.selectedStudent,
-                    viewSubmission: true
-                });
+                window.openSubmissionNotification(notif).catch(error => window.showToastNotification?.(error.message || 'Unable to open submitted work.', 'error'));
+                return;
             }
             if (currentRole === 'student' && typeof window.openTopicContent === 'function') {
                 const navTarget = notif.target || {};
@@ -616,7 +713,6 @@
         recordFeedRecipients(notifs);
         updateBadge(notifs);
         const feedContainer = document.getElementById('noti-dropdown-feed');
-        const prevBtnWrap = document.getElementById('noti-prev-wrapper');
         const scrollArea = document.querySelector('#noti-dropdown .notif-scroll-area');
         if (!feedContainer) return;
         const previousScrollTop = scrollArea?.scrollTop || 0;
@@ -635,59 +731,59 @@
         };
         filtered.sort((a, b) => notificationOrderTime(b) - notificationOrderTime(a));
 
-        feedContainer.innerHTML = '';
-
         if (filtered.length === 0) {
+            historyOpened = false;
+            visibleLimit = 0;
+            hasOlder = false;
             feedContainer.innerHTML = `
                 <div class="notif-empty">
                     <i class="fa-regular fa-bell-slash"></i>
                     <p>${selectedTab === 'unread' ? 'No unread notifications' : 'No notifications right now'}</p>
                 </div>
             `;
-            if (prevBtnWrap) prevBtnWrap.style.display = 'none';
+            setHistoryButtonVisible(false);
             if (scrollArea) scrollArea.classList.remove('can-scroll');
             return;
         }
 
-        // Measure natural row heights with the footer hidden first.
-        if (prevBtnWrap) prevBtnWrap.style.display = 'none';
-        const items = filtered.map(buildNotificationItem);
-        items.forEach(item => feedContainer.appendChild(item));
-        let availableHeight = scrollArea?.clientHeight || 0;
-        const heights = items.map(item => item.getBoundingClientRect().height || 100);
-        const totalHeight = heights.reduce((sum, height) => sum + height, 0);
-        let initialLimit = filtered.length;
-        if (!isExpanded && availableHeight > 0 && totalHeight > availableHeight + 1) {
-            if (prevBtnWrap) prevBtnWrap.style.display = 'block';
-            availableHeight = scrollArea?.clientHeight || availableHeight;
-            let used = 0;
-            initialLimit = 0;
-            for (const height of heights) {
-                if (used + height > availableHeight + 1) break;
-                used += height;
-                initialLimit++;
-            }
-            initialLimit = Math.max(1, initialLimit);
-        } else if (!availableHeight) initialLimit = INITIAL_LIMIT;
-        batchSize = initialLimit;
-        visibleLimit = isExpanded ? filtered.length : initialLimit;
+        // Measure one row only. Never build off-screen history just to calculate a page.
+        const owner = String(window.SigmaDatabase?.currentUser?.()?.id || '') + '|' + currentRole;
+        const ownerChanged = renderedFeedOwner !== owner;
+        if (ownerChanged) { historyOpened = false; loadingOlder = false; visibleLimit = 0; feedVersion++; renderedFeedOwner = owner; }
+        if (scrollArea) scrollArea.classList.toggle('can-scroll', historyOpened);
+        const existing = new Map(Array.from(feedContainer.children).filter(node => node.classList.contains('notif-item')).map(node => [node.dataset.id, node]));
+        let sample = existing.get(String(filtered[0].id));
+        const sampleIsNew = !sample;
+        if (!sample) { sample = buildNotificationItem(filtered[0]); feedContainer.appendChild(sample); }
+        const rowHeight = sample.getBoundingClientRect().height || 80;
+        const contentHeight = () => {
+            if (!scrollArea?.clientHeight) return rowHeight * INITIAL_LIMIT;
+            const style = getComputedStyle(scrollArea);
+            return Math.max(0, scrollArea.clientHeight - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0));
+        };
+        // Check the full panel first so a short feed never reserves an unused footer.
+        setHistoryButtonVisible(false);
+        const fullPreviewLimit = Math.max(1, Math.floor(contentHeight() / rowHeight));
+        const showHistoryButton = !historyOpened && filtered.length > fullPreviewLimit;
+        setHistoryButtonVisible(showHistoryButton);
+        const availableHeight = contentHeight();
+        batchSize = Math.max(1, Math.min(20, Math.ceil(availableHeight / rowHeight)));
+        // Keep the preview still until Previous Notifications opens older history.
+        const previewLimit = Math.max(1, Math.floor(availableHeight / rowHeight));
+        visibleLimit = Math.min(filtered.length, historyOpened ? Math.max(visibleLimit, batchSize + 1) : previewLimit);
         hasOlder = filtered.length > visibleLimit;
-        items.forEach((item, index) => { if (index >= visibleLimit) item.remove(); });
-
-        // "Previous Notifications" button logic:
-        // A crowded panel alone does not mean older notifications are hidden.
-        if (prevBtnWrap) {
-            if (hasOlder && !isExpanded) {
-                prevBtnWrap.style.display = 'block';
-                if (scrollArea) scrollArea.classList.remove('can-scroll');
-            } else {
-                prevBtnWrap.style.display = 'none';
-                if (scrollArea) {
-                    scrollArea.classList.add('can-scroll');
-                }
-            }
+        const fragment = document.createDocumentFragment();
+        for (const notification of filtered.slice(0, visibleLimit)) {
+            const key = String(notification.id);
+            const signature = JSON.stringify(notification);
+            let item = existing.get(key);
+            if (!item || item._sigmaNotificationSignature !== signature) item = sampleIsNew && key === String(filtered[0].id) ? sample : buildNotificationItem(notification);
+            item._sigmaNotificationSignature = signature;
+            fragment.appendChild(item);
         }
-        if (scrollArea) scrollArea.scrollTop = previousScrollTop;
+        feedContainer.replaceChildren(fragment);
+        setHistoryButtonVisible(!historyOpened && hasOlder);
+        if (scrollArea) scrollArea.scrollTop = ownerChanged || !historyOpened ? 0 : previousScrollTop;
     }
 
     window.addEventListener('resize', () => {
@@ -698,7 +794,8 @@
     // ─── Component Initialization ────────────────────────────────────────────
     function setTab(tab) {
         currentTab = tab === 'unread' ? 'unread' : 'all';
-        isExpanded = false;
+        historyOpened = false;
+        loadingOlder = false;
         visibleLimit = 0;
         feedVersion++;
         document.getElementById('noti-tab-all')?.classList.toggle('active', currentTab === 'all');
@@ -728,14 +825,15 @@
         const prevBtn = document.getElementById('notiPrevNotificationsBtn');
         document.querySelector('#noti-dropdown .notif-scroll-area')?.addEventListener('scroll', event => {
             const area = event.currentTarget;
-            if (isExpanded && area.scrollHeight > area.clientHeight && area.scrollTop + area.clientHeight >= area.scrollHeight - 32) {
+            if (historyOpened && hasOlder && area.scrollHeight > area.clientHeight && area.scrollTop + area.clientHeight >= area.scrollHeight - 48) {
                 loadOlderNotifications();
             }
         });
 
         if (notiDropdown) {
             const resetPanelView = () => {
-                isExpanded = false;
+                historyOpened = false;
+                notiDropdown.removeAttribute('data-notification-history-open');
                 visibleLimit = 0;
                 loadingOlder = false;
                 hasOlder = false;
@@ -767,8 +865,13 @@
         setupTabs();
 
         if (prevBtn) {
+            prevBtn.setAttribute('aria-controls', 'noti-dropdown-feed');
             prevBtn.onclick = (e) => {
                 e.preventDefault();
+                e.stopPropagation();
+                historyOpened = true;
+                // Hide synchronously on the mobile tap, before the next batch paints.
+                setHistoryButtonVisible(false);
                 loadOlderNotifications();
             };
         }
@@ -804,7 +907,8 @@
                     notiDropdown.classList.add('hidden');
                     notiToggleBtn.classList.remove('active');
                 } else {
-                    isExpanded = false;
+                    historyOpened = false;
+                    visibleLimit = 0;
                     const tabAll = document.getElementById('noti-tab-all');
                     const tabUnread = document.getElementById('noti-tab-unread');
                     if (tabAll) tabAll.classList.toggle('active', currentTab === 'all');

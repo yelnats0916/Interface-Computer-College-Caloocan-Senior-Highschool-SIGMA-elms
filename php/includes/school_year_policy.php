@@ -1,5 +1,19 @@
 <?php
 /** Calendar validation shared by the school-year API and administrative imports. */
+function sigmaEnsureActiveSemesterColumn(PDO $pdo): void {
+    static $checked = false;
+    if ($checked) return;
+    $checked = true;
+    $columns = $pdo->query('SHOW COLUMNS FROM school_years')->fetchAll(PDO::FETCH_COLUMN);
+    if (in_array('active_semester', $columns, true)) return;
+    try {
+        $pdo->exec("ALTER TABLE school_years ADD COLUMN active_semester TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER status");
+    } catch (PDOException $error) {
+        // Two portal requests can discover the missing column simultaneously.
+        if (($error->errorInfo[1] ?? null) !== 1060) throw $error;
+    }
+}
+
 function sigmaValidateSchoolYear(array $payload): array {
     $start = filter_var($payload['yearStart'] ?? null, FILTER_VALIDATE_INT);
     $end = filter_var($payload['yearEnd'] ?? null, FILTER_VALIDATE_INT);
@@ -80,10 +94,24 @@ function sigmaLockSchoolYearWrites(PDO $db): void {
     if ((int)$db->query("SELECT GET_LOCK('sigma_school_year_write',10)")->fetchColumn()!==1) throw new DomainException('School-year records are being updated. Please try again.');
 }
 function sigmaRequireSectionSchoolYear(PDO $db, string $reference): array {
-    foreach ($db->query('SELECT id,year_start,year_end,is_deleted FROM school_years FOR UPDATE')->fetchAll(PDO::FETCH_ASSOC) as $year) {
+    foreach ($db->query('SELECT id,year_start,year_end,status,is_deleted FROM school_years FOR UPDATE')->fetchAll(PDO::FETCH_ASSOC) as $year) {
         if (!sigmaSchoolYearReferenceMatches($reference,$year)) continue;
         if (!empty($year['is_deleted'])) throw new DomainException('Restore this school year before assigning a section to it.');
+        if (($year['status']??'') === 'Completed (Archived)') throw new DomainException('This school year is archived. Reactivate it before changing or deploying its sections.');
         return $year;
     }
     throw new DomainException('Choose an existing school year before saving the section.');
+}
+
+function sigmaAssertSectionMutable(PDO $db,array $section): void {
+    if(strtolower(trim($section['status']??''))==='archived')throw new DomainException('Archived sections are read-only. Reactivate their school year to return them to Draft.');
+    sigmaRequireSectionSchoolYear($db,(string)$section['school_year']);
+}
+
+/** Lock the current row before academic writes, including requests opened before archival. */
+function sigmaRequireWritableAcademicSection(PDO $db,string $id): array {
+    $guard=$db->prepare('SELECT status,school_year,is_deleted FROM sections WHERE id=? FOR UPDATE');$guard->execute([$id]);
+    $section=$guard->fetch(PDO::FETCH_ASSOC);
+    if(!$section||!empty($section['is_deleted'])||strtolower($section['status'])==='archived')throw new DomainException('This section is archived or unavailable. Its academic records are read-only.');
+    return $section;
 }

@@ -2,7 +2,7 @@
     'use strict';
     const types = ['Multiple Choice','True or False','Short Answer','Essay','Matching Type','Enumeration'];
     const levels = ['Remember','Understand','Apply','Analyze','Evaluate','Create'];
-    const descriptions = {Remember:'Recall facts and definitions.',Understand:'Explain, summarize, interpret, or classify ideas.',Apply:'Use a concept or procedure in a new situation.',Analyze:'Examine parts, comparisons, and relationships.',Evaluate:'Judge ideas using criteria and evidence.',Create:'Produce an original written response with grading guidance.'};
+    const descriptions = {Remember:'Recall facts',Understand:'Explain an idea',Apply:'Use what they learned',Analyze:'Compare parts or find relationships',Evaluate:'Make a judgment using reasons or evidence',Create:'Produce something original'};
     const el = id => document.getElementById(id);
     let rows = [{type:'Multiple Choice',count:3},{type:'True or False',count:2}];
     let selectedLevels = new Set(['Understand']);
@@ -27,10 +27,6 @@
         if(value.typeCounts?.some(row=>!Number.isInteger(row.count)||row.count<1)||new Set(rows.map(row=>row.type)).size!==rows.length)return 'Choose each type once and enter a positive whole-number count.';
         if(!value.bloomLevels.length)return 'Select at least one thinking skill.';
         if(value.count<value.bloomLevels.length)return `Use at least ${value.bloomLevels.length} questions to include every selected thinking skill.`;
-        if(value.bloomLevels.includes('Create')){
-            const essay=value.typeCounts?.find(row=>row.type==='Essay')?.count ?? (el('ai-gen-type')?.value==='Essay'?value.count:0);
-            if(!essay)return 'Add Essay / Paragraph questions to include Create.';
-        }
         return '';
     }
     function sync() {
@@ -42,7 +38,6 @@
         host?.querySelectorAll('input').forEach((input,index)=>{input.max=String(Math.max(1,capacity()-rows.reduce((n,row,j)=>n+(j===index?0:row.count),0)));});
         if(el('ai-add-question-type'))el('ai-add-question-type').disabled=rows.length>=types.length||rows.length>=capacity();
         const selected=options().bloomLevels;
-        if(el('ai-bloom-description'))el('ai-bloom-description').textContent=selected.length===1?descriptions[selected[0]]:'Questions will cover each selected thinking skill.';
         if(el('ai-bloom-select-all')){el('ai-bloom-select-all').checked=selected.length===levels.length;el('ai-bloom-select-all').indeterminate=selected.length>0&&selected.length<levels.length;}
         const message=error();if(el('ai-blueprint-error')){el('ai-blueprint-error').textContent=message;el('ai-blueprint-error').classList.toggle('hidden',!message);}
         return !message;
@@ -72,10 +67,76 @@
     }
     function renderLevels() {
         const host=el('ai-bloom-levels');if(!host)return;host.replaceChildren();
-        levels.forEach(level=>{const label=document.createElement('label');label.className='ai-bloom-option';const input=document.createElement('input');input.type='checkbox';input.value=level;input.name='ai-bloom-levels';input.checked=selectedLevels.has(level);input.onchange=()=>{if(input.checked)selectedLevels.add(level);else selectedLevels.delete(level);sync();window.syncAIGenerateButtonState?.();};const text=document.createElement('span');text.textContent=level;label.append(input,text);host.append(label);});
+        levels.forEach(level=>{const label=document.createElement('label');label.className='ai-bloom-option';const input=document.createElement('input');input.type='checkbox';input.value=level;input.name='ai-bloom-levels';input.checked=selectedLevels.has(level);input.onchange=()=>{if(input.checked)selectedLevels.add(level);else selectedLevels.delete(level);sync();window.syncAIGenerateButtonState?.();};const copy=document.createElement('span');copy.className='ai-bloom-option-copy';const title=document.createElement('span');title.className='ai-bloom-option-title';title.textContent=level;const hint=document.createElement('span');hint.className='ai-bloom-option-hint';hint.textContent=descriptions[level];copy.append(title,hint);label.append(input,copy);host.append(label);});
     }
- async function readFile(file){const ext=file.name.split('.').pop().toLowerCase();let text='';if(['txt','md','csv'].includes(ext))text=await file.text();else if(ext==='docx'){if(!window.mammoth)throw Error('Document reader is unavailable. Try again when connected.');text=(await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()})).value;}else if(ext==='pdf'){if(!window.pdfjsLib)throw Error('PDF reader is unavailable. Try again when connected.');pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;for(let i=1;i<=pdf.numPages;i++)text+=(await(await pdf.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ')+'\n';await pdf.destroy();}else if(ext==='pptx'){if(!window.JSZip)throw Error('Presentation reader is unavailable. Try again when connected.');const zip=await JSZip.loadAsync(await file.arrayBuffer());for(const name of Object.keys(zip.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}))){const xml=new DOMParser().parseFromString(await zip.files[name].async('string'),'text/xml');text+=Array.from(xml.getElementsByTagName('a:t')).map(n=>n.textContent).join(' ')+'\n';}}else throw Error('Choose a text document (.docx, .pdf, .txt, .md, .pptx, or .csv). For video or image lessons, upload their transcript or written content.');text=String(text||'').trim();if(!text)throw Error('No readable text was found. Upload a document containing selectable text.');if(new TextEncoder().encode(text).length>60000)throw Error('Select a shorter document or excerpt (up to 60,000 bytes of extracted text).');return text;}
- async function materialText(entry){const raw=entry?.sourceMaterial||{};for(const key of ['extractedText','contentText','text','transcript','body','content'])if(typeof raw[key]==='string'&&raw[key].trim())return raw[key].replace(/<[^>]*>/g,' ').trim();const files=[...(Array.isArray(raw.files)?raw.files:[]),...(Array.isArray(raw.attachments)?raw.attachments:[])];let value=raw.fileUrl||raw.url||raw.handoutUrl||raw.attachmentUrl||files[0]?.url||files[0]?.fileUrl; if(!value)throw Error('This material has no readable document. Borrow a document or upload its text.');const url=new URL(value,location.href);if(!['https:','http:'].includes(url.protocol))throw Error('Choose a saved document URL.');const response=url.origin===location.origin?await window.SigmaDatabase.fetch(url.href,{foreground:true,timeoutMs:30000}):await fetch(url.href,{credentials:'omit',signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error('The borrowed document could not be read. Upload a copy of the document.');const blob=await response.blob();const name=raw.fileName||files[0]?.name||decodeURIComponent(url.pathname.split('/').pop());return readFile(new File([blob],name,{type:blob.type}));}
+    const fileReads=new WeakMap(), materialReads=new Map();
+    async function extractFile(file) {
+        const ext=file.name.split('.').pop().toLowerCase();let text='';
+        if(['txt','md','csv'].includes(ext))text=await file.text();
+        else if(ext==='docx'){
+            if(!window.mammoth)throw Error('Document reader is unavailable. Reload and try again.');
+            text=(await window.mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()})).value;
+        }else if(ext==='pdf'){
+            if(!window.pdfjsLib)throw Error('PDF reader is unavailable. Reload and try again.');
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc='js/vendor/pdfjs-3.11.174/pdf.worker.min.js';
+            const pdf=await window.pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+            try{
+                const pages=[];
+                for(let first=1;first<=pdf.numPages;first+=4){
+                    const batch=Array.from({length:Math.min(4,pdf.numPages-first+1)},(_,i)=>first+i);
+                    pages.push(...await Promise.all(batch.map(async n=>{
+                        const page=await pdf.getPage(n),content=await page.getTextContent();
+                        const value=content.items.map(x=>x.str+(x.hasEOL?'\n':' ')).join('');page.cleanup();return value;
+                    })));
+                }
+                text=pages.join('\n');
+            }finally{await pdf.destroy();}
+        }else if(ext==='pptx'){
+            if(!window.JSZip)throw Error('Presentation reader is unavailable. Reload and try again.');
+            const zip=await window.JSZip.loadAsync(await file.arrayBuffer());
+            const names=Object.keys(zip.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+            text=(await Promise.all(names.map(async name=>{
+                const xml=new DOMParser().parseFromString(await zip.files[name].async('string'),'text/xml');
+                return Array.from(xml.getElementsByTagName('a:t')).map(n=>n.textContent).join(' ');
+            }))).join('\n');
+        }else throw Error('Choose a text document (.docx, .pdf, .txt, .md, .pptx, or .csv). For video or image lessons, upload their transcript or written content.');
+        text=String(text||'').trim();
+        if(!text)throw Error('No readable text was found. Upload a document containing selectable text.');
+        if(new TextEncoder().encode(text).length>60000)throw Error('Select a shorter document or excerpt (up to 60,000 bytes of extracted text).');
+        return text;
+    }
+    function readFile(file){
+        if(!fileReads.has(file))fileReads.set(file,extractFile(file).catch(error=>{fileReads.delete(file);throw error;}));
+        return fileReads.get(file);
+    }
+    function materialText(entry){
+        const raw=entry?.sourceMaterial||{};
+        for(const key of ['extractedText','contentText','text','transcript','body','content'])
+            if(typeof raw[key]==='string'&&raw[key].trim())return Promise.resolve(raw[key].replace(/<[^>]*>/g,' ').trim());
+        const files=[...(Array.isArray(raw.files)?raw.files:[]),...(Array.isArray(raw.attachments)?raw.attachments:[])];
+        const value=raw.fileUrl||raw.url||raw.handoutUrl||raw.attachmentUrl||files[0]?.url||files[0]?.fileUrl|| (typeof files[0]==='string'?files[0]:'');
+        if(!value)return Promise.reject(Error('This material has no readable document. Borrow a document or upload its text.'));
+        const url=new URL(value,location.href);
+        if(!['https:','http:'].includes(url.protocol))return Promise.reject(Error('Choose a saved document URL.'));
+        const owner=String(window.SigmaDatabase?.currentUser?.()?.id||'');
+        const key=JSON.stringify([owner,url.href,raw.updatedAt||raw.updated_at||'',raw.fileName||'']);
+        if(!materialReads.has(key)){
+            const promise=(async()=>{
+                const response=url.origin===location.origin
+                    ?await window.SigmaDatabase.fetch(url.href,{foreground:true,timeoutMs:20000})
+                    :await fetch(url.href,{credentials:'omit',signal:AbortSignal.timeout(20000)});
+                if(!response.ok)throw Error('The borrowed document could not be read. Upload a copy of the document.');
+                const blob=await response.blob();
+                const candidates=[raw.fileName,raw.fileNameDisplay,files[0]?.name,decodeURIComponent(url.pathname.split('/').pop())];
+                const name=candidates.find(name=>/\.(docx|pdf|pptx|txt|md|csv)$/i.test(name||''));
+                if(!name)throw Error('Borrow a supported text document (.docx, .pdf, .pptx, .txt, .md, or .csv).');
+                return readFile(new File([blob],name,{type:blob.type}));
+            })().catch(error=>{materialReads.delete(key);throw error;});
+            if(materialReads.size>=12)materialReads.delete(materialReads.keys().next().value);
+            materialReads.set(key,promise);
+        }
+        return materialReads.get(key);
+    }
 
     window.SigmaQuizGeneration={options,error,sync,readFile,materialText,reset(){rows=[{type:'Multiple Choice',count:3},{type:'True or False',count:2}];selectedLevels=new Set(['Understand']);renderRows();renderLevels();}};
     document.addEventListener('DOMContentLoaded',()=>{

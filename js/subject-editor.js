@@ -10,6 +10,113 @@
 (function () {
     const SUBJECTS_STORAGE_KEY = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
     window.SUBJECTS_STORAGE_KEY = SUBJECTS_STORAGE_KEY;
+    let materialUploadPanel = null, materialUploadTarget = 0, materialUploadDisplayed = 0, materialUploadFrame = 0, materialUploadLastFrame = 0, materialUploadDismiss = null, materialUploadRetryAction = null;
+
+    function ensureMaterialUploadPanel() {
+        if (materialUploadPanel?.isConnected) return materialUploadPanel;
+        const panel = document.createElement('section');
+        panel.id = 'subject-material-upload-progress-panel';
+        panel.className = 'sigma-black-fade-panel rounded-2xl p-4 space-y-3 shadow-xl';
+        panel.setAttribute('role', 'status');
+        panel.setAttribute('aria-live', 'polite');
+        panel.style.cssText = 'position:fixed;z-index:99999;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(460px,calc(100vw - 32px));';
+        panel.innerHTML = `<div class="flex items-center justify-between gap-3"><strong id="subject-material-upload-status">Uploading files</strong><span id="subject-material-upload-percent" class="shrink-0 font-bold">0%</span></div>
+            <p id="subject-material-upload-name" class="text-sm break-all m-0"></p>
+            <style>#subject-material-upload-progress{appearance:none;-webkit-appearance:none;display:block;width:100%;height:12px;border:0;border-radius:999px;overflow:hidden;background:#e2e8f0}#subject-material-upload-progress::-webkit-progress-bar{background:#e2e8f0;border-radius:999px}#subject-material-upload-progress::-webkit-progress-value{background:#15803d;border-radius:999px}#subject-material-upload-progress::-moz-progress-bar{background:#15803d;border-radius:999px}</style>
+            <progress id="subject-material-upload-progress" aria-label="Lesson, task, or rubric upload" max="100" value="0"></progress>
+            <p id="subject-material-upload-error" role="alert" class="text-sm text-red-700" hidden></p>
+            <div id="subject-material-upload-retry-actions" class="flex flex-wrap gap-2" style="display:none"><button type="button" id="subject-material-upload-retry" class="sigma-btn sigma-btn-primary sigma-btn-md">Retry Save</button></div>`;
+        document.body.append(panel);
+        materialUploadPanel = panel;
+        panel.querySelector('#subject-material-upload-retry').onclick = async () => {
+            const button = panel.querySelector('#subject-material-upload-retry');
+            button.disabled = true;
+            panel.querySelector('#subject-material-upload-status').textContent = 'Retrying save…';
+            panel.querySelector('#subject-material-upload-error').hidden = true;
+            try {
+                if (!materialUploadRetryAction) throw new Error('Reopen the material editor to retry this save.');
+                const saved = await materialUploadRetryAction();
+                if (saved === false) throw new Error('The material could not be saved. Check the message and try again.');
+            } catch (error) {
+                window.dispatchEvent(new CustomEvent('sigma:material-upload-progress', { detail: { phase: 'error', error: error.message } }));
+            } finally { button.disabled = false; }
+        };
+        return panel;
+    }
+
+    function animateMaterialUploadProgress(now) {
+        if (!materialUploadPanel?.isConnected) return;
+        if (!materialUploadLastFrame) materialUploadLastFrame = now;
+        const elapsed = Math.min(100, now - materialUploadLastFrame);
+        materialUploadLastFrame = now;
+        materialUploadDisplayed = Math.min(materialUploadTarget, materialUploadDisplayed + elapsed * 0.16);
+        const value = Math.floor(materialUploadDisplayed);
+        materialUploadPanel.querySelector('#subject-material-upload-progress').value = materialUploadDisplayed;
+        materialUploadPanel.querySelector('#subject-material-upload-percent').textContent = `${value}%`;
+        if (materialUploadDisplayed < materialUploadTarget) {
+            materialUploadFrame = requestAnimationFrame(animateMaterialUploadProgress);
+            return;
+        }
+        materialUploadFrame = 0;
+        materialUploadLastFrame = 0;
+        if (materialUploadTarget >= 100) materialUploadDismiss = setTimeout(() => {
+            materialUploadPanel?.remove(); materialUploadPanel = null; materialUploadDisplayed = 0; materialUploadTarget = 0;
+        }, 650);
+    }
+
+    window.addEventListener('sigma:material-upload-progress', event => {
+        const detail = event.detail || {};
+        const panel = ensureMaterialUploadPanel();
+        clearTimeout(materialUploadDismiss);
+        if (detail.phase === 'start') {
+            cancelAnimationFrame(materialUploadFrame);
+            materialUploadFrame = 0;
+            materialUploadTarget = 0; materialUploadDisplayed = 0; materialUploadLastFrame = 0;
+            panel.querySelector('#subject-material-upload-progress').value = 0;
+            panel.querySelector('#subject-material-upload-percent').textContent = '0%';
+            panel.querySelector('#subject-material-upload-error').hidden = true;
+            panel.querySelector('#subject-material-upload-retry-actions').style.display = 'none';
+        }
+        if (detail.fileName) panel.querySelector('#subject-material-upload-name').textContent = detail.fileName;
+        if (detail.phase === 'error') {
+            cancelAnimationFrame(materialUploadFrame);
+            materialUploadFrame = 0;
+            materialUploadLastFrame = 0;
+            panel.querySelector('#subject-material-upload-status').textContent = 'Upload failed';
+            const error = panel.querySelector('#subject-material-upload-error');
+            error.hidden = false; error.textContent = detail.error || 'The material could not be uploaded. Please retry.';
+            panel.querySelector('#subject-material-upload-retry-actions').style.removeProperty('display');
+            return;
+        }
+        if (detail.phase === 'complete') panel.querySelector('#subject-material-upload-status').textContent = 'Upload complete';
+        else if (detail.phase === 'saving') panel.querySelector('#subject-material-upload-status').textContent = detail.percent >= 99 ? 'Saving material content…' : 'Saving uploaded file…';
+        else panel.querySelector('#subject-material-upload-status').textContent = 'Uploading files';
+        materialUploadTarget = Math.max(materialUploadTarget, Math.min(detail.phase === 'complete' ? 100 : 99, Number(detail.percent) || 0));
+        if (!materialUploadFrame) {
+            materialUploadLastFrame = 0;
+            materialUploadFrame = requestAnimationFrame(animateMaterialUploadProgress);
+        }
+    });
+
+    async function syncMaterialEditorChanges() {
+        if (typeof window.syncCurrentSubjectEditorToStorage !== 'function') return true;
+        const buttons = ['mat-editor-save-btn', 'mat-editor-add-another-btn'];
+        const previous = buttons.map(id => {
+            const button = document.getElementById(id);
+            const state = button ? { disabled: button.disabled, busy: button.getAttribute('aria-busy') } : null;
+            if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
+            return state;
+        });
+        try { return await window.syncCurrentSubjectEditorToStorage() !== false; }
+        finally {
+            buttons.forEach((id, index) => {
+                const button = document.getElementById(id), state = previous[index];
+                if (!button || !state) return;
+                button.disabled = state.disabled;
+                if (state.busy === null) button.removeAttribute('aria-busy'); else button.setAttribute('aria-busy', state.busy);
+            });
+        }
+    }
 
     // Helper functions
     function _getStored(key, defaultVal) {
@@ -35,7 +142,7 @@
         } catch (e) {}
     }
 
-    function sanitizeMaterialForStorage(mat) {
+    function sanitizeMaterialForStorage(mat, keepUploadSource = false) {
         if (!mat || typeof mat !== 'object') return mat;
         const clean = { ...mat };
         delete clean.file;
@@ -43,8 +150,8 @@
         delete clean.perfGuidelinesFile;
         delete clean.perfRubricFile;
 
-        // Ensure binary file is stored in IndexedDB before discarding raw data URL from LocalStorage payload
-        if (clean.fileName && typeof clean.fileUrl === 'string' && clean.fileUrl.startsWith('data:')) {
+        // Preserve legacy data URLs in IndexedDB when this object is prepared for local storage.
+        if (!keepUploadSource && clean.fileName && typeof clean.fileUrl === 'string' && clean.fileUrl.startsWith('data:')) {
             if (typeof window.sigmaStoreDocument === 'function') {
                 window.sigmaStoreDocument(clean.fileName, clean.fileUrl, {
                     name: clean.fileName,
@@ -54,23 +161,7 @@
                 });
             }
         }
-        // Fallback: if fileUrl is still a blob: (FileReader didn't finish in time), retrieve the
-        // original File object from memory and persist it to IndexedDB so the file isn't lost.
-        if (clean.fileName && typeof clean.fileUrl === 'string' && clean.fileUrl.startsWith('blob:')) {
-            if (typeof window.sigmaStoreDocument === 'function') {
-                const _map = window._sigmaUploadedFiles;
-                const _storedFile = _map && (_map.get(clean.fileUrl) || _map.get(clean.fileName) || _map.get(clean.fileName.toLowerCase()));
-                if (_storedFile) {
-                    window.sigmaStoreDocument(clean.fileName, _storedFile, {
-                        name: clean.fileName,
-                        title: clean.title || clean.name || '',
-                        type: clean.fileType || (clean.fileName ? clean.fileName.split('.').pop() : 'docx'),
-                        url: 'image/' + clean.fileName
-                    });
-                }
-            }
-        }
-        if (clean.rubricFileName && typeof clean.rubricUrl === 'string' && clean.rubricUrl.startsWith('data:')) {
+        if (!keepUploadSource && clean.rubricFileName && typeof clean.rubricUrl === 'string' && clean.rubricUrl.startsWith('data:')) {
             if (typeof window.sigmaStoreDocument === 'function') {
                 window.sigmaStoreDocument(clean.rubricFileName, clean.rubricUrl, {
                     name: clean.rubricFileName,
@@ -80,21 +171,7 @@
                 });
             }
         }
-        if (clean.rubricFileName && typeof clean.rubricUrl === 'string' && clean.rubricUrl.startsWith('blob:')) {
-            if (typeof window.sigmaStoreDocument === 'function') {
-                const _map = window._sigmaUploadedFiles;
-                const _storedFile = _map && (_map.get(clean.rubricUrl) || _map.get(clean.rubricFileName) || _map.get(clean.rubricFileName.toLowerCase()));
-                if (_storedFile) {
-                    window.sigmaStoreDocument(clean.rubricFileName, _storedFile, {
-                        name: clean.rubricFileName,
-                        title: clean.rubricFileName,
-                        type: (clean.rubricFileName ? clean.rubricFileName.split('.').pop() : 'docx'),
-                        url: 'image/' + clean.rubricFileName
-                    });
-                }
-            }
-        }
-        if (clean.perfGuidelinesFileName && typeof clean.perfGuidelinesUrl === 'string' && clean.perfGuidelinesUrl.startsWith('data:')) {
+        if (!keepUploadSource && clean.perfGuidelinesFileName && typeof clean.perfGuidelinesUrl === 'string' && clean.perfGuidelinesUrl.startsWith('data:')) {
             if (typeof window.sigmaStoreDocument === 'function') {
                 window.sigmaStoreDocument(clean.perfGuidelinesFileName, clean.perfGuidelinesUrl, {
                     name: clean.perfGuidelinesFileName,
@@ -104,21 +181,7 @@
                 });
             }
         }
-        if (clean.perfGuidelinesFileName && typeof clean.perfGuidelinesUrl === 'string' && clean.perfGuidelinesUrl.startsWith('blob:')) {
-            if (typeof window.sigmaStoreDocument === 'function') {
-                const _map = window._sigmaUploadedFiles;
-                const _storedFile = _map && (_map.get(clean.perfGuidelinesUrl) || _map.get(clean.perfGuidelinesFileName) || _map.get(clean.perfGuidelinesFileName.toLowerCase()));
-                if (_storedFile) {
-                    window.sigmaStoreDocument(clean.perfGuidelinesFileName, _storedFile, {
-                        name: clean.perfGuidelinesFileName,
-                        title: clean.perfGuidelinesFileName,
-                        type: (clean.perfGuidelinesFileName ? clean.perfGuidelinesFileName.split('.').pop() : 'docx'),
-                        url: 'image/' + clean.perfGuidelinesFileName
-                    });
-                }
-            }
-        }
-        if (clean.perfRubricFileName && typeof clean.perfRubricUrl === 'string' && clean.perfRubricUrl.startsWith('data:')) {
+        if (!keepUploadSource && clean.perfRubricFileName && typeof clean.perfRubricUrl === 'string' && clean.perfRubricUrl.startsWith('data:')) {
             if (typeof window.sigmaStoreDocument === 'function') {
                 window.sigmaStoreDocument(clean.perfRubricFileName, clean.perfRubricUrl, {
                     name: clean.perfRubricFileName,
@@ -128,49 +191,35 @@
                 });
             }
         }
-        if (clean.perfRubricFileName && typeof clean.perfRubricUrl === 'string' && clean.perfRubricUrl.startsWith('blob:')) {
-            if (typeof window.sigmaStoreDocument === 'function') {
-                const _map = window._sigmaUploadedFiles;
-                const _storedFile = _map && (_map.get(clean.perfRubricUrl) || _map.get(clean.perfRubricFileName) || _map.get(clean.perfRubricFileName.toLowerCase()));
-                if (_storedFile) {
-                    window.sigmaStoreDocument(clean.perfRubricFileName, _storedFile, {
-                        name: clean.perfRubricFileName,
-                        title: clean.perfRubricFileName,
-                        type: (clean.perfRubricFileName ? clean.perfRubricFileName.split('.').pop() : 'docx'),
-                        url: 'image/' + clean.perfRubricFileName
-                    });
-                }
-            }
-        }
 
         // Clean out huge base64 data URLs & blob URLs for compact LocalStorage footprint
-        if (typeof clean.fileUrl === 'string' && (clean.fileUrl.startsWith('data:') || clean.fileUrl.startsWith('blob:'))) {
+        if (!keepUploadSource && typeof clean.fileUrl === 'string' && (clean.fileUrl.startsWith('data:') || clean.fileUrl.startsWith('blob:'))) {
             clean.fileUrl = clean.fileName ? `image/${clean.fileName}` : '';
         }
-        if (typeof clean.url === 'string' && (clean.url.startsWith('data:') || clean.url.startsWith('blob:'))) {
+        if (!keepUploadSource && typeof clean.url === 'string' && (clean.url.startsWith('data:') || clean.url.startsWith('blob:'))) {
             clean.url = clean.fileName ? `image/${clean.fileName}` : (clean.type === 'Video' ? 'image/campus-clip.mp4' : '');
         }
-        if (typeof clean.videoUrl === 'string' && (clean.videoUrl.startsWith('data:') || clean.videoUrl.startsWith('blob:'))) {
+        if (!keepUploadSource && typeof clean.videoUrl === 'string' && (clean.videoUrl.startsWith('data:') || clean.videoUrl.startsWith('blob:'))) {
             clean.videoUrl = clean.fileName ? `image/${clean.fileName}` : 'image/campus-clip.mp4';
         }
-        if (typeof clean.rubricUrl === 'string' && (clean.rubricUrl.startsWith('data:') || clean.rubricUrl.startsWith('blob:'))) {
+        if (!keepUploadSource && typeof clean.rubricUrl === 'string' && (clean.rubricUrl.startsWith('data:') || clean.rubricUrl.startsWith('blob:'))) {
             clean.rubricUrl = clean.rubricFileName ? `image/${clean.rubricFileName}` : '';
         }
-        if (typeof clean.perfGuidelinesUrl === 'string' && (clean.perfGuidelinesUrl.startsWith('data:') || clean.perfGuidelinesUrl.startsWith('blob:'))) {
+        if (!keepUploadSource && typeof clean.perfGuidelinesUrl === 'string' && (clean.perfGuidelinesUrl.startsWith('data:') || clean.perfGuidelinesUrl.startsWith('blob:'))) {
             clean.perfGuidelinesUrl = clean.perfGuidelinesFileName ? `image/${clean.perfGuidelinesFileName}` : '';
         }
-        if (typeof clean.perfRubricUrl === 'string' && (clean.perfRubricUrl.startsWith('data:') || clean.perfRubricUrl.startsWith('blob:'))) {
+        if (!keepUploadSource && typeof clean.perfRubricUrl === 'string' && (clean.perfRubricUrl.startsWith('data:') || clean.perfRubricUrl.startsWith('blob:'))) {
             clean.perfRubricUrl = clean.perfRubricFileName ? `image/${clean.perfRubricFileName}` : '';
         }
         return clean;
     }
 
-    function sanitizeTopicForStorage(top) {
+    function sanitizeTopicForStorage(top, keepUploadSource = false) {
         if (!top || typeof top !== 'object') return top;
         const clean = { ...top };
         ['activity', 'activities', 'assignments', 'tasks', 'task', 'quiz', 'quizzes', 'performanceTasks', 'performance', 'materials', 'handouts', 'videos', 'allMaterials'].forEach(field => {
             if (Array.isArray(clean[field])) {
-                clean[field] = clean[field].map(sanitizeMaterialForStorage);
+                clean[field] = clean[field].map(mat => sanitizeMaterialForStorage(mat, keepUploadSource));
             }
         });
         return clean;
@@ -805,7 +854,7 @@
     }
 
     function saveStoredTopicTemplates(list) {
-        localStorage.setItem(TOPIC_TEMPLATES_STORAGE_KEY, JSON.stringify(list));
+        try { localStorage.setItem(TOPIC_TEMPLATES_STORAGE_KEY, JSON.stringify(list)); } catch (_) { /* The chosen cover is persisted with its topic, independently of this optional template cache. */ }
         window.topicTemplates = list;
     }
 
@@ -830,6 +879,11 @@
             if (data) {
                 let parsed = JSON.parse(data);
                 if (Array.isArray(parsed) && parsed.length > 0) {
+                    // Recent history is optional. Never let large uploaded images or
+                    // temporary object URLs inflate this small localStorage cache.
+                    parsed = parsed.filter(src => typeof src === 'string'
+                        && src.length <= 2048
+                        && !/^(?:data|blob):/i.test(src));
                     DEFAULT_SYSTEM_TOPIC_TEMPLATES.forEach(t => {
                         if (!parsed.includes(t)) parsed.push(t);
                     });
@@ -841,11 +895,19 @@
     }
 
     function recordRecentTopicTemplate(src) {
-        if (!src) return;
-        let recents = getStoredRecentTopicTemplates().filter(s => s !== src);
-        recents.unshift(src);
-        recents = recents.slice(0, 3);
-        localStorage.setItem(TOPIC_RECENTS_STORAGE_KEY, JSON.stringify(recents));
+        if (typeof src !== 'string' || !src) return;
+        try {
+            let recents = getStoredRecentTopicTemplates().filter(s => s !== src);
+            // Data URLs are often several megabytes and blob URLs are temporary;
+            // neither belongs in a persistent recent-history list.
+            if (src.length <= 2048 && !/^(?:data|blob):/i.test(src)) {
+                recents.unshift(src);
+            }
+            localStorage.setItem(TOPIC_RECENTS_STORAGE_KEY, JSON.stringify(recents.slice(0, 3)));
+        } catch (_) {
+            // Selecting a template must still succeed when browser storage is full.
+            try { localStorage.removeItem(TOPIC_RECENTS_STORAGE_KEY); } catch (_) {}
+        }
     }
 
     window.topicTemplates = getStoredTopicTemplates();
@@ -3872,7 +3934,8 @@
             }
         }
 
-        const canSave = isValid && (!isEdit || hasChanges);
+        const isSaving = Boolean(window._subjectTopicSavePending);
+        const canSave = isValid && (!isEdit || hasChanges) && !isSaving;
 
         if (saveBtn) {
             saveBtn.disabled = !canSave;
@@ -3889,11 +3952,11 @@
 
         const addAnotherBtn = document.getElementById('topic-editor-add-another-btn');
         if (addAnotherBtn) {
-            addAnotherBtn.disabled = !isValid;
-            addAnotherBtn.style.opacity = isValid ? '1' : '0.5';
-            addAnotherBtn.style.cursor = isValid ? 'pointer' : 'not-allowed';
-            addAnotherBtn.classList.toggle('opacity-50', !isValid);
-            addAnotherBtn.classList.toggle('cursor-not-allowed', !isValid);
+            addAnotherBtn.disabled = !isValid || isSaving;
+            addAnotherBtn.style.opacity = isValid && !isSaving ? '1' : '0.5';
+            addAnotherBtn.style.cursor = isValid && !isSaving ? 'pointer' : 'not-allowed';
+            addAnotherBtn.classList.toggle('opacity-50', !isValid || isSaving);
+            addAnotherBtn.classList.toggle('cursor-not-allowed', !isValid || isSaving);
         }
     };
 
@@ -4924,7 +4987,8 @@ window.addSubjectTopic = function () {
         doGoBack();
     };
 
-    window.saveTopicFromEditor = function () {
+    window.saveTopicFromEditor = async function () {
+        if (window._subjectTopicSavePending) return false;
         const titleInput = document.getElementById('topic-editor-title-input') || document.getElementById('topic-edit-title');
         const descInput = document.getElementById('topic-editor-desc-input') || document.getElementById('topic-edit-desc');
         const quarterSelect = document.getElementById('topic-editor-quarter-select');
@@ -4939,6 +5003,35 @@ window.addSubjectTopic = function () {
             titleInput?.focus();
             return;
         }
+
+        const topicsBeforeSave = Array.isArray(window.currentSubjectTopics) ? [...window.currentSubjectTopics] : [];
+        const allTopicsBeforeSave = Array.isArray(window.currentSubjectAllTopics) ? [...window.currentSubjectAllTopics] : [];
+        const addedFlagBeforeSave = window._hasAddedNewTopic;
+        const editedFlagBeforeSave = window._hasEditedExistingTopic;
+        const saveButton = document.getElementById('topic-editor-save-btn');
+        const saveButtonText = document.getElementById('topic-editor-save-btn-text');
+        const addAnotherButton = document.getElementById('topic-editor-add-another-btn');
+        const saveButtonWasDisabled = saveButton?.disabled;
+        const addAnotherWasDisabled = addAnotherButton?.disabled;
+        const saveButtonBusy = saveButton?.getAttribute('aria-busy');
+        const addAnotherBusy = addAnotherButton?.getAttribute('aria-busy');
+        const originalSaveLabel = saveButtonText?.textContent || 'Save Topic';
+        const saveSpinner = document.createElement('i');
+        saveSpinner.className = 'fa-solid fa-circle-notch fa-spin ml-1';
+        saveSpinner.setAttribute('aria-hidden', 'true');
+        window._subjectTopicSavePending = true;
+        if (saveButton) {
+            saveButton.disabled = true;
+            saveButton.setAttribute('aria-busy', 'true');
+            saveButton.appendChild(saveSpinner);
+        }
+        if (saveButtonText) saveButtonText.textContent = 'Saving…';
+        if (addAnotherButton) {
+            addAnotherButton.disabled = true;
+            addAnotherButton.setAttribute('aria-busy', 'true');
+        }
+
+        try {
 
         const currentUser = getCurrentEditorUser();
         const isTeacher = isCurrentEditorTeacher();
@@ -5004,6 +5097,7 @@ window.addSubjectTopic = function () {
                 status: 'not-started'
             };
             savedNewTopicItem = newItem;
+            if (window.editingTopicState) window.editingTopicState.id = newItem.id;
 
             // Teacher topics are always appended at the bottom (below Admin topics)
             if (authorRole === 'Teacher') {
@@ -5037,43 +5131,16 @@ window.addSubjectTopic = function () {
         }
 
         if (typeof window.syncCurrentSubjectEditorToStorage === 'function') {
-            window.syncCurrentSubjectEditorToStorage();
-        }
-
-        if (window._hasAddedNewTopic && (authorRole === 'Teacher' || isTeacher) && savedNewTopicItem) {
-            try {
-                const curSubj = window.currentSubjectData || window.editingSubjectData || {};
-                const subjCode = curSubj.code || curSubj.id || window.currentSubjectCode || window.originalEditingSubjectId || '';
-                const subjName = curSubj.name || curSubj.title || subjCode;
-                const notifId = `teacher-topic-add:${subjCode}:${savedNewTopicItem.id}:${Date.now()}`;
-                const notif = {
-                    id: notifId,
-                    type: 'curriculum-update',
-                    title: `New Topic Added: ${title}`,
-                    body: `${authorName} added a new topic "${title}" to ${subjName}${activeSection ? ` (${activeSection})` : ''}.`,
-                    senderId: authorId,
-                    senderName: authorName,
-                    senderRole: 'Teacher',
-                    timestamp: new Date().toISOString(),
-                    read: false,
-                    assignmentScope: {
-                        subjectId: subjCode,
-                        subjectName: subjName,
-                        section: activeSection || ''
-                    },
-                    target: {
-                        subjectId: subjCode,
-                        tab: 'topics',
-                        itemId: savedNewTopicItem.id
-                    }
-                };
-                if (window.SigmaNotifications?.sendToRole) {
-                    window.SigmaNotifications.sendToRole('admin', notif);
-                }
-            } catch (err) {
-                console.warn('[saveTopicFromEditor] Admin notification error:', err);
+            if (await window.syncCurrentSubjectEditorToStorage() === false) {
+                window.currentSubjectTopics = topicsBeforeSave;
+                window.currentSubjectAllTopics = allTopicsBeforeSave;
+                window._hasAddedNewTopic = addedFlagBeforeSave;
+                window._hasEditedExistingTopic = editedFlagBeforeSave;
+                return false;
             }
         }
+
+        // Creation notifications and audit entries are committed by the subject save API.
 
         window.currentSubjectTopicQuarter = topicQuarter;
         window.editingTopicOriginalState = undefined;
@@ -5083,9 +5150,35 @@ window.addSubjectTopic = function () {
             window.checkSubjectFormValidity();
         }
         resetSubjectEditorScrollToTop();
+        return true;
+        } catch (error) {
+            window.currentSubjectTopics = topicsBeforeSave;
+            window.currentSubjectAllTopics = allTopicsBeforeSave;
+            window._hasAddedNewTopic = addedFlagBeforeSave;
+            window._hasEditedExistingTopic = editedFlagBeforeSave;
+            window.showToast?.(error?.message || 'The topic was not saved. Please try again.', 'error');
+            window.checkTopicValidity?.();
+            return false;
+        } finally {
+            window._subjectTopicSavePending = false;
+            if (saveButton) {
+                saveButton.disabled = Boolean(saveButtonWasDisabled);
+                if (saveButtonBusy === null) saveButton.removeAttribute('aria-busy');
+                else if (saveButtonBusy !== undefined) saveButton.setAttribute('aria-busy', saveButtonBusy);
+                saveSpinner.remove();
+            }
+            if (saveButtonText) saveButtonText.textContent = originalSaveLabel;
+            if (addAnotherButton) {
+                addAnotherButton.disabled = Boolean(addAnotherWasDisabled);
+                if (addAnotherBusy === null) addAnotherButton.removeAttribute('aria-busy');
+                else if (addAnotherBusy !== undefined) addAnotherButton.setAttribute('aria-busy', addAnotherBusy);
+            }
+            window.checkTopicValidity?.();
+        }
     };
 
-    window.saveAndAddAnotherTopic = function () {
+    window.saveAndAddAnotherTopic = async function () {
+        if (window._subjectTopicSavePending) return false;
         const titleInput = document.getElementById('topic-editor-title-input') || document.getElementById('topic-edit-title');
         const descInput = document.getElementById('topic-editor-desc-input') || document.getElementById('topic-edit-desc');
         const quarterSelect = document.getElementById('topic-editor-quarter-select');
@@ -5169,43 +5262,10 @@ window.addSubjectTopic = function () {
         }
 
         if (typeof window.syncCurrentSubjectEditorToStorage === 'function') {
-            window.syncCurrentSubjectEditorToStorage();
+            if (await window.syncCurrentSubjectEditorToStorage() === false) return false;
         }
 
-        if ((authorRole === 'Teacher' || isTeacher) && newItem) {
-            try {
-                const curSubj = window.currentSubjectData || window.editingSubjectData || {};
-                const subjCode = curSubj.code || curSubj.id || window.currentSubjectCode || window.originalEditingSubjectId || '';
-                const subjName = curSubj.name || curSubj.title || subjCode;
-                const notifId = `teacher-topic-add:${subjCode}:${newItem.id}:${Date.now()}`;
-                const notif = {
-                    id: notifId,
-                    type: 'curriculum-update',
-                    title: `New Topic Added: ${title}`,
-                    body: `${authorName} added a new topic "${title}" to ${subjName}${activeSection ? ` (${activeSection})` : ''}.`,
-                    senderId: authorId,
-                    senderName: authorName,
-                    senderRole: 'Teacher',
-                    timestamp: new Date().toISOString(),
-                    read: false,
-                    assignmentScope: {
-                        subjectId: subjCode,
-                        subjectName: subjName,
-                        section: activeSection || ''
-                    },
-                    target: {
-                        subjectId: subjCode,
-                        tab: 'topics',
-                        itemId: newItem.id
-                    }
-                };
-                if (window.SigmaNotifications?.sendToRole) {
-                    window.SigmaNotifications.sendToRole('admin', notif);
-                }
-            } catch (err) {
-                console.warn('[saveAndAddAnotherTopic] Admin notification error:', err);
-            }
-        }
+        // Creation notifications and audit entries are committed by the subject save API.
 
         window.renderSubjectTopics();
         if (typeof window.checkSubjectFormValidity === 'function') {
@@ -6151,6 +6211,41 @@ window.addSubjectTopic = function () {
         }
     };
 
+    // A combined teacher scope can contain section copies of one creation.
+    // Group only explicit shared identities; never merge ordinary same-title work.
+    window.groupCurriculumScopeCopies = function (topics, groups) {
+        const displayed = [], grouped = {}, identities = new Map();
+        const contentKey = item => JSON.stringify([
+            item.title || '', item.description || '', item.image || '', item.type || '',
+            item.instructions || '', item.content || '', item.url || '', item.videoUrl || '', item.fileUrl || ''
+        ]);
+        const key = item => item.sourceCreationId
+            ? JSON.stringify([item.sourceCreationId, item.authorId || '', item.authorRole || '', item.quarter || '', contentKey(item)])
+            : 'id:' + item.id;
+        topics.forEach(topic => {
+            const identity = key(topic), prior = identities.get(identity);
+            const source = groups[topic.id] || { topic, materials: [] };
+            if (!prior) {
+                identities.set(identity, topic.id);
+                displayed.push(topic);
+                grouped[topic.id] = { ...source, materials: [...source.materials], sections: topic.section ? [topic.section] : [] };
+            } else {
+                const target = grouped[prior];
+                target.materials.push(...source.materials);
+                if (topic.section && !target.sections.includes(topic.section)) target.sections.push(topic.section);
+            }
+        });
+        Object.values(grouped).forEach(group => {
+            const seen = new Set();
+            group.materials = group.materials.filter(material => {
+                const identity = key(material);
+                if (seen.has(identity)) return false;
+                seen.add(identity); return true;
+            });
+        });
+        return { topics: displayed, grouped };
+    };
+
     window.renderSubjectMaterials = function () {
         const grid = document.getElementById('subject-materials-grid');
         const empty = document.getElementById('subject-materials-empty');
@@ -6466,7 +6561,7 @@ window.addSubjectTopic = function () {
         }
 
         // Group by Topic
-        const grouped = {};
+        let grouped = {};
         topics.forEach(t => { grouped[t.id] = { topic: t, materials: [] }; });
         grouped['_unassigned'] = {
             topic: {
@@ -6498,6 +6593,12 @@ window.addSubjectTopic = function () {
         let topicListToRender = [...topics];
         if (grouped['_unassigned'].materials.length > 0) {
             topicListToRender.push(grouped['_unassigned'].topic);
+        }
+
+        if (!isTeacher && window.activeCurriculumScope && window.activeCurriculumScope !== 'master') {
+            const display = window.groupCurriculumScopeCopies(topicListToRender, grouped);
+            topicListToRender = display.topics;
+            grouped = display.grouped;
         }
 
         // In the combined Topics & Materials screen, keep topics that do not have files yet.
@@ -6580,6 +6681,7 @@ window.addSubjectTopic = function () {
                                     ` : ''}
                                 </div>
                                 <span class="text-[11px] sm:text-xs font-normal text-black-fade select-none whitespace-nowrap mt-0.5">${grp.materials.length} ${grp.materials.length === 1 ? 'Material' : 'Materials'}</span>
+                                ${grp.sections?.length > 1 ? `<span class="text-[11px] text-black-fade mt-0.5">${_escape(grp.sections.join(', '))}</span>` : ''}
                             </div>
                         </div>
 
@@ -8232,6 +8334,14 @@ window.addSubjectTopic = function () {
         window.stopAllVideos?.();
 
         const doCancel = () => {
+            if (materialUploadRetryAction) {
+                materialUploadRetryAction = null;
+                clearTimeout(materialUploadDismiss);
+                cancelAnimationFrame(materialUploadFrame);
+                materialUploadFrame = 0;
+                materialUploadPanel?.remove();
+                materialUploadPanel = null;
+            }
             const mainView = document.getElementById('subject-materials-main-view');
             const editorView = document.getElementById('subject-material-editor-view');
             const detailView = document.getElementById('subject-material-detail-view');
@@ -8564,10 +8674,16 @@ window.addSubjectTopic = function () {
     };
 
     window.handleMaterialFileSelect = async function (input, targetField = 'main') {
-        try {await window.SigmaMaterialLimits.refresh(true);window.SigmaMaterialLimits.assertFiles(Array.from(input.files||[]));}
-        catch(error){input.value='';window.SigmaFeedback.notice(error.message);return;}
-        const file = input.files && input.files[0];
+        const selectedFiles = Array.from(input.files || []);
+        const file = selectedFiles[0];
         if (!file) return;
+
+        // File selection only stages the File object in this editor. Do not block the
+        // UI on a forced settings request; the upload endpoint enforces current limits
+        // when the task is eventually saved.
+        try { window.SigmaMaterialLimits.assertFiles(selectedFiles); }
+        catch(error){input.value='';window.SigmaFeedback.notice(error.message);return;}
+        void window.SigmaMaterialLimits.refresh().catch(() => {});
 
         const limits = typeof window.getSigmaMaterialLimits === 'function'
             ? window.getSigmaMaterialLimits()
@@ -8582,9 +8698,6 @@ window.addSubjectTopic = function () {
         window._sigmaUploadedFiles.set(file.name.toLowerCase(), file);
         const blobUrl = URL.createObjectURL(file);
         window._sigmaUploadedFiles.set(blobUrl, file);
-        if (typeof window.sigmaStoreDocument === 'function') {
-            window.sigmaStoreDocument(file.name, file);
-        }
 
         if (targetField === 'main') {
             if (window.editingMaterialState.type === 'Video') {
@@ -8637,20 +8750,6 @@ window.addSubjectTopic = function () {
                 const ext = (file.name.split('.').pop() || 'docx').toLowerCase();
                 window.editingMaterialState.fileType = (ext === 'doc' ? 'docx' : (ext === 'ppt' ? 'pptx' : ext));
             }
-            // Convert to persistent base64 data URL so the file survives page reloads
-            // (blob URLs are session-only and die on reload — data URLs embed the actual bytes)
-            // We also keep the File object in state.file for same-session previews (avoids base64 decode round-trip)
-            if (window.editingMaterialState.type !== 'Video') {
-                (function (f, state) {
-                    const r = new FileReader();
-                    r.onload = function (ev) {
-                        // Overwrite the blob URL so performSaveMaterial always persists the real data URL
-                        state.fileUrl = ev.target.result;
-                        state.url = ev.target.result;
-                    };
-                    r.readAsDataURL(f);
-                })(file, window.editingMaterialState);
-            }
         } else if (targetField === 'rubric') {
             const maxDocMb = Number(limits.docx?.max || (Number(limits.docx?.std || limits.docx?.reg || 500) + Number(limits.docx?.ext || 50))) || 550;
             if (file.size > maxDocMb * 1024 * 1024) {
@@ -8662,12 +8761,6 @@ window.addSubjectTopic = function () {
             window.editingMaterialState.rubricFileName = file.name;
             window.editingMaterialState.rubricFileSize = sizeFormatted;
             window.editingMaterialState.rubricUrl = blobUrl;
-            // Persist rubric as data URL
-            (function (f, state) {
-                const r = new FileReader();
-                r.onload = function (ev) { state.rubricUrl = ev.target.result; };
-                r.readAsDataURL(f);
-            })(file, window.editingMaterialState);
 
             // ── Sync to Set Details schedule draft + UI (if modal is open) ──
             try {
@@ -8720,12 +8813,6 @@ window.addSubjectTopic = function () {
             window.editingMaterialState.perfGuidelinesFile = file;
             window.editingMaterialState.perfGuidelinesFileName = file.name;
             window.editingMaterialState.perfGuidelinesUrl = blobUrl;
-            // Persist guidelines as data URL
-            (function (f, state) {
-                const r = new FileReader();
-                r.onload = function (ev) { state.perfGuidelinesUrl = ev.target.result; };
-                r.readAsDataURL(f);
-            })(file, window.editingMaterialState);
         } else if (targetField === 'perfRubric') {
             const maxDocMb = Number(limits.docx?.max || (Number(limits.docx?.std || limits.docx?.reg || 500) + Number(limits.docx?.ext || 50))) || 550;
             if (file.size > maxDocMb * 1024 * 1024) {
@@ -8736,12 +8823,6 @@ window.addSubjectTopic = function () {
             window.editingMaterialState.perfRubricFile = file;
             window.editingMaterialState.perfRubricFileName = file.name;
             window.editingMaterialState.perfRubricUrl = blobUrl;
-            // Persist perf rubric as data URL
-            (function (f, state) {
-                const r = new FileReader();
-                r.onload = function (ev) { state.perfRubricUrl = ev.target.result; };
-                r.readAsDataURL(f);
-            })(file, window.editingMaterialState);
         }
 
         try {
@@ -10318,51 +10399,6 @@ window.addSubjectTopic = function () {
             authorName = existingMat.authorName || existingMat.author || authorName;
         }
 
-        // --- Wait for FileReader data URL conversions to finish ---
-        // If the user clicked Save immediately after selecting a file, the async FileReader
-        // may not have finished converting the blob:// URL to a persistent data URL yet.
-        // A blob URL dies on page reload, so we must ensure we save the data URL instead.
-        if (type !== 'Video') {
-            const needsWait = (url) => typeof url === 'string' && url.startsWith('blob:');
-            const maxWaitMs = 3000;
-            const stepMs = 50;
-            let waited = 0;
-            while (waited < maxWaitMs && (
-                needsWait(state.fileUrl) ||
-                needsWait(state.rubricUrl) ||
-                needsWait(state.perfGuidelinesUrl) ||
-                needsWait(state.perfRubricUrl)
-            )) {
-                await new Promise(r => setTimeout(r, stepMs));
-                waited += stepMs;
-            }
-            // Fallback: if still blob: after waiting (large file / quick save), persist via
-            // the original File object in memory so IndexedDB has the binary data.
-            const _fMap = window._sigmaUploadedFiles;
-            const _isHeavyUrl = (url) => typeof url === 'string' && (url.startsWith('blob:') || url.startsWith('data:'));
-            const _ensureStored = async (url, fileName, fileObj, itemTitle, itemType) => {
-                if (!fileName || typeof window.sigmaStoreDocument !== 'function') return;
-                const fromMap = _fMap && (_fMap.get(url) || _fMap.get(fileName) || _fMap.get(fileName.toLowerCase()));
-                const source = fileObj || fromMap || (_isHeavyUrl(url) ? url : null);
-                if (!source) return;
-                await window.sigmaStoreDocument(fileName, source, {
-                    name: fileName,
-                    title: itemTitle || title,
-                    type: itemType || type,
-                    url: 'image/' + fileName
-                });
-            };
-            await _ensureStored(state.fileUrl, state.fileName, state.file, title, type);
-            await _ensureStored(state.rubricUrl, state.rubricFileName, state.rubricFile, (state.rubricFileName || 'Rubric'), 'docx');
-            await _ensureStored(state.perfGuidelinesUrl, state.perfGuidelinesFileName, state.perfGuidelinesFile, (state.perfGuidelinesFileName || 'Guidelines'), 'docx');
-            await _ensureStored(state.perfRubricUrl, state.perfRubricFileName, state.perfRubricFile, (state.perfRubricFileName || 'Rubric'), 'docx');
-            // Keep the file bytes in IndexedDB. localStorage only stores the file name.
-            if (_isHeavyUrl(state.fileUrl) && state.fileName) { state.fileUrl = `image/${state.fileName}`; state.url = state.fileUrl; }
-            if (_isHeavyUrl(state.rubricUrl) && state.rubricFileName) { state.rubricUrl = `image/${state.rubricFileName}`; }
-            if (_isHeavyUrl(state.perfGuidelinesUrl) && state.perfGuidelinesFileName) { state.perfGuidelinesUrl = `image/${state.perfGuidelinesFileName}`; }
-            if (_isHeavyUrl(state.perfRubricUrl) && state.perfRubricFileName) { state.perfRubricUrl = `image/${state.perfRubricFileName}`; }
-        }
-
         const activeQuarters = getActiveSubjectQuarters();
         const allCurTopics = (window.currentSubjectAllTopics && window.currentSubjectAllTopics.length > 0)
             ? window.currentSubjectAllTopics
@@ -10557,56 +10593,28 @@ window.addSubjectTopic = function () {
             console.warn('[performSaveMaterial] Error syncing rubric to release configs:', err);
         }
 
-        if (typeof window.syncCurrentSubjectEditorToStorage === 'function') {
-            window.syncCurrentSubjectEditorToStorage();
-        }
-
-        if (authorRole === 'Teacher' || isTeacher) {
-            try {
-                const curSubj = window.currentSubjectData || window.editingSubjectData || {};
-                const subjCode = curSubj.code || curSubj.id || window.currentSubjectCode || window.originalEditingSubjectId || '';
-                const subjName = curSubj.name || curSubj.title || subjCode;
-                const matType = finalItem.type || 'Material';
-                const notifId = `teacher-material-add:${subjCode}:${finalItem.id}:${Date.now()}`;
-                const notif = {
-                    id: notifId,
-                    type: 'curriculum-update',
-                    title: `New ${matType} Added: ${finalItem.title}`,
-                    body: `${authorName} added a new ${matType.toLowerCase()} "${finalItem.title}" to ${subjName}${activeSection ? ` (${activeSection})` : ''}.`,
-                    senderId: authorId,
-                    senderName: authorName,
-                    senderRole: 'Teacher',
-                    timestamp: new Date().toISOString(),
-                    read: false,
-                    assignmentScope: {
-                        subjectId: subjCode,
-                        subjectName: subjName,
-                        section: activeSection || ''
-                    },
-                    target: {
-                        subjectId: subjCode,
-                        tab: ['Quiz', 'Task'].includes(matType) ? 'assessments' : 'lessons',
-                        itemId: finalItem.id,
-                        materialTitle: finalItem.title
-                    }
-                };
-                if (window.SigmaNotifications?.sendToRole) {
-                    window.SigmaNotifications.sendToRole('admin', notif);
-                }
-            } catch (err) {
-                console.warn('[saveAndAddAnotherMaterial] Admin notification error:', err);
+        const finishMaterialSave = () => {
+            // Creation notifications and audit entries are committed by the subject save API.
+            if (isTeacher && existingMat && !['Lesson','Video','Handout'].includes(type)) {
+                const subject = window.currentSubjectData || window.editingSubjectData;
+                window.SigmaNotifications?.notifyAssessmentContentUpdate(notificationPreviousMaterial, finalItem, subject?.code || subject?.id || window.currentSubjectCode, activeSection);
             }
+            window.currentSubjectMaterialQuarter = matQuarter;
+            window.cancelMaterialEditor(true);
+            window.renderSubjectMaterials();
+            resetSubjectEditorScrollToTop();
+        };
+        if (!await syncMaterialEditorChanges()) {
+            materialUploadRetryAction = async () => {
+                if (!await syncMaterialEditorChanges()) return false;
+                materialUploadRetryAction = null;
+                finishMaterialSave();
+                return true;
+            };
+            return;
         }
-
-        if (isTeacher && existingMat && !['Lesson','Video','Handout'].includes(type)) {
-            const subject = window.currentSubjectData || window.editingSubjectData;
-            window.SigmaNotifications?.notifyAssessmentContentUpdate(notificationPreviousMaterial, finalItem, subject?.code || subject?.id || window.currentSubjectCode, activeSection);
-        }
-
-        window.currentSubjectMaterialQuarter = matQuarter;
-        window.cancelMaterialEditor(true);
-        window.renderSubjectMaterials();
-        resetSubjectEditorScrollToTop();
+        materialUploadRetryAction = null;
+        finishMaterialSave();
     };
 
     window.saveAndAddAnotherMaterial = async function () {
@@ -10668,46 +10676,6 @@ window.addSubjectTopic = function () {
             if (window.activeCurriculumScopeLabel) {
                 authorName = window.activeCurriculumScopeLabel.replace(/\s*\(.*?\)\s*/g, '').trim();
             }
-        }
-
-        // --- Wait for FileReader data URL conversions to finish ---
-        if (type !== 'Video') {
-            const needsWait = (url) => typeof url === 'string' && url.startsWith('blob:');
-            const maxWaitMs = 3000;
-            const stepMs = 50;
-            let waited = 0;
-            while (waited < maxWaitMs && (
-                needsWait(state.fileUrl) ||
-                needsWait(state.rubricUrl) ||
-                needsWait(state.perfGuidelinesUrl) ||
-                needsWait(state.perfRubricUrl)
-            )) {
-                await new Promise(r => setTimeout(r, stepMs));
-                waited += stepMs;
-            }
-            // Persist via memory or stream to IndexedDB before LocalStorage payload is saved
-            const _fMap = window._sigmaUploadedFiles;
-            const _isHeavyUrl = (url) => typeof url === 'string' && (url.startsWith('blob:') || url.startsWith('data:'));
-            const _ensureStored = async (url, fileName, fileObj, itemTitle, itemType) => {
-                if (!fileName || typeof window.sigmaStoreDocument !== 'function') return;
-                const fromMap = _fMap && (_fMap.get(url) || _fMap.get(fileName) || _fMap.get(fileName.toLowerCase()));
-                const source = fileObj || fromMap || (_isHeavyUrl(url) ? url : null);
-                if (!source) return;
-                await window.sigmaStoreDocument(fileName, source, {
-                    name: fileName,
-                    title: itemTitle || title,
-                    type: itemType || type,
-                    url: 'image/' + fileName
-                });
-            };
-            await _ensureStored(state.fileUrl, state.fileName, state.file, title, type);
-            await _ensureStored(state.rubricUrl, state.rubricFileName, state.rubricFile, (state.rubricFileName || 'Rubric'), 'docx');
-            await _ensureStored(state.perfGuidelinesUrl, state.perfGuidelinesFileName, state.perfGuidelinesFile, (state.perfGuidelinesFileName || 'Guidelines'), 'docx');
-            await _ensureStored(state.perfRubricUrl, state.perfRubricFileName, state.perfRubricFile, (state.perfRubricFileName || 'Rubric'), 'docx');
-            if (_isHeavyUrl(state.fileUrl) && state.fileName) { state.fileUrl = `image/${state.fileName}`; state.url = state.fileUrl; }
-            if (_isHeavyUrl(state.rubricUrl) && state.rubricFileName) { state.rubricUrl = `image/${state.rubricFileName}`; }
-            if (_isHeavyUrl(state.perfGuidelinesUrl) && state.perfGuidelinesFileName) { state.perfGuidelinesUrl = `image/${state.perfGuidelinesFileName}`; }
-            if (_isHeavyUrl(state.perfRubricUrl) && state.perfRubricFileName) { state.perfRubricUrl = `image/${state.perfRubricFileName}`; }
         }
 
         const activeQuartersForAnother = getActiveSubjectQuarters();
@@ -10840,62 +10808,26 @@ window.addSubjectTopic = function () {
             console.warn('[saveAndAddAnotherMaterial] Error syncing rubric to release configs:', err);
         }
 
-        if (typeof window.syncCurrentSubjectEditorToStorage === 'function') {
-            window.syncCurrentSubjectEditorToStorage();
+        const finishAndAddAnother = () => {
+            window.currentSubjectMaterialQuarter = matQuarterForAnother;
+            window.renderSubjectMaterials();
+            window.addSubjectMaterial(type, false, -1);
+            if (window.editingMaterialState) window.editingMaterialState.topicId = topicId;
+            window.renderMaterialEditorForm();
+            resetSubjectEditorScrollToTop();
+            setTimeout(() => document.getElementById('mat-editor-title')?.focus(), 80);
+        };
+        if (!await syncMaterialEditorChanges()) {
+            materialUploadRetryAction = async () => {
+                if (!await syncMaterialEditorChanges()) return false;
+                materialUploadRetryAction = null;
+                finishAndAddAnother();
+                return true;
+            };
+            return;
         }
-
-        if (authorRole === 'Teacher' || isTeacher) {
-            try {
-                const curSubj = window.currentSubjectData || window.editingSubjectData || {};
-                const subjCode = curSubj.code || curSubj.id || window.currentSubjectCode || window.originalEditingSubjectId || '';
-                const subjName = curSubj.name || curSubj.title || subjCode;
-                const matType = finalItem.type || 'Material';
-                const notifId = `teacher-material-add:${subjCode}:${finalItem.id}:${Date.now()}`;
-                const notif = {
-                    id: notifId,
-                    type: 'curriculum-update',
-                    title: `New ${matType} Added: ${finalItem.title}`,
-                    body: `${authorName} added a new ${matType.toLowerCase()} "${finalItem.title}" to ${subjName}${activeSection ? ` (${activeSection})` : ''}.`,
-                    senderId: authorId,
-                    senderName: authorName,
-                    senderRole: 'Teacher',
-                    timestamp: new Date().toISOString(),
-                    read: false,
-                    assignmentScope: {
-                        subjectId: subjCode,
-                        subjectName: subjName,
-                        section: activeSection || ''
-                    },
-                    target: {
-                        subjectId: subjCode,
-                        tab: ['Quiz', 'Task'].includes(matType) ? 'assessments' : 'lessons',
-                        itemId: finalItem.id,
-                        materialTitle: finalItem.title
-                    }
-                };
-                if (window.SigmaNotifications?.sendToRole) {
-                    window.SigmaNotifications.sendToRole('admin', notif);
-                }
-            } catch (err) {
-                console.warn('[saveAndAddAnotherMaterial] Admin notification error:', err);
-            }
-        }
-
-        window.currentSubjectMaterialQuarter = matQuarterForAnother;
-
-        window.renderSubjectMaterials();
-        window.addSubjectMaterial(type, false, -1);
-        if (window.editingMaterialState) {
-            window.editingMaterialState.topicId = topicId;
-        }
-        window.renderMaterialEditorForm();
-        resetSubjectEditorScrollToTop();
-        setTimeout(() => {
-            const titleInputEl = document.getElementById('mat-editor-title');
-            if (titleInputEl) {
-                titleInputEl.focus();
-            }
-        }, 80);
+        materialUploadRetryAction = null;
+        finishAndAddAnother();
     };
 
     window.deleteCurrentEditingMaterial = function () {
@@ -11116,8 +11048,8 @@ window.addSubjectTopic = function () {
             : [...(window.currentSubjectMaterials || [])];
 
         const finalTopics = _embedMaterialsIntoTopics(sortedRawTopics, finalMaterials);
-        const cleanFinalTopics = finalTopics.map(sanitizeTopicForStorage);
-        const rawCleanFinalMaterials = finalMaterials.map(sanitizeMaterialForStorage);
+        const cleanFinalTopics = finalTopics.map(topic => sanitizeTopicForStorage(topic, true));
+        const rawCleanFinalMaterials = finalMaterials.map(material => sanitizeMaterialForStorage(material, true));
         const cleanFinalMaterials = (typeof window.deduplicateMaterialsArray === 'function')
             ? window.deduplicateMaterialsArray(rawCleanFinalMaterials, { collapseRoles: false })
             : rawCleanFinalMaterials;
@@ -11146,7 +11078,34 @@ window.addSubjectTopic = function () {
             subjects.unshift(targetSubject);
         }
 
-        if (!await window.syncSubjectToDB(targetSubject)) return false;
+        const subjectSaved = await window.syncSubjectToDB(targetSubject);
+        const savedMaterials = new Map();
+        const collectSavedMaterials = items => {
+            for (const material of items || []) if (material?.id) savedMaterials.set(String(material.id), material);
+        };
+        collectSavedMaterials(targetSubject.materials);
+        for (const topic of targetSubject.topics || []) {
+            for (const key of ['materials', 'allMaterials', 'handouts', 'assignments', 'performanceTasks', 'quizzes', 'videos', 'activities', 'tasks', 'task', 'quiz', 'activity', 'performance']) {
+                collectSavedMaterials(topic[key]);
+            }
+        }
+        const storedFileFields = ['fileUrl', 'url', 'videoUrl', 'fileUrlStorage', 'rubricUrl', 'rubricUrlStorage', 'perfGuidelinesUrl', 'perfGuidelinesUrlStorage', 'perfRubricUrl', 'perfRubricUrlStorage'];
+        for (const material of [...(window.currentSubjectMaterials || []), ...(window.currentSubjectAllMaterials || [])]) {
+            const saved = savedMaterials.get(String(material?.id || ''));
+            if (!saved) continue;
+            for (const key of storedFileFields) {
+                if (saved[key] !== undefined) material[key] = saved[key];
+            }
+        }
+        if (!subjectSaved) return false;
+        // The server replaces uploaded data URLs with permanent shared cover URLs.
+        const storedCovers = new Map((targetSubject.topics || []).map(topic => [String(topic.id), topic]));
+        for (const topic of [...(window.currentSubjectTopics || []), ...(window.currentSubjectAllTopics || [])]) {
+            const saved = storedCovers.get(String(topic.id));
+            if (saved?.image !== undefined) topic.image = saved.image;
+            if (saved?.imageStorage) topic.imageStorage = saved.imageStorage;
+            else delete topic.imageStorage;
+        }
         _saveStored(SUBJECTS_STORAGE_KEY, subjects);
 
         syncCustomStorageKeys(targetSubject, window.originalEditingSubjectCode, window.originalEditingSubjectId, window.originalEditingSubjectName);
@@ -11154,9 +11113,53 @@ window.addSubjectTopic = function () {
         window.dispatchEvent(new CustomEvent('sigma:subjectUpdated', {
             detail: { subject: targetSubject, code: targetSubject.code, subjectId: window.originalEditingSubjectId || window.originalEditingSubjectCode || code }
         }));
+        return true;
     };
 
     // ── SAVING & PUBLISHING WORKSTATION DATA ──────────────────────────────────
+
+    function reflectSavedSubjectInCatalog(subject, status) {
+        if (!subject) return;
+
+        const catalog = window.subjectCatalogState;
+        if (catalog?.ready && Array.isArray(catalog.records)) {
+            // Do not let a catalog read started before this save overwrite the saved status.
+            window._subjectCatalogRevision = (window._subjectCatalogRevision || 0) + 1;
+            const index = findMatchingSubjectIndex(
+                catalog.records,
+                subject.code,
+                subject.name,
+                window.originalEditingSubjectCode,
+                window.originalEditingSubjectId,
+                window.originalEditingSubjectName
+            );
+            if (index > -1) {
+                // Retain server metadata such as deletion permissions while reflecting
+                // the just-saved status immediately in the catalog.
+                catalog.records[index] = { ...catalog.records[index], ...subject };
+            } else {
+                catalog.records.unshift({ ...subject, canDelete: subject.canDelete !== false });
+            }
+        }
+
+        if (String(status || subject.status || '').trim().toLowerCase() !== 'draft'
+            || isCurrentEditorTeacher()
+            || window.subjectEditorOptions?.standalone) return;
+
+        // If the catalog was filtered to Published, changing this subject to Draft
+        // would otherwise make it look deleted. Clear only the conflicting status filter.
+        const statusFilter = document.getElementById('subject-search-status');
+        const appliedStatus = String(window.subjectSearchState?.status || '').trim().toLowerCase();
+        const selectedStatus = String(statusFilter?.value || '').trim().toLowerCase();
+        const excludesDraft = value => value && !['draft', 'all', 'all status'].includes(value);
+        if (excludesDraft(appliedStatus) || excludesDraft(selectedStatus)) {
+            if (statusFilter) statusFilter.value = '';
+            if (window.subjectSearchState) {
+                window.subjectSearchState = { ...window.subjectSearchState, status: '' };
+            }
+            if (window.subjectPaginationState) window.subjectPaginationState.currentPage = 1;
+        }
+    }
 
     window.handleSubjectSave = async function (status = 'Published') {
         if (window._subjectDatabaseSavePending) return false;
@@ -11228,6 +11231,7 @@ window.addSubjectTopic = function () {
             subjects[index].activeQuarters = getActiveSubjectQuarters();
             if (!await window.syncSubjectToDB(subjects[index])) return false;
             _saveStored(SUBJECTS_STORAGE_KEY, subjects);
+            reflectSavedSubjectInCatalog(subjects[index], status);
 
             if (typeof window.saveSubjectGradebookWeights === 'function' && subjectWeights) {
                 window.saveSubjectGradebookWeights(code, subjectWeights);
@@ -11318,6 +11322,7 @@ window.addSubjectTopic = function () {
             }
         }
         _saveStored(SUBJECTS_STORAGE_KEY, subjects);
+        reflectSavedSubjectInCatalog(newSubject, status);
 
         if (typeof window.saveSubjectGradebookWeights === 'function' && subjectWeights) {
             window.saveSubjectGradebookWeights(code, subjectWeights);

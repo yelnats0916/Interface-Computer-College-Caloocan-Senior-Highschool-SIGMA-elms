@@ -12,7 +12,25 @@
     // This hosting account has one PHP worker. Queue API requests instead of
     // letting startup modules compete for a worker and trigger HTTP 503s.
     let apiQueue = Promise.resolve();
+    const pendingReads = new Map();
+    let writeRevision = 0;
+    let signingOut = false, sessionAbort = null;
+    function checkSessionOpen() {
+        if (signingOut) throw new DOMException('The session is signing out.', 'AbortError');
+    }
+    function sessionSignal(signal) {
+        if (!sessionAbort && typeof AbortController !== 'undefined') sessionAbort = new AbortController();
+        if (!sessionAbort) return signal;
+        return signal && typeof AbortSignal.any === 'function'
+            ? AbortSignal.any([signal, sessionAbort.signal]) : signal || sessionAbort.signal;
+    }
+    function beginSignOut() {
+        signingOut = true;
+        sessionAbort?.abort(new DOMException('The session is signing out.', 'AbortError'));
+        pendingReads.clear();
+    }
     const authPriorityKey = 'sigma-login-request-priority';
+    const editPriorityKey = 'sigma-score-request-priority';
     const yieldToLogin = Symbol('yield-to-login');
     function loginPending() {
         try {
@@ -20,25 +38,60 @@
             return Number(value?.until || value) > Date.now();
         } catch (_) { return false; }
     }
+    function scoreSavePending() {
+        try { return Number(JSON.parse(localStorage.getItem(editPriorityKey) || '0')?.until) > Date.now(); }
+        catch (_) { return false; }
+    }
     async function waitForLogin(signal) {
         while (loginPending()) {
+            checkSessionOpen();
             signal?.throwIfAborted?.();
             await new Promise(resolve => setTimeout(resolve, 100));
         }
     }
     async function withWorker(input, options, authentication = false) {
         const locks = window.navigator?.locks;
+        const method = String(options.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+        // Several refresh modules label their GETs foreground. Those reads must
+        // still yield to a teacher's score write, even across browser tabs.
+        const background = !authentication && (options.foreground !== true || method === 'GET');
         for (;;) {
+            checkSessionOpen();
             if (!authentication) await waitForLogin(options.signal);
+            while (background && scoreSavePending()) {
+                checkSessionOpen();
+                options.signal?.throwIfAborted?.();
+                await new Promise(resolve => setTimeout(resolve, 25));
+            }
             const send = () => {
+                checkSessionOpen();
                 options.signal?.throwIfAborted?.();
                 if (!authentication && loginPending()) return yieldToLogin;
+                // A background waiter may already be ahead of the score save
+                // in another tab's lock queue. Yield before issuing its read.
+                if (background && scoreSavePending()) return yieldToLogin;
                 return performFetchWithIdentity(input, options);
             };
+            const waitSignal = sessionSignal(options.signal);
             const result = locks && !options.keepalive
-                ? await locks.request('sigma-php-api-worker', options.signal ? { signal: options.signal } : {}, send)
+                ? await locks.request('sigma-php-api-worker', waitSignal ? { signal: waitSignal } : {}, send)
                 : await send();
             if (result !== yieldToLogin) return result;
+        }
+    }
+    async function fetchScoreSave(input, options) {
+        let lease = '';
+        const requestId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+        const renew = () => {
+            lease = JSON.stringify({ requestId, until: Date.now() + 10000 });
+            try { localStorage.setItem(editPriorityKey, lease); } catch (_) {}
+        };
+        renew();
+        const timer = setInterval(renew, 3000);
+        try { return await withWorker(input, { ...options, foreground: true }); }
+        finally {
+            clearInterval(timer);
+            try { if (localStorage.getItem(editPriorityKey) === lease) localStorage.removeItem(editPriorityKey); } catch (_) {}
         }
     }
     async function fetchAuthentication(input, options) {
@@ -99,17 +152,39 @@
         const method = String(options.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
         const finish = method === 'GET' && target.origin === apiRoot.origin && target.pathname.startsWith(apiRoot.pathname)
             ? window.SigmaContentLoading?.beginDataRead(input) : null;
-        try { return await fetchDataWithIdentity(input, options); }
+        try {
+            const sharedApi = target.origin === apiRoot.origin && target.pathname.startsWith(apiRoot.pathname);
+            if (sharedApi && method !== 'GET' && method !== 'HEAD') {
+                writeRevision++;
+                pendingReads.clear();
+            }
+            // Share only concurrent, uncancelled reads for this exact session and
+            // request. No completed-response cache: the next refresh stays fresh.
+            if (!sharedApi || method !== 'GET' || options.signal || options.authentication) return await fetchDataWithIdentity(input, options);
+            const headers = Array.from(new Headers(options.headers || (input instanceof Request ? input.headers : undefined))).sort();
+            const key = JSON.stringify([target.href, sessionStorage.getItem('sigma-grade-sync-session'), headers,
+                options.credentials, options.autoReconnect, options.timeoutMs, options.foreground, writeRevision]);
+            let pending = pendingReads.get(key);
+            if (!pending) {
+                pending = fetchDataWithIdentity(input, options);
+                pendingReads.set(key, pending);
+                pending.finally(() => { if (pendingReads.get(key) === pending) pendingReads.delete(key); }).catch(() => {});
+            }
+            const response = await pending;
+            return response.clone ? response.clone() : response;
+        }
         finally { finish?.(); }
     }
     async function fetchDataWithIdentity(input, options = {}) {
         const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, location.href);
         const apiRoot = new URL('.', url('session'));
         if (target.origin !== apiRoot.origin || !target.pathname.startsWith(apiRoot.pathname)) return performFetchWithIdentity(input, options);
+        checkSessionOpen();
         const method = String(options.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
         const reconnect = method === 'GET' && options.autoReconnect !== false;
         const identity = sessionStorage.getItem('sigma-grade-sync-session');
         for (let attempt = 0; ; attempt++) {
+            checkSessionOpen();
             if (reconnect && sessionStorage.getItem('sigma-grade-sync-session') !== identity) throw new DOMException('The signed-in account changed.', 'AbortError');
             const signal = options.signal?.aborted && options.signal.reason?.name === 'TimeoutError' ? undefined : options.signal;
             try {
@@ -126,7 +201,7 @@
             }
             connectionState(true);
             // Do not hold the PHP worker queue or cross-tab lock while waiting to reconnect.
-            await reconnectDelay(Math.min(15000, 1000 * 2 ** Math.min(attempt, 4)), options.signal);
+            await reconnectDelay(Math.min(15000, 250 * 2 ** Math.min(attempt, 6)), sessionSignal(options.signal));
         }
     }
     function queueFetchWithIdentity(input, options = {}) {
@@ -136,6 +211,12 @@
         if (options.authentication === true && /\/(session|auth|grade_sync)\.php$/.test(target.pathname)) {
             return fetchAuthentication(input, options);
         }
+        const method = String(options.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+        // All user mutations (including multipart uploads and imports) take the
+        // same short priority lease as score saves. Background telemetry does not.
+        if (!['GET', 'HEAD'].includes(method) && !/\/(?:presence|analytics_ai|chat_history|chat_conversations)\.php$/.test(target.pathname)) {
+            return fetchScoreSave(input, options);
+        }
         if (options.foreground === true) {
             return withWorker(input, options);
         }
@@ -143,18 +224,46 @@
         apiQueue = next.catch(() => {});
         return next;
     }
+    function fetchWithUploadProgress(resource, options, onProgress) {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            const signal = options.signal;
+            const cleanup = () => signal?.removeEventListener('abort', abort);
+            const abort = () => { xhr.abort(); cleanup(); reject(signal.reason || new DOMException('Upload cancelled.', 'AbortError')); };
+            xhr.open(options.method || 'POST', String(resource));
+            xhr.withCredentials = options.credentials === 'include';
+            new Headers(options.headers).forEach((value, key) => xhr.setRequestHeader(key, value));
+            xhr.upload.onprogress = event => onProgress({ loaded: event.loaded, total: event.total, lengthComputable: event.lengthComputable });
+            xhr.onload = () => {
+                cleanup();
+                const headers = new Headers();
+                xhr.getAllResponseHeaders().trim().split(/[\r\n]+/).filter(Boolean).forEach(line => {
+                    const colon = line.indexOf(':');
+                    if (colon > 0) headers.append(line.slice(0, colon), line.slice(colon + 1).trim());
+                });
+                resolve(new Response(xhr.responseText, { status: xhr.status, statusText: xhr.statusText, headers }));
+            };
+            xhr.onerror = () => { cleanup(); reject(new TypeError('Upload connection lost. Please try again.')); };
+            xhr.onabort = () => { cleanup(); reject(signal?.reason || new DOMException('Upload cancelled.', 'AbortError')); };
+            if (signal?.aborted) { abort(); return; }
+            signal?.addEventListener('abort', abort, { once: true });
+            xhr.send(options.body);
+        });
+    }
     async function performFetchWithIdentity(input, options = {}) {
         const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, location.href);
         const resource = input instanceof URL ? input.href : input;
         const apiRoot = new URL('.', url('session'));
         if (target.origin !== apiRoot.origin || !target.pathname.startsWith(apiRoot.pathname)) return nativeFetch(resource, options);
+        checkSessionOpen();
         // The network deadline begins after queue/lock acquisition, not while
         // waiting behind another request. Explicit caller cancellation is preserved.
-        const { timeoutMs = 15000, autoReconnect, foreground, authentication, ...fetchOptions } = options;
+        const { timeoutMs = 15000, autoReconnect, foreground, authentication, onUploadProgress, ...fetchOptions } = options;
         options = fetchOptions;
         if (!options.signal && typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
             options.signal = AbortSignal.timeout(timeoutMs);
         }
+        options.signal = sessionSignal(options.signal);
         const headers = new Headers(options.headers || (input instanceof Request ? input.headers : undefined));
         if (!headers.has('Authorization')) {
             let full, challenge;
@@ -168,14 +277,29 @@
             && typeof options.body === 'string' && (() => { try { return JSON.parse(options.body).action === 'recover_chat_history'; } catch (_) { return false; } })();
         // Retry reads and the idempotent history sync only. Never replay a grade save or AI generation.
         for (let attempt = 0; ; attempt++) {
-            const response = await nativeFetch(resource, { ...options, headers });
+            const response = typeof onUploadProgress === 'function'
+                ? await fetchWithUploadProgress(resource, { ...options, headers }, onUploadProgress)
+                : await nativeFetch(resource, { ...options, headers });
+            checkSessionOpen();
+            if ([401,423].includes(response.status) && headers.has('Authorization') && response.clone) {
+                try {
+                    const result = await response.clone().json();
+                    const current = JSON.parse(sessionStorage.getItem('sigma-grade-sync-session') || 'null');
+                    if (current?.token && headers.get('Authorization') === `Bearer ${current.token}` &&
+                        ['authentication_required','system_maintenance'].includes(result.code)) {
+                        window.dispatchEvent(new CustomEvent('sigma:server-session-ended', {detail:{token:current.token}}));
+                    }
+                } catch (_) {}
+            }
             if (method === 'GET' && response.ok && response.clone && /application\/json/i.test(response.headers?.get('Content-Type') || '')) {
                 // A connection can drop after headers arrive. Finish reading JSON while
                 // the request deadline is still active so this also reconnects safely.
                 try { await response.clone().text(); }
                 catch (error) { throw options.signal?.reason?.name === 'TimeoutError' ? options.signal.reason : error; }
             }
-            if (attempt >= 2 || ![502,503,504].includes(response.status) || !(method === 'GET' || safeHistorySync) || options.signal?.aborted) return response;
+            // Read retries run in fetchDataWithIdentity after releasing the worker.
+            // A busy server must never hold every other tab during backoff.
+            if (attempt >= 2 || ![502,503,504].includes(response.status) || !safeHistorySync || options.signal?.aborted) return response;
             try { await response.body?.cancel(); } catch (_) {}
             await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 750 : 1500));
             options.signal?.throwIfAborted?.();
@@ -239,16 +363,42 @@
         } catch (_) { return {}; }
     }
     async function save(name, data) {
+        let materialUploadStarted = false;
+        let lastUploadedName = '';
+        const reportMaterialUpload = detail => {
+            materialUploadStarted = true;
+            if (detail.fileName) lastUploadedName = detail.fileName;
+            window.dispatchEvent(new CustomEvent('sigma:material-upload-progress', { detail }));
+        };
         try {
-            if (name === 'subjects' && data.subject) await persistMaterialFiles(data.subject);
-            const result = await request(name, { data, foreground: ['delete', 'remove', 'purge'].includes(data.action) });
+            if (name === 'subjects' && data.subject) await persistMaterialFiles(data.subject, reportMaterialUpload);
+            if (materialUploadStarted) reportMaterialUpload({ phase: 'saving', percent: 99, fileName: lastUploadedName });
+            const result = await request(name, {
+                data,
+                foreground: true,
+                // Subject writes can include a full topic/material snapshot. Let those
+                // writes finish on a slow connection instead of timing out at 15s.
+                timeoutMs: name === 'subjects' ? 45000 : 15000
+            });
             const saved = result.subject || result.section || result.record || result.user || result.quiz;
+            if (name === 'subjects' && data.subject && Array.isArray(saved?.topics)) {
+                const covers = new Map(saved.topics.map(topic => [String(topic.id), topic]));
+                for (const topic of data.subject.topics || []) {
+                    const stored = covers.get(String(topic.id));
+                    if (!stored) continue;
+                    if (stored.image !== undefined) topic.image = stored.image;
+                    if (stored.imageStorage) topic.imageStorage = stored.imageStorage;
+                    else delete topic.imageStorage;
+                }
+            }
             if (Number.isSafeInteger(Number(saved?.creationNumber)) && Number(saved.creationNumber) > 0) {
                 const target = data.subject || data.section || data.record || data.user || data.quiz || data;
                 target.creationNumber = Number(saved.creationNumber);
             }
+            if (materialUploadStarted) reportMaterialUpload({ phase: 'complete', percent: 100, fileName: lastUploadedName });
             return true;
         } catch (error) {
+            if (materialUploadStarted) reportMaterialUpload({ phase: 'error', percent: 0, fileName: lastUploadedName, error: error.message || 'The file could not be saved.' });
             const message = error.message || 'Database save failed. Your changes have not been confirmed.';
             window.showToast?.(message, 'error');
             window.dispatchEvent(new CustomEvent('sigma:database-error', { detail: { endpoint: name, message } }));
@@ -257,45 +407,77 @@
     }
     // Upload device-local files before saving curriculum JSON. A local filename alone
     // must never be presented as a durable attachment on another device.
-    async function persistMaterialFiles(subject) {
+    async function persistMaterialFiles(subject, onProgress) {
         const groups = [subject.materials || []];
         for (const topic of subject.topics || []) {
             for (const key of ['materials', 'allMaterials', 'handouts', 'assignments', 'performanceTasks', 'quizzes', 'videos', 'activities']) {
                 if (Array.isArray(topic[key])) groups.push(topic[key]);
             }
         }
-        const completed = new Map();
+        const entries = new Map();
         for (const material of groups.flat()) {
             if (!material || !material.id) continue;
-            if (completed.has(material.id)) { Object.assign(material, completed.get(material.id)); continue; }
+            const id = String(material.id);
+            if (!entries.has(id)) entries.set(id, { material, copies: [] });
+            entries.get(id).copies.push(material);
+        }
+        const tasks = [];
+        for (const entry of entries.values()) {
+            const material = entry.material;
             for (const [urlKey, nameKey, kind] of [['fileUrl','fileName','instructions'],['rubricUrl','rubricFileName','rubric'],['perfGuidelinesUrl','perfGuidelinesFileName','instructions'],['perfRubricUrl','perfRubricFileName','rubric']]) {
                 const source = String(material[urlKey] || '');
                 const fileName = material[nameKey];
                 if (!fileName || !/^(?:data:|blob:|image\/)/i.test(source)) continue;
-                const stored = await window.sigmaGetStoredDocument?.(fileName);
-                let blob;
-                if (stored?.data instanceof Blob) blob = stored.data;
-                else if (stored?.data instanceof ArrayBuffer || ArrayBuffer.isView(stored?.data)) blob = new Blob([stored.data]);
-                else if (typeof stored?.data === 'string' && stored.data.startsWith('data:')) blob = await (await nativeFetch(stored.data)).blob();
-                else if (/^(?:data:|blob:)/i.test(source)) blob = await (await nativeFetch(source)).blob();
+                const uploadedFiles = window._sigmaUploadedFiles;
+                let blob = uploadedFiles && (uploadedFiles.get(source) || uploadedFiles.get(fileName) || uploadedFiles.get(String(fileName).toLowerCase()));
+                if (!(blob instanceof Blob)) blob = null;
+                if (!blob) {
+                    const stored = await window.sigmaGetStoredDocument?.(fileName);
+                    if (stored?.data instanceof Blob) blob = stored.data;
+                    else if (stored?.data instanceof ArrayBuffer || ArrayBuffer.isView(stored?.data)) blob = new Blob([stored.data]);
+                    else if (typeof stored?.data === 'string' && stored.data.startsWith('data:')) blob = await (await nativeFetch(stored.data)).blob();
+                    else if (/^(?:data:|blob:)/i.test(source)) blob = await (await nativeFetch(source)).blob();
+                }
                 if (!blob?.size) throw new Error(`Reattach ${fileName} before saving; its file is unavailable on this device.`);
-                const form = new FormData();
-                form.append('file', blob, fileName);
-                form.append('category', 'subject-material');
-                form.append('subject_id', subject.id);
-                form.append('topic_id', material.topicId || '');
-                form.append('material_title', material.title || '');
-                form.append('material_type', material.type || 'Task');
-                form.append('asset_kind', kind);
-                const response = await fetchWithIdentity(url('upload'), { method: 'POST', body: form, signal: AbortSignal.timeout(150000) });
-                const uploaded = await readJson(response);
-                if (!uploaded.success || !uploaded.url) throw new Error(uploaded.error || `Unable to upload ${fileName}.`);
-                material[urlKey] = uploaded.url;
-                if (urlKey === 'fileUrl' && (!material.url || /^(?:data:|blob:|image\/)/i.test(material.url))) material.url = uploaded.url;
-                material[`${urlKey}Storage`] = { uploadId: uploaded.uploadId, google_drive: uploaded.google_drive };
-                if (uploaded.warning) window.showToast?.(uploaded.warning, 'warning');
+                tasks.push({ material, urlKey, fileName, kind, blob });
             }
-            completed.set(material.id, { ...material });
+        }
+        if (!tasks.length) return;
+
+        const totalBytes = tasks.reduce((sum, task) => sum + task.blob.size, 0);
+        let uploadedBytes = 0;
+        onProgress?.({ phase: 'start', percent: 0, fileName: tasks[0].fileName, total: totalBytes, fileCount: tasks.length });
+        for (const [index, task] of tasks.entries()) {
+            const { material, urlKey, fileName, kind, blob } = task;
+            const form = new FormData();
+            form.append('file', blob, fileName);
+            form.append('category', 'subject-material');
+            form.append('subject_id', subject.id);
+            form.append('topic_id', material.topicId || '');
+            form.append('material_title', material.title || '');
+            form.append('material_type', material.type || 'Task');
+            form.append('asset_kind', kind);
+            const response = await fetchWithIdentity(url('upload'), {
+                method: 'POST', body: form, signal: AbortSignal.timeout(240000),
+                onUploadProgress: event => {
+                    if (!event.lengthComputable) return;
+                    const loaded = Math.min(blob.size, event.loaded);
+                    const percent = Math.min(99, Math.floor((uploadedBytes + loaded) / Math.max(1, totalBytes) * 100));
+                    onProgress?.({ phase: percent >= 99 ? 'saving' : 'uploading', percent, loaded: uploadedBytes + loaded, total: totalBytes, fileName, fileIndex: index + 1, fileCount: tasks.length });
+                }
+            });
+            const uploaded = await readJson(response);
+            if (!uploaded.success || !uploaded.url) throw new Error(uploaded.error || `Unable to upload ${fileName}.`);
+            material[urlKey] = uploaded.url;
+            if (urlKey === 'fileUrl' && (!material.url || /^(?:data:|blob:|image\/)/i.test(material.url))) material.url = uploaded.url;
+            if (urlKey === 'fileUrl' && /^(?:data:|blob:|image\/)/i.test(String(material.videoUrl || ''))) material.videoUrl = uploaded.url;
+            material[`${urlKey}Storage`] = { uploadId: uploaded.uploadId, google_drive: uploaded.google_drive };
+            if (uploaded.warning) window.showToast?.(uploaded.warning, 'warning');
+            uploadedBytes += blob.size;
+            onProgress?.({ phase: 'saving', percent: Math.min(99, Math.floor(uploadedBytes / Math.max(1, totalBytes) * 100)), loaded: uploadedBytes, total: totalBytes, fileName, fileIndex: index + 1, fileCount: tasks.length });
+        }
+        for (const entry of entries.values()) {
+            for (const copy of entry.copies) if (copy !== entry.material) Object.assign(copy, entry.material);
         }
     }
     function isSyntheticRecord(value, depth = 0) {
@@ -320,16 +502,19 @@
         try { return JSON.parse(sessionStorage.getItem(pendingLogoutKey) || '[]').filter(token => /^[a-f0-9]{64}$/.test(token)); }
         catch (_) { return []; }
     }
+    function sendLogout(token) {
+        return nativeFetch(url('session'), {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ action: 'logout' }), keepalive: true,
+            cache: 'no-store', credentials: 'omit'
+        });
+    }
     function flushLogouts() {
         if (logoutFlush) return logoutFlush;
         const tokens = pendingLogouts();
         logoutFlush = Promise.all(tokens.map(async token => {
             try {
-                const response = await nativeFetch(url('session'), {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ action: 'logout' }), keepalive: true,
-                    cache: 'no-store', credentials: 'omit'
-                });
+                const response = await sendLogout(token);
                 if (!response.ok || (await response.json()).success !== true) return;
                 const remaining = pendingLogouts().filter(value => value !== token);
                 if (remaining.length) sessionStorage.setItem(pendingLogoutKey, JSON.stringify(remaining));
@@ -342,16 +527,18 @@
         });
         return logoutFlush;
     }
-    function revokeSession() {
-        let token;
-        try { token = JSON.parse(sessionStorage.getItem('sigma-grade-sync-session') || 'null')?.token; } catch (_) {}
-        if (/^[a-f0-9]{64}$/.test(token || '')) sessionStorage.setItem(pendingLogoutKey, JSON.stringify([...new Set([...pendingLogouts(), token])]));
+    function revokeSession(token) {
+        if (!token) try { token = JSON.parse(sessionStorage.getItem('sigma-grade-sync-session') || 'null')?.token; } catch (_) {}
+        if (/^[a-f0-9]{64}$/.test(token || '')) {
+            try { sessionStorage.setItem(pendingLogoutKey, JSON.stringify([...new Set([...pendingLogouts(), token])])); }
+            catch (_) { return sendLogout(token); }
+        }
         return flushLogouts();
     }
     if (pendingLogouts().length) flushLogouts();
     window.addEventListener('online', flushLogouts);
     window.addEventListener('pageshow', flushLogouts);
-    window.SigmaDatabase = Object.freeze({ url, request, readJson, fetch: fetchWithIdentity, preserveLegacy, currentUser, save, revokeSession, isSyntheticRecord });
+    window.SigmaDatabase = Object.freeze({ url, request, readJson, fetch: fetchWithIdentity, preserveLegacy, currentUser, save, revokeSession, beginSignOut, isSyntheticRecord });
     // Both admin and teacher subject editors use these exact adapters.
     window.syncSubjectToDB = (subject, action = 'save') => save('subjects', action === 'save' ? { action, subject } : { ...subject, action });
     window.deleteSubjectFromDB = id => save('subjects', { action: 'delete', id, actor: currentUser().id || '' });

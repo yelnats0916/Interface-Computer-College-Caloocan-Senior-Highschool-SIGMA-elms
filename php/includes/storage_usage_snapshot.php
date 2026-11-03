@@ -44,14 +44,30 @@ function sigmaStorageSnapshotPath(): string {
     if(!is_dir($dir)&&!mkdir($dir,0700,true)&&!is_dir($dir))throw new RuntimeException('Storage check is unavailable.');
     return $dir.'/usage.json';
 }
+/** Access tokens rotate; only a different folder or connection invalidates usage. */
+function sigmaStorageSnapshotScope(array $config): string {
+    unset($config['oauth']['access_token'], $config['oauth']['expires_at']);
+    $sort = function (&$value) use (&$sort): void {
+        if (!is_array($value)) return;
+        ksort($value);
+        foreach ($value as &$child) $sort($child);
+    };
+    $sort($config);
+    return hash('sha256', json_encode($config, JSON_THROW_ON_ERROR));
+}
 function sigmaStorageSnapshot(array $config): array {
     $path=sigmaStorageSnapshotPath();
-    $scope=hash('sha256',json_encode($config));
+    $scope=sigmaStorageSnapshotScope($config);
     $snapshot=is_file($path)?json_decode(file_get_contents($path),true):null;
     if(($snapshot['scope']??'')!==$scope)$snapshot=null;
-    if($snapshot&&time()-(int)$snapshot['at']<60)return $snapshot['result'];
+    $valid=!empty($snapshot['result']['success'])&&!empty($snapshot['result']['usage']);
+    if($snapshot&&time()-(int)$snapshot['at']<($valid?300:15))return $snapshot['result'];
     $lock=fopen($path.'.launch','c+');
-    if(!$lock||!flock($lock,LOCK_EX))throw new RuntimeException('Storage check is unavailable.');
+    if(!$lock)throw new RuntimeException('Storage check is unavailable.');
+    if(!flock($lock,LOCK_EX|LOCK_NB)){
+        fclose($lock);
+        return $valid ? array_merge($snapshot['result'],['refreshing'=>true,'stale'=>true]) : ['success'=>true,'pending'=>true];
+    }
     try {
         $pending=$path.'.pending';
         if(!is_file($pending)||time()-filemtime($pending)>120){
@@ -63,5 +79,5 @@ function sigmaStorageSnapshot(array $config): array {
             if($status!==0){unlink($pending);throw new RuntimeException('Storage check worker could not start.');}
         }
     }finally{flock($lock,LOCK_UN);fclose($lock);}
-    return ['success'=>true,'pending'=>true];
+    return $valid ? array_merge($snapshot['result'],['refreshing'=>true,'stale'=>true]) : ['success'=>true,'pending'=>true];
 }

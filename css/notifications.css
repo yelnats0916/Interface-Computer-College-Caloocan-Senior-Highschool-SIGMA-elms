@@ -170,6 +170,10 @@
     overflow-y: auto !important;
 }
 
+#noti-dropdown-feed {
+    flex: 0 0 auto;
+}
+
 /* Notifications Custom Scrollbar */
 .notif-scroll-area::-webkit-scrollbar,
 #noti-dropdown::-webkit-scrollbar {
@@ -334,8 +338,14 @@ html body .notif-item__avatar--school > img {
 }
 
 /* ─── 4. Previous Notifications Button ──────────────────────────────────── */
+#noti-dropdown[data-notification-history-open] #noti-prev-wrapper,
+#noti-prev-wrapper[hidden] {
+    display: none !important;
+}
+
 .notif-prev-btn-wrapper {
     padding: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     background-color: #ffffff;
     flex-shrink: 0 !important;
     border-top: 1px solid #f1f5f9;
@@ -379,6 +389,10 @@ html body .notif-item__avatar--school > img {
     }
     body.mobile-panel-open #noti-dropdown .notif-scroll-area.can-scroll {
         overflow-y: auto !important;
+    }
+    body.mobile-panel-open #noti-dropdown:not(.hidden) .notif-scroll-area {
+        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+        scroll-padding-bottom: env(safe-area-inset-bottom, 0px) !important;
     }
     #noti-dropdown-feed,
     #noti-dropdown-feed .notif-item { width: 100%; }

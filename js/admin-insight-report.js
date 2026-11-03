@@ -8,12 +8,13 @@
     let cachedUsers = [];
     let isLoading = false;
     let hasLoadedUsers = false;
+    let lastLoadedAt = 0;
     let selectedUserId = '';
     let searchQuery = '';
     let selectedRole = '';
+    let selectedSubject = '';
     let insightPages = {};
     let directoryPage = 1;
-    const railDisplayCounts = new Map();
     let editingCards = false;
     let editingGradeInsights = false;
     let editingOwner = '';
@@ -72,7 +73,8 @@
             const editing = cardsOnly ? editingCards : editingGradeInsights;
             const anyEditing = editingCards || editingGradeInsights;
             const selection = cardsOnly ? selectedCards : selectedGradeInsights;
-            const relevant = (user.cards || []).filter(card => cardsOnly ? isDashboardCard(card) : !isDashboardCard(card));
+            const relevant = (user.cards || []).filter(card => (cardsOnly ? isDashboardCard(card) : !isDashboardCard(card))
+                && (!selectedSubject || insightSubjects(card).some(value => subjectKey(value) === subjectKey(selectedSubject))));
             const selected = relevant.filter(card => selection.has(insightKey(card)));
             toolbar.replaceChildren();
             toolbar.classList.toggle('is-editing', Boolean(editing));
@@ -106,7 +108,7 @@
                             try {
                                 const items = selected.filter(card => operation === 'delete' || (operation === 'show' ? card.hidden : !card.hidden))
                                     .map(card => ({ sourceType: card.sourceType, sourceId: card.sourceId }));
-                                await window.SigmaAiDatabase.request('ai_records', { action: 'manage_insights', operation, items });
+                                await window.SigmaAiDatabase.request('ai_records', { action: 'manage_insights', operation, items, userId: String(user.id) });
                                 try {
                                     const teacherInsights = JSON.parse(localStorage.getItem('sigma-teacher-grade-insights-v1') || '{}');
                                     let tModified = false;
@@ -130,10 +132,10 @@
                                     }
                                     if (sModified) localStorage.setItem('sigma-subject-grade-insights-v3', JSON.stringify(subjectInsights));
                                 } catch (_) {}
-                                localStorage.setItem('sigma-insight-management-update', `${Date.now()}:${operation}`);
+                                try { localStorage.setItem('sigma-insight-management-update', `${Date.now()}:${operation}`); } catch (_) { /* Database update already succeeded. */ }
                                 window.dispatchEvent(new CustomEvent('sigma-insight-management-update', { detail: { operation, items } }));
                                 selection.clear();
-                                await loadData(true);
+                                await loadData(true, true);
                             } catch (error) {
                                 window.SigmaFeedback.notice(error.message || 'Unable to update insights.', 'error');
                             } finally {
@@ -213,7 +215,7 @@
         renderToolbar(generatesHost?.querySelector('.insight-detail-management'), false);
     }
     const isInsightsRoute = () => /^#(?:nav-ai-insights|ai-insights)(?:$|[?:])/.test(location.hash);
-    const historySnapshot = () => ({ selectedUserId, searchQuery, selectedRole, directoryPage, insightPages: { ...insightPages } });
+    const historySnapshot = () => ({ selectedUserId, searchQuery, selectedRole, selectedSubject, directoryPage, insightPages: { ...insightPages } });
     function animateInsightPageChange(before) {
         if (before.selectedUserId !== selectedUserId || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         generatesHost?.querySelectorAll('.insight-user-panel-grid[data-page-key]').forEach(grid => {
@@ -245,6 +247,7 @@
         selectedUserId = typeof saved?.selectedUserId === 'string' ? saved.selectedUserId : '';
         searchQuery = typeof saved?.searchQuery === 'string' ? saved.searchQuery : '';
         selectedRole = ['student', 'teacher'].includes(saved?.selectedRole) ? saved.selectedRole : '';
+        selectedSubject = typeof saved?.selectedSubject === 'string' ? saved.selectedSubject.slice(0, 150) : '';
         directoryPage = Math.max(1, Number(saved?.directoryPage) || 1);
         insightPages = saved?.insightPages && typeof saved.insightPages === 'object' ? { ...saved.insightPages } : {};
         renderGenerates();
@@ -450,6 +453,19 @@
         if (card?.reportCategory === 'subject') return 'subject';
         return 'analytics';
     };
+    const insightSubjects = card => {
+        const raw = Array.isArray(card?.subjects) && card.subjects.length ? card.subjects : (card?.subject ? [card.subject] : []);
+        return [...new Set(raw.map(value => String(value || '').trim()).filter(Boolean))];
+    };
+    const subjectKey = value => String(value || '').trim().toLocaleLowerCase();
+    const getInsightSubjectOptions = users => {
+        const options = new Map();
+        users.forEach(user => (user.cards || []).forEach(card => insightSubjects(card).forEach(subject => {
+            const key = subjectKey(subject);
+            if (key && !options.has(key)) options.set(key, subject);
+        })));
+        return [...options.values()].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
+    };
 
     function createGeneratedInsightCard(card, user) {
         const rules = window.SigmaInsightRules;
@@ -585,10 +601,11 @@
         return section;
     }
 
-    function renderUserDirectory(users, query, role, onSelectUser) {
+    function renderUserDirectory(users, query, role, subject, onSelectUser) {
         const directory = el('section', undefined, 'insight-user-directory');
         const cleanQuery = String(query || '').trim().toLowerCase();
         const cleanRole = String(role || '').trim().toLowerCase();
+        const cleanSubject = subjectKey(subject);
 
         let matchingUsers = cleanQuery
             ? users.filter(user => 
@@ -599,10 +616,17 @@
         if (cleanRole) {
             matchingUsers = matchingUsers.filter(user => String(user.role || '').toLowerCase() === cleanRole);
         }
-        matchingUsers.sort((a, b) => latestInsightTimestamp(b) - latestInsightTimestamp(a)
+        if (cleanSubject) {
+            matchingUsers = matchingUsers.filter(user => (user.cards || []).some(card =>
+                insightSubjects(card).some(value => subjectKey(value) === cleanSubject)));
+        }
+        const userInsightTimestamp = user => Math.max(0, ...(user.cards || [])
+            .filter(card => !cleanSubject || insightSubjects(card).some(value => subjectKey(value) === cleanSubject))
+            .map(card => Date.parse(card.createdAt || card.timestamp || '') || 0));
+        matchingUsers.sort((a, b) => userInsightTimestamp(b) - userInsightTimestamp(a)
             || String(a.name || '').localeCompare(String(b.name || '')));
 
-        if (!cleanQuery && !cleanRole && !matchingUsers.length) {
+        if (!cleanQuery) {
             const emptyState = el('section', undefined, 'insight-user-search-empty');
             emptyState.setAttribute('role', 'status');
             const iconWrap = el('div', undefined, 'insight-user-search-empty-icon');
@@ -611,16 +635,17 @@
             iconWrap.append(icon);
             emptyState.append(
                 iconWrap,
-                el('h3', 'Find a user'),
-                el('p', 'Use the search field above to view their generated AI insights.')
+                el('h3', 'Search first'),
+                el('p', 'Enter a name or ID, then select Search to view matching insights.')
             );
             directory.append(emptyState);
             return directory;
         }
 
-        if (cleanQuery || cleanRole) {
+        if (cleanQuery || cleanRole || cleanSubject) {
             const roleFilterText = cleanRole ? ` in ${cleanRole === 'teacher' ? 'Teachers' : 'Students'}` : '';
-            directory.append(el('p', `${matchingUsers.length} ${matchingUsers.length === 1 ? 'user' : 'users'} found${roleFilterText}`, 'insight-report-owner'));
+            const subjectFilterText = cleanSubject ? ` for ${subject || 'the selected subject'}` : '';
+            directory.append(el('p', `${matchingUsers.length} ${matchingUsers.length === 1 ? 'user' : 'users'} found${roleFilterText}${subjectFilterText}`, 'insight-report-owner'));
         }
 
         if (!matchingUsers.length) {
@@ -670,7 +695,10 @@
 
             // 2. Latest Insight Preview Snippet
             const cards = newestInsights(user);
-            const latestCard = cards[0] || null;
+            const visibleCards = cleanSubject
+                ? cards.filter(card => insightSubjects(card).some(value => subjectKey(value) === cleanSubject))
+                : cards;
+            const latestCard = visibleCards[0] || null;
             const snippetBox = el('div', undefined, 'insight-user-card-snippet');
 
             if (latestCard) {
@@ -692,11 +720,11 @@
 
             // 3. Category Tags Breakdown
             const tagsRow = el('div', undefined, 'insight-user-card-tags');
-            const subjectCardsCount = cards.filter(c => insightCategory(c) === 'subject').length;
-            const gradeCardsCount = cards.filter(c => insightCategory(c) === 'grade').length;
+            const subjectCardsCount = visibleCards.filter(c => insightCategory(c) === 'subject').length;
+            const gradeCardsCount = visibleCards.filter(c => insightCategory(c) === 'grade').length;
 
-            const totalTag = el('span', `${cards.length} ${cards.length === 1 ? 'Insight' : 'Insights'}`, 'insight-user-pill insight-user-pill-total');
-            if (!cards.length) totalTag.classList.add('is-empty');
+            const totalTag = el('span', `${visibleCards.length} ${visibleCards.length === 1 ? 'Insight' : 'Insights'}`, 'insight-user-pill insight-user-pill-total');
+            if (!visibleCards.length) totalTag.classList.add('is-empty');
             tagsRow.append(totalTag);
 
             if (subjectCardsCount > 0) {
@@ -734,7 +762,7 @@
         return directory;
     }
 
-    function renderUserDetail(user) {
+    function renderUserDetail(user, subject = '') {
         const page = el('section', undefined, 'insight-user-page');
         const pageHeader = el('div', undefined, 'insight-user-page-header');
         const profile = el('div', undefined, 'insight-user-profile');
@@ -752,6 +780,7 @@
         }
         const identity = el('div', undefined, 'insight-user-page-identity');
         identity.append(el('h2', user.name || 'Unnamed user'), el('p', `ID: ${user.id || '—'}`));
+        if (subject) identity.append(el('p', `Subject: ${subject}`));
         profile.append(avatar, identity);
         pageHeader.append(profile);
         const profileRole = el('span', roleLabel(user), `insight-user-result-role ${String(user.role).toLowerCase() === 'teacher' ? 'is-teacher' : 'is-student'}`);
@@ -770,35 +799,11 @@
         }
         
         const railCards = el('div', undefined, 'insight-user-insights-rail-cards');
-        const cards = newestInsights(user);
+        const cards = newestInsights(user).filter(card => !subject || insightSubjects(card).some(value => subjectKey(value) === subjectKey(subject)));
         const railCardsList = cards.filter(card => insightCategory(card) === 'analytics');
         rail.append(railHeader, railCards);
         if (railCardsList.length) {
-            const controls = el('div', undefined, 'insight-rail-controls');
-            const drawRail = () => {
-                const expanded = railDisplayCounts.get(user.id) === Infinity;
-                const limit = expanded ? railCardsList.length : Math.min(4, railCardsList.length);
-                railCards.replaceChildren(...railCardsList.slice(0, limit).map(card => managedInsight(createGeneratedInsightCard(card, user), card)));
-                controls.replaceChildren();
-                if (railCardsList.length > 4) {
-                    const more = el('button', undefined, 'sigma-rail-more-btn pocket-rail-more-btn');
-                    more.type = 'button';
-                    more.classList.toggle('is-expanded', expanded);
-                    more.setAttribute('aria-expanded', String(expanded));
-                    const label = el('span', expanded ? 'Show Less' : 'Show More', 'more-label');
-                    const chevron = el('i', undefined, 'fa-solid fa-chevron-down');
-                    chevron.setAttribute('aria-hidden', 'true');
-                    more.append(label, chevron);
-                    more.onclick = () => {
-                        railDisplayCounts.set(user.id, expanded ? 4 : Infinity);
-                        drawRail();
-                        if (expanded) railCards.scrollTop = 0;
-                    };
-                    controls.append(more);
-                }
-            };
-            rail.append(controls);
-            drawRail();
+            railCards.replaceChildren(...railCardsList.map(card => managedInsight(createGeneratedInsightCard(card, user), card)));
         } else railCards.append(el('p', 'No generated AI insight cards for this user yet.', 'insight-report-empty'));
         
         const main = el('main', undefined, 'insight-user-detail-main');
@@ -888,7 +893,7 @@
             selectedGradeInsights.clear();
         }
 
-        if (isLoading) {
+        if (isLoading && !hasLoadedUsers) {
             window.SigmaContentLoading.render(generatesHost, {page:true, label:'Loading user insights'});
             return;
         }
@@ -901,7 +906,7 @@
         if (selectedUserId) {
             const user = visibleUsers.find(u => String(u.id || '') === selectedUserId);
             if (user) {
-                generatesHost.append(renderUserDetail(user));
+                generatesHost.append(renderUserDetail(user, selectedSubject));
                 updateInsightManagement();
                 return;
             }
@@ -957,12 +962,43 @@
             navigateInsights(() => { selectedRole = roleSelect.value; directoryPage = 1; });
         };
 
+        const subjectControl = el('div', undefined, 'insight-report-control insight-report-subject-control');
+        const subjectOptions = getInsightSubjectOptions(visibleUsers);
+        selectedSubject = subjectOptions.find(subject => subjectKey(subject) === subjectKey(selectedSubject)) || '';
+        const subjectDetails = document.createElement('details');
+        subjectDetails.className = 'insight-subject-filter';
+        const subjectSummary = document.createElement('summary');
+        subjectSummary.className = 'insight-subject-filter-summary';
+        subjectSummary.setAttribute('aria-label', 'Choose a subject to filter insights');
+        subjectSummary.title = selectedSubject ? `Filter by subject: ${selectedSubject}` : 'Filter by subject';
+        subjectSummary.append(el('span', selectedSubject || 'All Subjects', 'insight-subject-filter-current'));
+        const subjectChevron = el('i', undefined, 'fa-solid fa-chevron-down insight-subject-filter-chevron');
+        subjectChevron.setAttribute('aria-hidden', 'true');
+        subjectSummary.append(subjectChevron);
+        const subjectOptionsPanel = el('div', undefined, 'insight-subject-filter-options');
+        const addSubjectOption = (label, value) => {
+            const option = el('button', label, 'insight-subject-filter-option');
+            option.type = 'button';
+            option.title = label;
+            option.setAttribute('aria-pressed', String(subjectKey(value) === subjectKey(selectedSubject)));
+            option.onclick = () => {
+                subjectDetails.open = false;
+                navigateInsights(() => { selectedSubject = value; directoryPage = 1; });
+            };
+            subjectOptionsPanel.append(option);
+        };
+        addSubjectOption('All Subjects', '');
+        subjectOptions.forEach(subject => addSubjectOption(subject, subject));
+        subjectDetails.append(subjectSummary, subjectOptionsPanel);
+        subjectControl.append(subjectDetails);
+
         const searchButton = el('button', undefined, 'sigma-btn sigma-btn-primary sigma-btn-md min-w-[100px] insight-report-search-button');
         searchButton.type = 'button';
         searchButton.title = 'Search user insights';
+        searchButton.disabled = !searchInput.value.trim();
         searchButton.append(el('span', 'Search'));
 
-        filters.append(searchControl, roleControl, searchButton);
+        filters.append(searchControl, roleControl, subjectControl, searchButton);
 
         const applySearch = () => {
             const clean = sanitizeSearch(searchInput.value);
@@ -975,6 +1011,7 @@
             const clean = sanitizeSearch(searchInput.value);
             if (searchInput.value !== clean) searchInput.value = clean;
             clearSearch.hidden = !clean;
+            searchButton.disabled = !clean.trim();
         };
         searchInput.onkeydown = event => {
             if (event.key === 'Enter') {
@@ -986,12 +1023,13 @@
         clearSearch.onclick = () => {
             searchInput.value = '';
             clearSearch.hidden = true;
+            searchButton.disabled = true;
             navigateInsights(() => { searchQuery = ''; directoryPage = 1; });
             generatesHost.querySelector('input[type="search"]')?.focus({ preventScroll: true });
         };
 
         const content = el('div', undefined, 'insight-generates-content');
-        content.append(renderUserDirectory(visibleUsers, searchQuery, selectedRole, (user) => {
+        content.append(renderUserDirectory(visibleUsers, searchQuery, selectedRole, selectedSubject, (user) => {
             navigateInsights(() => { selectedUserId = String(user.id || ''); });
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }));
@@ -999,18 +1037,22 @@
         generatesHost.append(filters, content);
     }
 
-    async function loadData(background = false) {
+    async function loadData(background = false, force = false) {
         const active = [schoolSection, generatesSection].some(section => section &&
             !section.classList.contains('hidden') && window.canAccessAdminSection?.(section.id) !== false);
         if (!active || document.visibilityState === 'hidden') return;
         if (isLoading) return;
+        if (hasLoadedUsers && !force && Date.now() - lastLoadedAt < 10000) {
+            renderSchoolOverview(); renderGenerates(); return;
+        }
         isLoading = true;
         if (!background) {
             renderSchoolOverview();
             renderGenerates();
         }
         try {
-            const result = await window.SigmaAiDatabase?.loadInsightReport();
+            if (!window.SigmaAiDatabase?.loadInsightReport) throw new Error('Insight database is not ready.');
+            const result = await window.SigmaAiDatabase.loadInsightReport();
             cachedUsers = result?.users || [];
             try {
                 const views = JSON.parse(localStorage.getItem('sigma-student-grade-insight-views-v1') || '{}');
@@ -1023,6 +1065,7 @@
                     }
                 }
             } catch (_) {}
+            lastLoadedAt = Date.now();
             hasLoadedUsers = true;
             isLoading = false;
             renderSchoolOverview();

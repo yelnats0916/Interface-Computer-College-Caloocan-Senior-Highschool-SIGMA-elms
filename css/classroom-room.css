@@ -26,7 +26,7 @@ html body .classroom-detail-shell:has(:is(#tab-btn-attendance,#tab-btn-topics).a
         position:sticky!important;
         top:calc(var(--shell-offset,106px) + 20px)!important;
         margin-top:20px!important;
-        z-index:80;
+        z-index:90;
         background:#fff;
         flex:0 0 auto;
     }
@@ -230,6 +230,8 @@ body:has(#classroom-detail-view:not(.hidden)) {
         margin-left:auto!important;
         margin-right:auto!important;
         flex-shrink:0;
+        /* Stay above the attendance toolbar (80) while it scrolls underneath. */
+        z-index:90!important;
         top:calc(var(--shell-offset,106px) + 20px)!important;
         margin-top:0!important;
         margin-bottom:24px!important;

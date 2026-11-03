@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS `users` (
     `role` VARCHAR(50) NOT NULL DEFAULT 'Student',
     `status` VARCHAR(30) NOT NULL DEFAULT 'Active',
     `gender` VARCHAR(20) NULL DEFAULT '',
+    `birth_date` DATE NULL,
+    `birth_date_is_generated` TINYINT(1) NOT NULL DEFAULT 0,
     `branch` VARCHAR(100) NULL DEFAULT 'Main Campus',
     `department` VARCHAR(150) NULL DEFAULT '',
     `grade_level` VARCHAR(50) NULL DEFAULT '',
@@ -55,6 +57,7 @@ CREATE TABLE IF NOT EXISTS `school_years` (
     `q4_start` VARCHAR(20) NULL,
     `q4_end` VARCHAR(20) NULL,
     `status` VARCHAR(30) NOT NULL DEFAULT 'Inactive',
+    `active_semester` TINYINT UNSIGNED NOT NULL DEFAULT 1,
     `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
     `deleted_at` DATETIME NULL,
     `deleted_by` VARCHAR(50) NULL,
@@ -216,6 +219,21 @@ CREATE TABLE IF NOT EXISTS school_announcements (
  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
  INDEX idx_announcement_author(author_id), INDEX idx_announcement_visible(is_deleted,created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
+-- Table: classroom_comment_settings
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS classroom_comment_settings (
+    `section_id` VARCHAR(64) NOT NULL,
+    `subject_key` VARCHAR(191) NOT NULL,
+    `section_name` VARCHAR(100) NOT NULL,
+    `subject_name` VARCHAR(150) NOT NULL,
+    `comments_enabled` TINYINT(1) NOT NULL DEFAULT 0,
+    `updated_by` VARCHAR(50) NULL,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`section_id`, `subject_key`),
+    INDEX `idx_classroom_comment_subject` (`subject_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

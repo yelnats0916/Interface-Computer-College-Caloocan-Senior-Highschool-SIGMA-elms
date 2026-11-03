@@ -42,14 +42,17 @@
     const floatingProperties = ['position', 'left', 'top', 'transform', 'margin-top', 'max-height', 'overflow-y', 'z-index'];
 
     function positionCalendarPopup(state) {
-        const { popup, anchor } = state;
+        const { popup } = state;
+        const restoreParent = state.restoreParent || state.anchor || popup.parentElement;
+        state.anchor = restoreParent;
+        const { anchor } = state;
         if (!anchor.isConnected) {
             popup.remove();
             openCalendarPopups.delete(state);
             return;
         }
         if (popup.classList.contains('hidden')) {
-            if (popup.parentElement !== anchor) anchor.appendChild(popup);
+            if (popup.parentElement !== restoreParent) restoreParent.appendChild(popup);
             for (const property of floatingProperties) {
                 const saved = state.styles[property];
                 if (saved.value) popup.style.setProperty(property, saved.value, saved.priority);
@@ -86,7 +89,7 @@
     window.prepareSigmaCalendarPopup = function (popup) {
         let state = calendarPopupStates.get(popup);
         if (!state) {
-            state = { popup, anchor: popup.parentElement, styles: {}, frame: null };
+            state = { popup, anchor: popup.parentElement, restoreParent: popup.parentElement, styles: {}, frame: null };
             for (const property of floatingProperties) state.styles[property] = { value: popup.style.getPropertyValue(property), priority: popup.style.getPropertyPriority(property) };
             state.schedule = () => {
                 if (state.frame !== null) return;
@@ -840,8 +843,8 @@
 
     document.addEventListener('click', (e) => {
         const picker = document.getElementById('attendance-page-month-picker');
-        const btn = document.getElementById('attendance-month-picker-btn');
-        if (picker && !picker.classList.contains('hidden') && !picker.contains(e.target) && !btn?.contains(e.target)) {
+        const button = document.getElementById('attendance-month-picker-btn');
+        if (picker && !picker.classList.contains('hidden') && !picker.contains(e.target) && !button?.contains(e.target)) {
             picker.classList.add('hidden');
         }
     });
@@ -979,18 +982,19 @@
                 events = [...events, ...customEvents];
             }
             events.push(...(window.getAcademicCalendarEventsForDate?.(dateKey) || []));
+            events.push(...(window.getReleasedAssessmentCalendarEventsForDate?.(dateKey) || []));
         }
 
         return events;
     }
     window.getCalendarEventsForDate = getCalendarEventsForDate;
-    window.addEventListener('sigma:academic-calendar-changed', () => {
+    ['sigma:academic-calendar-changed', 'sigma:assessment-calendar-changed'].forEach(eventName => window.addEventListener(eventName, () => {
         renderCalendarGrid();
         renderDropdownAgenda(selectedDate);
         window.renderCalendar?.();
-        const date = selectedCalendarDate;
-        renderCalendarRightPanel(date?.year, date?.month, date?.day);
-    });
+        const date = window.selectedCalendarDate || selectedCalendarDate;
+        window.renderCalendarRightPanel?.(date?.year, date?.month, date?.day);
+    }));
 
     function handleCalendarItemClick(ev, role) {
         if (ev?.academicEvent) {
@@ -1061,7 +1065,15 @@
         }
 
         if (events.length === 0) {
+            const currentTime = `${(now.getHours() % 12) || 12}:${String(now.getMinutes()).padStart(2, '0')} ${now.getHours() >= 12 ? 'PM' : 'AM'}`;
+            const nowIndicator = isToday ? `
+                <div class="calendar-timeline-now-line calendar-timeline-now-line--empty" title="Current time">
+                    <span class="now-badge"><i class="fa-solid fa-clock text-[9px]"></i> Now - ${currentTime}</span>
+                    <div class="now-line"></div>
+                </div>
+            ` : '';
             panelContent.innerHTML = `
+                ${nowIndicator}
                 <div class="calendar-panel-empty-state">
                     <div class="calendar-empty-icon-wrap">
                         <i class="fa-regular fa-calendar-xmark text-2xl text-black-fade"></i>
@@ -1227,6 +1239,12 @@
     }
     window.renderCalendarRightPanel = renderCalendarRightPanel;
 
+    setInterval(() => {
+        if (document.hidden || !document.body.classList.contains('calendar-page-mode')) return;
+        const date = window.selectedCalendarDate;
+        if (date?.day) window.renderCalendarRightPanel?.(date.year, date.month, date.day);
+    }, 60000);
+
     function setupAttendanceCalendar() {
         const yearSelect = document.getElementById('attendance-year-select');
         const monthSelect = document.getElementById('attendance-month-select');
@@ -1237,19 +1255,21 @@
 
         if (!calendarGrid || !calendarShell) return;
 
-        if (!window._preserveCalendarDateOnNextOpen) {
-            const now = new Date();
-            selectedCalendarDate = {
-                year: now.getFullYear(),
-                month: now.getMonth(),
-                day: now.getDate()
-            };
-            window.selectedCalendarDate = selectedCalendarDate;
-            if (yearSelect) yearSelect.value = String(now.getFullYear());
-            if (monthSelect) monthSelect.value = String(now.getMonth());
-        } else {
-            window._preserveCalendarDateOnNextOpen = false;
-        }
+        const normalizeDate = value => {
+            if (!value || !Number.isInteger(Number(value.year)) || !Number.isInteger(Number(value.month))
+                || Number(value.month) < 0 || Number(value.month) > 11) return null;
+            const day = value.day == null ? null : Number(value.day);
+            if (day !== null && (!Number.isInteger(day) || day < 1 || day > 31)) return null;
+            return { year: Number(value.year), month: Number(value.month), day };
+        };
+        const now = new Date();
+        selectedCalendarDate = normalizeDate(window.selectedCalendarDate)
+            || normalizeDate(selectedCalendarDate)
+            || { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
+        window.selectedCalendarDate = selectedCalendarDate;
+        window._preserveCalendarDateOnNextOpen = false;
+        if (yearSelect) yearSelect.value = String(selectedCalendarDate.year);
+        if (monthSelect) monthSelect.value = String(selectedCalendarDate.month);
 
         if (yearSelect && !yearSelect.value) yearSelect.value = String(selectedCalendarDate?.year || (new Date()).getFullYear());
         if (monthSelect && !monthSelect.value) monthSelect.value = String(selectedCalendarDate?.month ?? (new Date()).getMonth());

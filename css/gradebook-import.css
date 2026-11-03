@@ -1,0 +1,123 @@
+#gradebook-import-modal{z-index:12000}
+#gradebook-import-modal .sigma-modal-footer{display:flex;justify-content:flex-end!important;gap:16px}
+#gradebook-import-modal .gradebook-import-period{display:flex;flex-direction:column;gap:10px;max-width:300px;margin:24px 0;font-weight:600}
+#gradebook-import-modal select{min-height:52px;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;color:#000}
+#gradebook-import-modal .gradebook-import-dropzone{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;min-height:220px;padding:24px;border:2px dashed #eab308;border-radius:20px;background:#fffdf0;text-align:center;cursor:pointer}
+#gradebook-import-modal .gradebook-import-dropzone i{font-size:28px;color:#a16207}
+#gradebook-import-modal [data-content]{min-width:0}
+#gradebook-import-modal [data-content]>p{margin:20px 0;line-height:1.6}
+#gradebook-import-modal .attendance-import-table{margin-top:24px}
+#gradebook-import-modal [data-status]{margin-top:16px;color:#15803d}
+@media(max-width:639px){#gradebook-import-modal .sigma-modal-footer .sigma-btn{min-width:0;padding:12px 16px}#gradebook-import-modal .shared-export-exit{top:12px;right:12px}#gradebook-import-modal .sigma-modal-title{padding-right:40px}}
+
+#gradebook-import-modal .sigma-modal-header{padding:24px 40px}
+#gradebook-import-modal .sigma-modal-title{margin:0;font-size:24px;line-height:1.4}
+#gradebook-import-modal .attendance-import-mode-tabs{display:flex;gap:8px;padding:6px;border:1px solid #e2e8f0;border-radius:14px;background:#f1f5f9;max-width:600px}
+#gradebook-import-modal .attendance-import-mode-tabs button{flex:1;min-width:0;padding:14px 18px;border:0;border-radius:10px;background:transparent;font:600 14px/20px Inter,Arial,sans-serif;color:#475569;cursor:pointer}
+#gradebook-import-modal .attendance-import-mode-tabs button[aria-selected=true]{background:#fff;color:#15803d;box-shadow:0 1px 4px #0001}
+@media(max-width:639px){#gradebook-import-modal .sigma-modal-header{padding:20px}#gradebook-import-modal .sigma-modal-body{padding:24px 20px}#gradebook-import-modal .attendance-import-mode-tabs button{padding:12px 8px;font-size:13px}}
+
+/* Match the shared quarter picker and neutral upload control. */
+#gradebook-import-modal .gradebook-import-period .sigma-quarter-dropdown{width:100%;--quarter-control-width:300px;font-weight:400}
+#gradebook-import-modal .gradebook-import-dropzone{border-color:#d6d3d1;background:#fafafa;color:#000;gap:10px;transition:background-color .15s,border-color .15s}
+#gradebook-import-modal .gradebook-import-dropzone>span:last-of-type{color:#94a3b8;font-size:14px}
+#gradebook-import-modal .gradebook-import-upload-icon{display:flex;align-items:center;justify-content:center;width:56px;height:56px;border:1px solid #e2e8f0;border-radius:16px;background:#fff}
+#gradebook-import-modal .gradebook-import-upload-icon i{color:#a3a3a3;font-size:24px}
+#gradebook-import-modal .gradebook-import-dropzone:hover,#gradebook-import-modal .gradebook-import-dropzone:focus-within{border-color:#ffd600;background:#fffdf0;color:#ea7600}
+#gradebook-import-modal .gradebook-import-dropzone:hover>span:last-of-type{color:#ea7600}
+#gradebook-import-modal .gradebook-import-dropzone:hover .gradebook-import-upload-icon{background:#fff3c4;border-color:#ffd600}
+#gradebook-import-modal .gradebook-import-dropzone:hover i{color:#92400e}
+
+html body #gradebook-import-modal .gradebook-import-period>.sigma-quarter-dropdown{flex:none!important;width:100%!important;min-width:0!important;max-width:300px!important;height:46px!important}
+html body #gradebook-import-modal .gradebook-import-period .sigma-quarter-dropdown>summary{height:44px!important;min-height:44px!important}
+html body #gradebook-import-modal .gradebook-import-period .sigma-quarter-dropdown-menu{width:calc(100% + 2px)!important;min-width:0!important;max-width:calc(100vw - 40px)!important}
+
+#gradebook-import-modal .gradebook-import-mobile-back{display:none}
+@media(max-width:639px){
+ html body #gradebook-import-modal .shared-export-exit{left:12px;right:auto;top:16px;width:40px;height:40px}
+ html body #gradebook-import-modal .shared-export-exit .gradebook-import-desktop-close{display:none}
+ html body #gradebook-import-modal .shared-export-exit .gradebook-import-mobile-back{display:block;font-size:18px}
+ html body #gradebook-import-modal .sigma-modal-header{min-height:76px;padding:20px 20px 20px 60px;display:flex;align-items:center}
+ html body #gradebook-import-modal .sigma-modal-title{padding:0;min-width:0;font-size:20px;line-height:1.4;overflow-wrap:break-word}
+}
+
+#gradebook-import-modal .sigma-modal-footer [data-action]{margin-left:auto!important;margin-right:0!important;flex:0 0 auto}
+
+/* Mobile transfer forms share the attendance header scale and a bounded scrolling body. */
+@media(max-width:639px){
+ html body #gradebook-import-modal{height:100dvh!important;overflow:hidden!important;padding:0!important}
+ html body #gradebook-import-modal .sigma-modal-shell,
+ html body #gradebook-import-modal .sigma-modal-panel{height:100dvh!important;min-height:0!important;max-height:100dvh!important;overflow:hidden!important}
+ html body #gradebook-import-modal .sigma-modal-header{position:relative!important;flex:0 0 auto!important;min-height:64px!important;padding:16px 20px 16px 56px!important;box-sizing:border-box}
+ html body #gradebook-import-modal .sigma-modal-title{font-size:16px!important;line-height:24px!important;font-weight:600!important}
+ html body #gradebook-import-modal .shared-export-exit{top:12px!important}
+ html body #gradebook-import-modal .sigma-modal-body{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;padding:20px!important;font-size:14px!important;overscroll-behavior:contain}
+ html body #gradebook-import-modal .sigma-modal-body p{font-size:14px!important;line-height:1.5!important}
+ html body #gradebook-import-modal .gradebook-import-dropzone strong{font-size:16px!important}
+ html body #gradebook-import-modal .sigma-modal-footer{position:relative!important;bottom:auto!important;flex:0 0 auto!important;margin:0!important;padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px))!important;width:100%!important;box-sizing:border-box}
+}
+
+#gradebook-import-modal .gradebook-import-selected-file{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc}
+#gradebook-import-modal .gradebook-import-selected-file>span{min-width:0;overflow-wrap:anywhere;font-weight:600}
+#gradebook-import-modal .gradebook-import-selected-file i{color:#15803d;margin-right:8px}
+#gradebook-import-modal .gradebook-import-selected-file button{flex-shrink:0}
+@media(max-width:639px){#gradebook-import-modal .gradebook-import-selected-file{flex-wrap:wrap;padding:12px}}
+
+#gradebook-import-modal [data-preview] td.gradebook-import-student{text-align:left!important}
+#gradebook-import-modal [data-preview] td:nth-child(2){text-align:center}
+#gradebook-import-modal .gradebook-import-student-identity{display:flex;align-items:center;gap:12px}
+#gradebook-import-modal .gradebook-import-student-avatar{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:40px;height:40px}
+@media(max-width:639px){#gradebook-import-modal .gradebook-import-student-avatar{display:none}}
+
+/* A single scrolling content area keeps the header and footer clear on every viewport. */
+html body #gradebook-import-modal{height:100dvh!important;overflow:hidden!important;padding:0!important}
+html body #gradebook-import-modal .sigma-modal-shell,
+html body #gradebook-import-modal .sigma-modal-panel{height:100dvh!important;min-height:0!important;max-height:100dvh!important;overflow:hidden!important}
+html body #gradebook-import-modal .sigma-modal-header{position:relative!important;flex:0 0 auto!important;padding:24px 40px!important}
+html body #gradebook-import-modal .sigma-modal-body{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;display:flex;flex-direction:column;gap:24px;padding:28px 40px!important;overscroll-behavior:contain;font-size:16px;font-weight:400;line-height:1.5}
+html body #gradebook-import-modal .sigma-modal-footer{position:relative!important;flex:0 0 auto!important;bottom:auto!important;padding:16px 32px!important;margin:0!important;width:100%!important;box-sizing:border-box}
+html body #gradebook-import-modal .shared-export-intro{margin:0;color:#000;font-size:16px;font-weight:400;line-height:1.5}
+html body #gradebook-import-modal .attendance-import-mode-tabs{width:100%;flex-shrink:0;box-sizing:border-box;margin:0}
+html body #gradebook-import-modal .attendance-import-mode-tabs button[aria-selected=false]{color:rgba(0,0,0,.45)!important}
+html body #gradebook-import-modal .gradebook-import-period{display:flex;flex-direction:row;align-items:center;gap:16px;max-width:none;width:100%;margin:0;flex-shrink:0;color:#000;font-size:14px;font-weight:500;line-height:20px}
+html body #gradebook-import-modal .gradebook-import-period-label{white-space:nowrap}
+html body #gradebook-import-modal .gradebook-import-period>.sigma-quarter-dropdown{--quarter-control-width:150px;flex:0 0 150px!important;width:150px!important;min-width:150px!important;max-width:150px!important;height:46px!important;color:#000}
+html body #gradebook-import-modal .gradebook-import-period .sigma-quarter-dropdown>summary{font-size:14px!important;font-weight:600!important;color:#000!important}
+html body #gradebook-import-modal [data-content]{display:flex;flex-direction:column;gap:20px;flex-shrink:0;min-width:0}
+html body #gradebook-import-modal [data-content]>p{margin:0;color:#000;font-size:16px;line-height:1.5;font-weight:400}
+html body #gradebook-import-modal [data-content]>p.gradebook-import-review-note{color:rgba(0,0,0,.45)!important;font-size:14px!important}
+html body #gradebook-import-modal .gradebook-import-dropzone{min-height:200px;padding:24px;box-sizing:border-box;gap:12px}
+html body #gradebook-import-modal .gradebook-import-dropzone strong{font-size:16px;line-height:1.5;font-weight:600;overflow-wrap:anywhere}
+html body #gradebook-import-modal .gradebook-import-dropzone>span:last-of-type{color:rgba(0,0,0,.45);line-height:1.5}
+html body #gradebook-import-modal .gradebook-import-dropzone:hover>span:last-of-type{color:#ea7600}
+html body #gradebook-import-modal .attendance-import-table{margin-top:0;max-width:100%;overflow-x:auto}
+html body #gradebook-import-modal [data-status],html body #gradebook-import-modal .shared-export-error{margin:0;flex-shrink:0;line-height:1.5;font-weight:400;overflow-wrap:anywhere}
+html body #gradebook-import-modal [data-status]:empty,html body #gradebook-import-modal .shared-export-error:empty{display:none}
+@media(max-width:639px){
+ html body #gradebook-import-modal .sigma-modal-header{padding:16px 20px 16px 56px!important;min-height:64px!important}
+ html body #gradebook-import-modal .sigma-modal-body{padding:20px!important;gap:20px;font-size:14px!important}
+ html body #gradebook-import-modal .sigma-modal-body p,html body #gradebook-import-modal .shared-export-intro{font-size:14px!important;line-height:1.5!important;font-weight:400}
+ html body #gradebook-import-modal .attendance-import-mode-tabs button{padding:12px 6px;font-size:13px;line-height:20px}
+ html body #gradebook-import-modal .gradebook-import-period{gap:12px;font-size:14px}
+ html body #gradebook-import-modal .gradebook-import-period>.sigma-quarter-dropdown{--quarter-control-width:144px;flex-basis:144px!important;width:144px!important;min-width:144px!important;max-width:144px!important}
+ html body #gradebook-import-modal [data-content]{gap:16px}
+ html body #gradebook-import-modal [data-content]>p.gradebook-import-review-note{font-size:13px!important}
+ html body #gradebook-import-modal .gradebook-import-dropzone{min-height:184px;padding:20px 12px;gap:12px}
+ html body #gradebook-import-modal .gradebook-import-dropzone strong{font-size:14px!important;line-height:1.5}
+ html body #gradebook-import-modal .gradebook-import-dropzone>span:last-of-type{font-size:13px}
+ html body #gradebook-import-modal .sigma-modal-footer{padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px))!important}
+}
+
+html body #gradebook-import-modal .gradebook-import-period{position:relative;z-index:2}
+html body #gradebook-import-modal .gradebook-import-period>.sigma-quarter-dropdown{position:relative}
+html body #gradebook-import-modal .gradebook-import-period .sigma-quarter-dropdown-menu{position:absolute;top:calc(100% + 6px);left:0;z-index:40;background:#fff;border-radius:12px;box-shadow:0 8px 20px #0002}
+
+/* Desktop matches Export Class Record: scroll the whole overlay at the viewport edge. */
+@media(min-width:640px){
+ html body #gradebook-import-modal{overflow-x:hidden!important;overflow-y:auto!important}
+ html body #gradebook-import-modal .sigma-modal-shell,
+ html body #gradebook-import-modal .sigma-modal-panel{height:auto!important;min-height:100dvh!important;max-height:none!important;overflow:visible!important}
+ html body #gradebook-import-modal .sigma-modal-header{position:sticky!important;top:0!important}
+ html body #gradebook-import-modal .sigma-modal-body{flex:1 0 auto!important;overflow:visible!important;min-height:0!important}
+ html body #gradebook-import-modal .sigma-modal-footer{position:sticky!important;bottom:0!important}
+}

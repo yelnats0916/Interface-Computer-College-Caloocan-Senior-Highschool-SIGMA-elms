@@ -86,6 +86,8 @@
                 positionLabel.className = 'slideshow-position-label';
                 positionLabel.textContent = 'Position';
                 const position = document.createElement('select');
+                position.id = `${panel.id}-position-${index + 1}`;
+                position.name = `slideshow-position-${index + 1}`;
                 position.setAttribute('aria-label', `Position of slide ${index + 1}`);
                 position.disabled = busy;
                 position.draggable = false;

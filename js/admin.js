@@ -13,6 +13,20 @@ var getStoredJson = window.getStoredJson || function (key, fallback) {
 };
 
 var USER_STORAGE_KEY = window.USER_STORAGE_KEY || 'sigma-admin-users';
+// The authenticated user response stays usable independently of optional browser caches.
+window.userDirectoryState = { owner: '', ready: false, error: '', records: [] };
+window.SigmaUserDirectory = {
+    records(key) {
+        if (!['sigma-admin-users', 'sigma-users-list'].includes(key)) return undefined;
+        const state = window.userDirectoryState;
+        const actor = window.SigmaDatabase?.currentUser?.() || {};
+        return state.ready && state.owner === String(actor.id || actor.uid || '') ? state.records : undefined;
+    },
+    update(key, records) {
+        if (!['sigma-admin-users', 'sigma-users-list'].includes(key) || !Array.isArray(records)) return;
+        if (this.records(key) !== undefined) window.userDirectoryState.records = records;
+    }
+};
 var SUBJECTS_STORAGE_KEY = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
 window.subjectCatalogState = { ready: false, error: '', records: [] };
 var SECTIONS_STORAGE_KEY = window.SECTIONS_STORAGE_KEY || 'sigma-admin-sections';
@@ -293,9 +307,11 @@ function purgeLegacyManagedUsers() {
         ...user,
         createdVia: user.createdVia || 'admin-panel'
     }));
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(normalizedUsers));
-    localStorage.setItem('sigma-users-list', JSON.stringify(normalizedUsers));
-    localStorage.setItem(MANAGED_USERS_RESET_KEY, 'true');
+    try {
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(normalizedUsers));
+        localStorage.setItem('sigma-users-list', JSON.stringify(normalizedUsers));
+        localStorage.setItem(MANAGED_USERS_RESET_KEY, 'true');
+    } catch (_) { /* An optional legacy cache migration cannot stop database loading. */ }
 }
 
 purgeLegacyManagedUsers();
@@ -587,7 +603,7 @@ function renderUserAccountsTable() {
         const rowStripe = rowIdx % 2 === 1 ? 'bg-slate-50/60' : '';
         const isThisUserMaster = String(user.uid || user.id || '').replace(/^#/, '').trim() === '0000000' || String(user.role || user.type || '').toLowerCase().includes('master');
         const rowNumber = window.hasTableSearchFilters(window.userAccountSearchState) ? startIndex + rowIdx + 1 : window.getRecordCreationNumber(user, getStoredJson(USER_STORAGE_KEY, []), 'users');
-        const fullName = user.fullName || `${user.firstName || ''} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName || ''}`.trim() || 'N/A';
+        const fullName = [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ').trim() || user.fullName || user.name || 'N/A';
         const initials = getUserInitials(fullName);
         const photo = resolveUserAvatar(user, rowIdx);
         const email = user.email || 'Not provided';
@@ -1037,7 +1053,7 @@ window.getTodayAttendanceRecord = function (sectionName, subjectName) {
     } else {
         let records = {};
         try {
-            records = JSON.parse(localStorage.getItem('sigma-attendance-records-v1') || '{}');
+            records = (window.SigmaAttendance?.records?.('sigma-attendance-records-v1') ?? JSON.parse(localStorage.getItem('sigma-attendance-records-v1') || '{}'));
         } catch (_) {
             records = {};
         }
@@ -1537,7 +1553,7 @@ function getAttendanceReportBaseItems() {
             const teacherObj = (Array.isArray(sec.teachers) ? sec.teachers[0] : null) || sec.teacher || sec.adviser;
             const teacherName = (typeof teacherObj === 'object' && teacherObj) ? (teacherObj.name || '') : String(teacherObj || '');
 
-            const subjects = Array.isArray(sec.subjects) && sec.subjects.length > 0
+            const subjects = sec.subject ? [sec.subject] : Array.isArray(sec.subjects) && sec.subjects.length > 0
                 ? sec.subjects
                 : (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects.length > 0
                     ? sec.assignedSubjects
@@ -1556,8 +1572,8 @@ function getAttendanceReportBaseItems() {
                             sectionName: secName.replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim(),
                             gradeLevel: gradeLevel,
                             subject: cleanSubj,
-                            teacher: teacherName || 'Jose Cruz Dela Pena',
-                            enrolled: enrolled || 40,
+                            teacher: teacherName || 'Unassigned',
+                            enrolled: enrolled,
                             present: 0,
                             absent: 0,
                             late: 0
@@ -1604,7 +1620,7 @@ window.getAttendanceReportRows = function (dateRange) {
 
     let records = {};
     try {
-        records = JSON.parse(localStorage.getItem('sigma-attendance-records-v1') || '{}');
+        records = (window.SigmaAttendance?.records?.('sigma-attendance-records-v1') ?? JSON.parse(localStorage.getItem('sigma-attendance-records-v1') || '{}'));
     } catch (e) {
         records = {};
     }
@@ -2969,13 +2985,19 @@ window.toggleUserLock = function (userId) {
             ? `Are you sure you want to lock the account for ${userName}? The user will be unable to log in until unlocked.`
             : `Are you sure you want to unlock the account for ${userName}? The user will regain normal access to log in.`;
 
-        const executeToggle = () => {
-            users[userIdx].status = newStatus;
-            localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
-            localStorage.setItem('sigma-users-list', JSON.stringify(users));
-            if (typeof syncUserToDB === 'function') {
-                syncUserToDB(users[userIdx], 'save');
+        const executeToggle = async () => {
+            try {
+                const result = await window.SigmaDatabase.request('users', { foreground: true, data: { action: isLocking ? 'lock' : 'unlock', id: String(userId) } });
+                if (!result.record || result.record.status !== newStatus) throw new Error('The account lock could not be confirmed.');
+            } catch (error) {
+                window.showToast?.(error.message || 'Could not update the account lock. Try again.', 'error');
+                return;
             }
+            users[userIdx].status = newStatus;
+            try {
+                localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
+                localStorage.setItem('sigma-users-list', JSON.stringify(users));
+            } catch (_) {}
             window.SigmaAuthenticationLogs?.record({
                 event: isLocking ? 'Account locked' : 'Account unlocked',
                 user: users[userIdx], outcome: isLocking ? 'warning' : 'success'
@@ -3082,40 +3104,6 @@ window.resetUser2FA = function (userId) {
             });
             const resetResult = await resetResponse.json();
             if (!resetResponse.ok || !resetResult.success) throw new Error(resetResult.error || '2FA reset failed');
-            if (user) {
-                user.totp_enabled = 0;
-                user.totpEnabled = false;
-                user.totp_secret = null;
-                user.has2fa = false;
-                user.totpSecretGenerated = false;
-                if (typeof USER_STORAGE_KEY !== 'undefined') {
-                    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
-                }
-            }
-            localStorage.removeItem('sigma-2fa-enabled-' + cleanId);
-            localStorage.removeItem('sigma-2fa-secret-' + cleanId);
-            if (typeof renderUserAccountsTable === 'function') {
-                renderUserAccountsTable();
-            }
-
-            window.SigmaAuthenticationLogs?.record({ event:'Google Authenticator 2FA reset', user, outcome:'warning' });
-
-            const successTitle = '2FA Reset Successfully';
-            const successDesc = `Google Authenticator 2FA has been reset for ${userName} (${cleanId}). They will be presented with a new QR barcode setup screen on their next login.`;
-
-            if (typeof window.showSigmaDialog === 'function') {
-                window.showSigmaDialog({
-                    title: successTitle,
-                    desc: successDesc,
-                    icon: 'fa-solid fa-qrcode text-emerald-600',
-                    confirmText: 'OK',
-                    isNotification: true
-                });
-            } else if (typeof window.showUserConfirm === 'function') {
-                window.showUserConfirm(successTitle, successDesc, null, true);
-            } else {
-                window.SigmaFeedback.notice(successDesc, 'success');
-            }
         } catch (e) {
             console.error('Reset 2FA error:', e);
             if (typeof window.showSigmaDialog === 'function') {
@@ -3129,6 +3117,54 @@ window.resetUser2FA = function (userId) {
             } else {
                 window.SigmaFeedback.notice('Failed to reset 2FA.', 'error');
             }
+            return;
+        }
+
+        // The server is authoritative. Browser storage is only a cache and must
+        // never turn a completed security reset into a misleading failure.
+        try {
+            if (user) {
+                user.totp_enabled = 0;
+                user.totpEnabled = false;
+                user.totp_secret = null;
+                user.has2fa = false;
+                user.totpSecretGenerated = false;
+                if (typeof USER_STORAGE_KEY !== 'undefined') saveStoredJson(USER_STORAGE_KEY, users);
+            }
+        } catch (cacheError) {
+            console.warn('[SIGMA] 2FA reset succeeded; browser account cache was not refreshed.', cacheError);
+        }
+        try {
+            localStorage.removeItem('sigma-2fa-enabled-' + cleanId);
+            localStorage.removeItem('sigma-2fa-secret-' + cleanId);
+        } catch (cacheError) {
+            console.warn('[SIGMA] 2FA reset succeeded; browser cache cleanup was skipped.', cacheError);
+        }
+        try {
+            if (typeof renderUserAccountsTable === 'function') renderUserAccountsTable();
+        } catch (renderError) {
+            console.warn('[SIGMA] 2FA reset succeeded; account table refresh was skipped.', renderError);
+        }
+        try {
+            window.SigmaAuthenticationLogs?.record({ event:'Google Authenticator 2FA reset', user, outcome:'warning' });
+        } catch (logError) {
+            console.warn('[SIGMA] 2FA reset succeeded; audit event could not be displayed locally.', logError);
+        }
+
+        const successTitle = '2FA Reset Successfully';
+        const successDesc = `Google Authenticator 2FA has been reset for ${userName} (${cleanId}). They will be presented with a new QR barcode setup screen on their next login.`;
+        if (typeof window.showSigmaDialog === 'function') {
+            window.showSigmaDialog({
+                title: successTitle,
+                desc: successDesc,
+                icon: 'fa-solid fa-qrcode text-emerald-600',
+                confirmText: 'OK',
+                isNotification: true
+            });
+        } else if (typeof window.showUserConfirm === 'function') {
+            window.showUserConfirm(successTitle, successDesc, null, true);
+        } else {
+            window.SigmaFeedback.notice(successDesc, 'success');
         }
     };
 
@@ -3616,7 +3652,8 @@ function updateGlobalSYDisplay() {
         }
     }
     const qText = currentQuarter || '1st Quarter';
-    el.textContent = `S.Y. ${yearRange} • ${qText}`;
+    const semesterText = Number(active.activeSemester) === 2 ? '2nd Semester' : '1st Semester';
+    el.textContent = `S.Y. ${yearRange} • ${qText} • ${semesterText}`;
 }
 window.updateGlobalSYDisplay = updateGlobalSYDisplay;
 
@@ -4104,7 +4141,9 @@ window.saveSettings = function () {
 };
 
 let securitySettingsSaveTimer;
-window.scheduleSecuritySettingsSave = function () {
+let securitySettingsSaveQueue = Promise.resolve(), securitySettingsSaveVersion = 0;
+let securitySettingsLoadTask = null;
+window.scheduleSecuritySettingsSave = function (immediate = false) {
     clearTimeout(securitySettingsSaveTimer);
     const value = Number(document.getElementById('password-lockout-attempts')?.value);
     const status = document.getElementById('security-save-status');
@@ -4113,7 +4152,7 @@ window.scheduleSecuritySettingsSave = function () {
         return;
     }
     if (status) status.textContent = 'Saving...';
-    securitySettingsSaveTimer = setTimeout(() => window.saveSecuritySettings(), 500);
+    securitySettingsSaveTimer = setTimeout(() => window.saveSecuritySettings(), immediate ? 0 : 500);
 };
 window.saveSecuritySettings = async function () {
     const status = document.getElementById('security-save-status');
@@ -4123,15 +4162,20 @@ window.saveSecuritySettings = async function () {
         window.showToast?.('Enter a limit from 1 to 50.', 'error');
         return;
     }
+    clearTimeout(securitySettingsSaveTimer);
+    const version = ++securitySettingsSaveVersion;
     const previous = getStoredJson('sigma-login-security-config', {});
+    if (status) status.textContent = 'Saving...';
     try {
-        const result=await window.SigmaDatabase.request('session',{data:{action:'save_login_policy',passwordAttempts:attempts}});
+        const task = securitySettingsSaveQueue.catch(() => {}).then(() => window.SigmaDatabase.request('session',{foreground:true,data:{action:'save_login_policy',passwordAttempts:attempts}}));
+        securitySettingsSaveQueue = task;
+        const result=await task;
         const config={...previous,passwordAttempts:result.passwordAttempts};
         try {localStorage.setItem('sigma-login-security-config',JSON.stringify(config));} catch (_) {}
-        if (status) status.textContent = 'Saved';
+        if (status && version === securitySettingsSaveVersion && Number(passwordInput?.value) === result.passwordAttempts) status.textContent = 'Saved';
     } catch (error) {
-        if (passwordInput) passwordInput.value = previous.passwordAttempts || 8;
-        if (status) status.textContent = 'Could not save. Changes reverted.';
+        if (version !== securitySettingsSaveVersion) return;
+        if (status) status.textContent = 'Could not save. Enter the value again to retry.';
         window.showToast?.('Could not save account lockout settings.', 'error');
     }
 };
@@ -4139,12 +4183,29 @@ window.saveSecuritySettings = async function () {
 window.loadLoginSecuritySettings = function () {
     window.loadRecaptchaPageData?.();
     const passwordInput=document.getElementById('password-lockout-attempts');
-    if(passwordInput)passwordInput.disabled=true;
-    window.SigmaDatabase.request('session',{query:{action:'login_policy'}}).then(config=>{
-        if(passwordInput){passwordInput.value=config.passwordAttempts;passwordInput.disabled=false;}
+    const loadStatus=document.getElementById('security-save-status');
+    const version=securitySettingsSaveVersion;
+    if(passwordInput){passwordInput.disabled=true;passwordInput.placeholder='Loading…';}
+    if(loadStatus)loadStatus.textContent='Loading...';
+    // Share duplicate loads and bypass the background data queue for this visible setting.
+    if(!securitySettingsLoadTask){
+        securitySettingsLoadTask=securitySettingsSaveQueue.catch(()=>{}).then(()=>window.SigmaDatabase.request('session',{foreground:true,query:{action:'login_policy'}}))
+            .finally(()=>{securitySettingsLoadTask=null;});
+    }
+    securitySettingsLoadTask.then(config=>{
+        if(version!==securitySettingsSaveVersion)return;
+        const attempts=Number(config.passwordAttempts);
+        if(!Number.isInteger(attempts)||attempts<1||attempts>50)throw Error('Invalid saved policy');
+        const currentInput=document.getElementById('password-lockout-attempts');
+        if(currentInput){currentInput.value=attempts;currentInput.disabled=false;currentInput.placeholder='';}
+        const currentStatus=document.getElementById('security-save-status');
+        if(currentStatus)currentStatus.textContent='Saved';
         const previous=getStoredJson('sigma-login-security-config',{});
-        try {localStorage.setItem('sigma-login-security-config',JSON.stringify({...previous,passwordAttempts:config.passwordAttempts}));} catch (_) {}
+        try {localStorage.setItem('sigma-login-security-config',JSON.stringify({...previous,passwordAttempts:attempts}));} catch (_) {}
     }).catch(()=>{
+        if(version!==securitySettingsSaveVersion)return;
+        const currentInput=document.getElementById('password-lockout-attempts');
+        if(currentInput)currentInput.placeholder='Unavailable';
         const status=document.getElementById('security-save-status');
         if(status)status.textContent='Could not load saved lockout settings. Reload to retry.';
     });
@@ -5869,7 +5930,15 @@ document.addEventListener('DOMContentLoaded', () => {
         window.showSection(sectionId, tabId);
 
         if (!skipHashUpdate) {
-            window.location.hash = tabId;
+            // Updating the hash to the sidebar link's id triggers native anchor
+            // scrolling. Keep assessment generation's route/history without moving
+            // the viewport away from the top of the content.
+            if (tabId === 'nav-ai-assessments') {
+                const routeHash = `#${tabId}`;
+                if (window.location.hash !== routeHash) window.history.pushState({ tab: tabId }, '', routeHash);
+            } else {
+                window.location.hash = tabId;
+            }
         }
     };
 
@@ -7788,7 +7857,10 @@ function updateAiDisplay() {
     if (requestsValEl) requestsValEl.title = 'Provider requests in this period, not conversation count. A conversation can contain multiple requests. Operator connection checks are excluded from these user-usage totals.';
     const retry = document.getElementById('ai-usage-retry');
     if (retry) {
-        retry.hidden = false; retry.disabled = state === 'loading' || Boolean(snapshot.refreshing); retry.setAttribute('aria-busy', String(state === 'loading' || Boolean(snapshot.refreshing)));
+        // Background refreshes keep the loaded card visible without a blocking loader.
+        const loading = state === 'loading';
+        retry.hidden = false; retry.disabled = loading || Boolean(snapshot.refreshing); retry.setAttribute('aria-busy', String(loading));
+        retry.querySelector('i')?.classList.toggle('fa-spin', loading);
     }
     for (const [id, active] of [['btn-ai-gemini', currentAiModel === 'gemini'], ['btn-ai-groq', currentAiModel === 'groq']]) {
         const button = document.getElementById(id); if (!button) continue;
@@ -7797,7 +7869,7 @@ function updateAiDisplay() {
     }
 }
 window.updateAiDisplay = updateAiDisplay;
-window.retryAiUsage = () => window.SigmaAiDatabase?.reloadLogs().catch(() => {});
+window.retryAiUsage = () => (window.SigmaAiDatabase?.reloadMetricUsage?.() || window.SigmaAiDatabase?.reloadUsage?.() || window.SigmaAiDatabase?.reloadLogs()).catch(() => {});
 window.addEventListener('sigma:ai-logs-updated', updateAiDisplay);
 window.addEventListener('online', updateAiDisplay);
 window.addEventListener('offline', updateAiDisplay);
@@ -8099,27 +8171,45 @@ const resolveUsersApiUrl = () => {
 
 const syncUserToDB = window.syncUserToDB;
 
-const fetchUsersFromDB = async () => {
-    try {
-        const url = resolveUsersApiUrl();
-        const res = await window.SigmaDatabase.fetch(url);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data && data.success && Array.isArray(data.records)) {
-            window.SigmaDatabase?.preserveLegacy(USER_STORAGE_KEY, localStorage.getItem(USER_STORAGE_KEY));
-            window.saveStoredJson(USER_STORAGE_KEY, data.records);
-            window.saveStoredJson('sigma-users-list', data.records);
+let usersFetchPending = null, usersFetchOwner = '';
+const fetchUsersFromDB = () => {
+    const actor = window.SigmaDatabase?.currentUser?.() || {};
+    const owner = String(actor.id || actor.uid || '');
+    if (!owner) return Promise.resolve();
+    if (usersFetchPending && usersFetchOwner === owner) return usersFetchPending;
+    usersFetchOwner = owner;
+    const work = (async () => {
+        try {
+            const res = await window.SigmaDatabase.fetch(resolveUsersApiUrl(), { cache: 'no-store', foreground: true, autoReconnect: false });
+            const data = await res.json();
+            if (!res.ok || data?.success !== true || !Array.isArray(data.records)) throw new Error(data?.error || 'User accounts could not be retrieved.');
+            const current = window.SigmaDatabase.currentUser();
+            if (String(current.id || current.uid || '') !== owner) return;
+            // Publish the original server records before any best-effort cache writes.
+            window.userDirectoryState = { owner, ready: true, error: '', records: data.records };
+            try { window.SigmaDatabase.preserveLegacy?.(USER_STORAGE_KEY, localStorage.getItem(USER_STORAGE_KEY)); } catch (_) {}
+            for (const key of [USER_STORAGE_KEY, 'sigma-users-list']) {
+                try { window.saveStoredJson?.(key, data.records); } catch (_) {}
+            }
+            window.invalidateSigmaViewCaches?.();
             if (typeof renderUserAccountsTable === 'function') renderUserAccountsTable();
             if (typeof updateUserMetricCards === 'function') updateUserMetricCards();
+        } catch (error) {
+            const current = window.SigmaDatabase?.currentUser?.() || {};
+            if (String(current.id || current.uid || '') !== owner) return;
+            window.userDirectoryState.error = error.message || 'User accounts could not be retrieved.';
+            console.warn('User directory refresh:', window.userDirectoryState.error);
         }
-    } catch (err) {
-        // Fallback silently to existing browser storage if server is offline
-    }
+    })().finally(() => { if (usersFetchPending === work) usersFetchPending = null; });
+    usersFetchPending = work;
+    return work;
 };
 
 // Initial DB Fetch for users
 fetchUsersFromDB();
 window.fetchUsersFromDB = fetchUsersFromDB;
+window.addEventListener('online', fetchUsersFromDB);
+window.addEventListener('sigma:database-session-ready', fetchUsersFromDB);
 
 // --- DATABASE INTEGRATION: SECTIONS TABLE API ---
 const resolveSectionsApiUrl = () => {
@@ -8134,29 +8224,64 @@ const syncSectionToDB = window.syncSectionToDB;
 
 const deleteSectionFromDB = window.deleteSectionFromDB;
 
-const fetchSectionsFromDB = async () => {
+let sectionFetchInFlight = null;
+let sectionLastSuccessfulFetchAt = 0;
+const fetchSectionsFromDB = (options = {}) => {
+    const force = options === true || options?.force === true;
+    if (sectionFetchInFlight) return sectionFetchInFlight;
+    if (!force && sectionLastSuccessfulFetchAt && Date.now() - sectionLastSuccessfulFetchAt < 30000) {
+        return Promise.resolve(true);
+    }
+
     const revision = window._sectionCatalogRevision || 0;
-    try {
-        const url = resolveSectionsApiUrl();
-        const res = await window.SigmaDatabase.fetch(url);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data && data.success && Array.isArray(data.records)) {
-            if (revision !== (window._sectionCatalogRevision || 0)) return;
-            // When database has records, database is authoritative
-            window.SigmaDatabase?.preserveLegacy(SECTIONS_STORAGE_KEY, localStorage.getItem(SECTIONS_STORAGE_KEY));
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    let timedOut = false;
+    const deadline = controller ? setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+    }, 45000) : null;
+
+    const work = (async () => {
+        try {
+            const data = await window.SigmaDatabase.request('sections', {
+                signal: controller?.signal,
+                timeoutMs: 45000,
+                autoReconnect: true,
+                foreground: true
+            });
+            if (!Array.isArray(data.records)) throw new Error('The section service did not return a section list.');
+            if (revision !== (window._sectionCatalogRevision || 0)) return false;
+            // When database has records, database is authoritative.
+            try { window.SigmaDatabase?.preserveLegacy(SECTIONS_STORAGE_KEY, localStorage.getItem(SECTIONS_STORAGE_KEY)); } catch (_) {}
             window.saveStoredJson(SECTIONS_STORAGE_KEY, data.records);
+            sectionLastSuccessfulFetchAt = Date.now();
             if (typeof window.renderSectionsTable === 'function') window.renderSectionsTable();
             if (typeof window.updateSectionMetricCards === 'function') window.updateSectionMetricCards();
+            window.dispatchEvent(new CustomEvent('sigma:section-catalog-loaded'));
+            return true;
+        } catch (error) {
+            if (error?.name !== 'AbortError') {
+                console.warn('[sections] Database refresh failed.', timedOut
+                    ? 'Section loading timed out.'
+                    : (error?.message || error));
+            }
+            return false;
+        } finally {
+            if (deadline !== null) clearTimeout(deadline);
         }
-    } catch (err) {
-        // Fallback silently if server is offline
-    }
+    })().finally(() => {
+        if (sectionFetchInFlight === work) sectionFetchInFlight = null;
+    });
+    sectionFetchInFlight = work;
+    return work;
 };
 window.fetchSectionsFromDB = fetchSectionsFromDB;
 
 // Initial DB Fetch for sections
 fetchSectionsFromDB();
+window.addEventListener('sigma:sections-updated', () => {
+    void fetchSectionsFromDB({ force: true });
+});
 
 // --- DATABASE INTEGRATION: SUBJECTS TABLE API ---
 const resolveSubjectsApiUrl = () => {
@@ -8172,12 +8297,53 @@ const syncSubjectToDB = window.syncSubjectToDB;
 const deleteSubjectFromDB = window.deleteSubjectFromDB;
 
 let subjectFetchInFlight = null;
-const fetchSubjectsFromDB = () => {
+let subjectLastAttemptAt = 0;
+let subjectLastSuccessfulFetchAt = 0;
+const fetchSubjectsFromDB = (options = {}) => {
+    const force = options === true || options?.force === true;
     if (subjectFetchInFlight) return subjectFetchInFlight;
+    const now = Date.now();
+    const hasCatalog = Boolean(window.subjectCatalogState?.ready && Array.isArray(window.subjectCatalogState.records));
+    if (!force && subjectLastSuccessfulFetchAt && now - subjectLastSuccessfulFetchAt < 45000) {
+        return Promise.resolve(true);
+    }
+    // Focus, visibility, hash, and network events can arrive in a burst when a
+    // device changes networks. Keep a failed request from restarting on every event.
+    if (!force && subjectLastAttemptAt && now - subjectLastAttemptAt < (hasCatalog ? 45000 : 15000)) {
+        return Promise.resolve(hasCatalog);
+    }
+    subjectLastAttemptAt = now;
     subjectFetchInFlight = (async () => {
         const revision = window._subjectCatalogRevision || 0;
+        const loadController = typeof AbortController === 'function' ? new AbortController() : null;
+        let loadTimedOut = false;
+        const loadDeadline = loadController ? setTimeout(() => {
+            loadTimedOut = true;
+            loadController.abort();
+        }, 45000) : null;
         try {
-            const data = await window.SigmaDatabase.request('subjects');
+            let data;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    // Retry a brief hosting-capacity rejection without restarting
+                    // the catalog fetch for every browser focus/network event.
+                    data = await window.SigmaDatabase.request('subjects', {
+                        signal: loadController?.signal,
+                        timeoutMs: 45000,
+                        autoReconnect: true,
+                        foreground: true
+                    });
+                    break;
+                } catch (error) {
+                    const retryable = [502, 503, 504].includes(Number(error.status))
+                        || error instanceof TypeError;
+                    if (attempt < 2 && !loadTimedOut && retryable) {
+                        await new Promise(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+                        continue;
+                    }
+                    throw error;
+                }
+            }
             if (!Array.isArray(data.records)) throw new Error('The subject service did not return a subject list.');
             if (revision !== (window._subjectCatalogRevision || 0)) return true;
             const subjKey = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
@@ -8185,22 +8351,42 @@ const fetchSubjectsFromDB = () => {
             try { window.SigmaDatabase.preserveLegacy(subjKey, localStorage.getItem(subjKey)); }
             catch (error) { console.warn('[subjects] Device backup unavailable; loading database records.', error); }
             window.subjectCatalogState = { ready: true, error: '', records: data.records };
+            subjectLastSuccessfulFetchAt = Date.now();
             window.saveStoredJson(subjKey, data.records);
             if (typeof window.renderSubjectsTable === 'function') window.renderSubjectsTable();
             if (typeof window.updateSubjectMetricCards === 'function') window.updateSubjectMetricCards();
             return true;
         } catch (error) {
-            console.error('[subjects] Database refresh failed.', error);
-            window.subjectCatalogState.error = 'Unable to load subjects.';
+            if (error?.name !== 'AbortError') console.warn('[subjects] Database refresh failed.', error);
+            const status = Number(error.status);
+            const message = loadTimedOut
+                ? 'The subject list is taking longer than expected. Please retry.'
+                : error?.name === 'AbortError'
+                    ? 'The subject request was interrupted. Please retry.'
+                : status === 401
+                    ? 'Your session expired. Please sign in again.'
+                    : status === 403
+                        ? 'You do not have permission to load subjects.'
+                        : (error.message || 'Unable to load subjects.');
+            const previouslyLoaded = Boolean(window.subjectCatalogState?.ready
+                && Array.isArray(window.subjectCatalogState.records));
+            if (previouslyLoaded) {
+                window.subjectCatalogState = { ...window.subjectCatalogState, error: message };
+            } else {
+                window.subjectCatalogState = { ready: false, error: message, records: [] };
+            }
             window.renderSubjectsTable?.();
-            if (window.location.hash.includes('nav-school-subjects')) {
-                window.showToast?.(error.message || 'Unable to refresh subjects. Please try again.', 'error');
+            window.updateSubjectMetricCards?.();
+            if (error?.name !== 'AbortError' && window.location.hash.includes('nav-school-subjects')) {
+                window.showToast?.(previouslyLoaded
+                    ? 'The subject list could not refresh. Showing the last loaded catalog.'
+                    : message, previouslyLoaded ? 'warning' : 'error');
             }
             return false;
         } finally {
-            subjectFetchInFlight = null;
+            if (loadDeadline !== null) clearTimeout(loadDeadline);
         }
-    })();
+    })().finally(() => { subjectFetchInFlight = null; });
     return subjectFetchInFlight;
 };
 window.fetchSubjectsFromDB = fetchSubjectsFromDB;
@@ -8301,6 +8487,32 @@ const getSortedSchoolYearRecords = () => [...schoolYearRecords].sort((left, righ
 });
 
 const getActiveSchoolYearRecord = () => schoolYearRecords.find((record) => !record.isDeleted && record.status === 'Active') || null;
+
+const schoolYearDateIds = [
+    'edit-sy-q1-start', 'edit-sy-q1-end',
+    'edit-sy-q2-start', 'edit-sy-q2-end',
+    'edit-sy-q3-start', 'edit-sy-q3-end',
+    'edit-sy-q4-start', 'edit-sy-q4-end'
+];
+
+window.getSYQuarterBlockedDatesForInput = function (input) {
+    const currentQuarter = /^edit-sy-q([1-4])-(?:start|end)$/.exec(input?.id || '')?.[1];
+    if (!currentQuarter) return new Set();
+
+    const blocked = new Set();
+    schoolYearDateIds.forEach((id) => {
+        const otherQuarter = /^edit-sy-q([1-4])-(?:start|end)$/.exec(id)?.[1];
+        const otherInput = document.getElementById(id);
+        if (otherQuarter !== currentQuarter && otherInput?.value) blocked.add(otherInput.value);
+    });
+    return blocked;
+};
+
+const shiftSchoolYearDate = (value, days) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return '';
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+};
 
 const getSYFormValues = () => {
     const rawStart = document.getElementById('edit-sy-year-start')?.value || '';
@@ -8556,17 +8768,9 @@ window.updateSYDateConstraints = function () {
 
     const isEditing = currentSYRecordId !== null;
 
-    const dateIds = [
-        'edit-sy-q1-start', 'edit-sy-q1-end',
-        'edit-sy-q2-start', 'edit-sy-q2-end',
-        'edit-sy-q3-start', 'edit-sy-q3-end',
-        'edit-sy-q4-start', 'edit-sy-q4-end'
-    ];
+    const dateInputs = schoolYearDateIds.map((id) => document.getElementById(id));
 
-    let lastDate = null;
-
-    dateIds.forEach((id) => {
-        const input = document.getElementById(id);
+    dateInputs.forEach((input, index) => {
         if (!input) return;
 
         // 1. Global constraints from year selection:
@@ -8575,27 +8779,30 @@ window.updateSYDateConstraints = function () {
         let min = yearStart ? `${yearStart}-01-01` : '';
         let max = yearEnd ? `${yearEnd}-12-31` : '';
 
-        // 2. Sequential constraints (Next date must be at least 1 day after the previous date)
-        if (lastDate) {
-            const nextDay = new Date(lastDate);
-            nextDay.setDate(nextDay.getDate() + 1);
-            const minStr = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
-            if (!min || minStr > min) min = minStr;
-        }
+        // Enforce quarter order across configured dates, including across blanks.
+        // A quarter's start and end may still be the same day.
+        dateInputs.forEach((otherInput, otherIndex) => {
+            if (!otherInput?.value || otherIndex === index) return;
+            const sameQuarter = Math.floor(index / 2) === Math.floor(otherIndex / 2);
+            const dayGap = sameQuarter ? 0 : Math.abs(index - otherIndex);
+            if (otherIndex < index) {
+                const previousDay = shiftSchoolYearDate(otherInput.value, dayGap);
+                if (previousDay && (!min || previousDay > min)) min = previousDay;
+            } else {
+                const nextDay = shiftSchoolYearDate(otherInput.value, -dayGap);
+                if (nextDay && (!max || nextDay < max)) max = nextDay;
+            }
+        });
 
         if (min) input.min = min; else input.removeAttribute('min');
         if (max) input.max = max; else input.removeAttribute('max');
 
-        // 3. Validation: If current value is invalid based on new constraints, clear it (unless disabled/read-only existing record)
-        if (input.value && min && input.value < min) {
+        // Keep stored dates inside the refreshed range; date pickers also disable
+        // every day outside these bounds.
+        if (input.value && ((min && input.value < min) || (max && input.value > max))) {
             if (!isEditing || !input.disabled) {
                 input.value = '';
             }
-        }
-
-        // Update lastDate for the next input in sequence
-        if (input.value) {
-            lastDate = input.value;
         }
     });
 
@@ -8610,9 +8817,12 @@ window.checkSYFormValidity = function () {
 
     if (isEditing) {
         const changed = window.hasSYChanges?.() === true;
-        saveBtn.disabled = !changed || !!window.getSYValidationError?.(getSYFormValues()) || !!window._sySavePending;
-        saveBtn.style.opacity = changed ? '1' : '0.5';
-        saveBtn.style.cursor = changed ? 'pointer' : 'not-allowed';
+        const valid = !window.getSYValidationError?.(getSYFormValues());
+        const canSave = changed && valid && !window._sySavePending;
+        saveBtn.disabled = !canSave;
+        saveBtn.setAttribute('aria-disabled', String(!canSave));
+        saveBtn.style.opacity = canSave ? '1' : '0.5';
+        saveBtn.style.cursor = canSave ? 'pointer' : 'not-allowed';
         return;
     }
 
@@ -8621,6 +8831,7 @@ window.checkSYFormValidity = function () {
     const isValid = !!(q1Start && q1End) && !window.getSYValidationError?.(getSYFormValues()) && !window._sySavePending;
 
     saveBtn.disabled = !isValid;
+    saveBtn.setAttribute('aria-disabled', String(!isValid));
     saveBtn.style.opacity = isValid ? '1' : '0.5';
     saveBtn.style.cursor = isValid ? 'pointer' : 'not-allowed';
 };
@@ -8896,26 +9107,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.checkQuarterEndReminders();
 
     // Bind sequential date validation and dynamic status updates
-    const dateIds = [
-        'edit-sy-q1-start', 'edit-sy-q1-end',
-        'edit-sy-q2-start', 'edit-sy-q2-end',
-        'edit-sy-q3-start', 'edit-sy-q3-end',
-        'edit-sy-q4-start', 'edit-sy-q4-end'
-    ];
-    dateIds.forEach(id => {
+    schoolYearDateIds.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', () => {
-                if (el.value && el.min && el.value < el.min && !el.disabled) {
-                    el.value = el.min;
-                }
                 window.updateSYDateConstraints();
                 window.updateSYQuarterStatuses();
             });
             el.addEventListener('input', () => {
-                if (el.value && el.min && el.value < el.min && !el.disabled) {
-                    el.value = el.min;
-                }
                 window.updateSYDateConstraints();
                 window.updateSYQuarterStatuses();
             });
@@ -9599,6 +9798,17 @@ window.renderSYManagerList = function () {
                             <span class="inline-flex items-center"><i class="fa-solid fa-calendar-check icon-black-fade mr-1.5"></i>${quarterCount} Quarters Configured</span>
                             <span class="inline-flex items-center"><i class="fa-solid fa-clock icon-black-fade mr-1.5"></i>${record.q1Start ? formatSchoolYearDate(record.q1Start) : '—'} to ${record.q4End ? formatSchoolYearDate(record.q4End) : '—'}</span>
                         </div>
+                        ${isCurrentActive ? `
+                            <div class="mt-3 flex flex-wrap items-center gap-2.5">
+                                <label for="sy-active-semester-${record.id}" class="text-xs font-bold text-black">Active Semester</label>
+                                <select id="sy-active-semester-${record.id}" class="min-h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-black focus:border-[#15803d] focus:outline-none focus:ring-2 focus:ring-[#15803d]/15">
+                                    <option value="1" ${Number(record.activeSemester || 1) === 1 ? 'selected' : ''}>1st Semester</option>
+                                    <option value="2" ${Number(record.activeSemester) === 2 ? 'selected' : ''}>2nd Semester</option>
+                                </select>
+                                <button type="button" onclick="window.setSYActiveSemester('${record.id}')" class="rounded-xl border border-[#15803d] bg-white px-3.5 py-2 text-xs font-bold text-[#15803d] hover:bg-[#eaf7ee] transition-colors">Apply Semester</button>
+                                <span class="text-xs text-black-fade">Current class lists follow this semester.</span>
+                            </div>
+                        ` : ''}
                     </div>
 
                     <div class="relative sy-action-dropdown-container flex items-center justify-center shrink-0">
@@ -9673,15 +9883,10 @@ window.renderSYManagerList = function () {
 
                         <div id="sy-dropdown-${record.id}"
                             class="sy-action-dropdown hidden absolute right-0 top-full mt-1.5 w-48 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 p-1.5 font-['Inter']">
-                            <button type="button" onclick="window.closeAllSYDropdowns(); window.toggleSYManager(false); window.openSYEditor('${record.id}', null, true)"
-                                class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-black hover:bg-slate-100 flex items-center gap-2.5 transition-colors cursor-pointer">
-                                <i class="fa-solid fa-pen-to-square text-black text-xs w-4 text-center"></i>
-                                <span>Edit</span>
-                            </button>
-                            <button type="button" onclick="window.closeAllSYDropdowns(); window.promptRestoreSchoolYear('${record.id}')"
+                            <button type="button" onclick="window.closeAllSYDropdowns(); window.promptReactivateSchoolYear('${record.id}')"
                                 class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-black hover:bg-slate-100 flex items-center gap-2.5 transition-colors cursor-pointer">
                                 <i class="fa-solid fa-rotate-left text-black text-xs w-4 text-center"></i>
-                                <span>Restore Year</span>
+                                <span>Reactivate Year</span>
                             </button>
                             ${canDeleteSY && record.canDelete === true ? `
                                 <button type="button" onclick="window.closeAllSYDropdowns(); window.deleteSYToTrash('${record.id}')"
@@ -9738,29 +9943,51 @@ window.renderSYManagerList = function () {
 window.setSYAsActive = function (recordId) {
     const target = schoolYearRecords.find(r => String(r.id) === String(recordId));
     if (!target) return;
+    window.showSYConfirm('Set as Active School Year?',
+        `Activate School Year ${target.yearStart}-${target.yearEnd}? Any currently active year becomes Inactive. The maintenance setting stays unchanged.`,
+        async () => {
+            try {
+                await window.SigmaDatabase.request('school_years', {data:{action:'activate',id:recordId},foreground:true,autoReconnect:false});
+                await window.fetchSchoolYearsFromDB();
+                window.renderSYManagerList();
+                window.dispatchEvent(new CustomEvent('sigma:school-year-changed'));
+            } catch(error) { window.SigmaFeedback?.notify(error.message,'error'); }
+        }, 'Activate', 'Cancel');
+};
 
-    window.showSYConfirm(
-        'Set as Active School Year?',
-        `Are you sure you want to activate School Year ${target.yearStart}-${target.yearEnd}? This will become the live academic session for all portals immediately.`,
-        () => {
-            schoolYearRecords = schoolYearRecords.map(record => ({
-                ...record,
-                status: String(record.id) === String(recordId) ? 'Active' : 'Inactive'
-            }));
+window.setSYActiveSemester = function (recordId) {
+    const target = schoolYearRecords.find(r => String(r.id) === String(recordId));
+    const select = document.getElementById(`sy-active-semester-${recordId}`);
+    const semester = Number(select?.value);
+    if (!target || target.status !== 'Active' || ![1, 2].includes(semester)) return;
+    if (Number(target.activeSemester || 1) === semester) {
+        window.SigmaFeedback?.notice(`${semester === 1 ? '1st' : '2nd'} Semester is already active.`);
+        return;
+    }
 
-            saveSYToStorage();
-            renderSchoolYearTable();
-            renderSchoolYearSummaryBar();
-            updateGlobalSYDisplay();
-            window.renderSYManagerList();
-
-            if (typeof window.broadcastForceLogout === 'function') {
-                window.broadcastForceLogout(`School Year ${target.yearStart}-${target.yearEnd} has been activated. Please log in again.`, 'non-master');
+    const label = semester === 1 ? '1st Semester' : '2nd Semester';
+    window.showSYConfirm('Change Active Semester?',
+        `Set ${label} as the active semester for ${target.yearStart}-${target.yearEnd}? Current class lists will follow this choice. Previous semester records will remain available in history.`,
+        async () => {
+            try {
+                const result = await window.SigmaDatabase.request('school_years', {
+                    data: { action: 'set_active_semester', id: recordId, semester },
+                    foreground: true,
+                    autoReconnect: false
+                });
+                const saved = result?.record;
+                if (!result?.success || !saved) throw new Error(result?.error || 'The active semester could not be saved.');
+                schoolYearRecords = schoolYearRecords.map(record => String(record.id) === String(recordId) ? saved : record);
+                saveSYToStorage();
+                window.updateGlobalSYDisplay?.();
+                window.renderSYManagerList?.();
+                window.dispatchEvent(new CustomEvent('sigma:school-year-changed', { detail: { id: recordId, semester } }));
+                window.dispatchEvent(new CustomEvent('sigma:active-semester-changed', { detail: { id: recordId, semester } }));
+                window.SigmaFeedback?.notify(`${label} is now active for ${target.yearStart}-${target.yearEnd}.`, 'success');
+            } catch (error) {
+                window.SigmaFeedback?.notify(error.message || 'The active semester could not be saved.', 'error');
             }
-        },
-        'Activate',
-        'Cancel'
-    );
+        }, 'Set Active Semester', 'Cancel');
 };
 
 window.deleteSYToTrash = function (recordId) {
@@ -10178,276 +10405,7 @@ if (document.readyState === 'loading') {
     setTimeout(initAdminSecuritySettings, 100);
 }
 
-// ─── ARCHIVE & RESTORE SCHOOL YEAR LOGIC (SHARED CONFIRMATION) ───
-
-window.promptArchiveSchoolYear = function (recordId) {
-    if (!window.isCurrentMasterAdmin()) {
-        if (typeof window.showUserConfirm === 'function') {
-            window.showUserConfirm('Permission Denied', 'Only Master Administrators are permitted to archive a school year.', null, true);
-        } else {
-            window.SigmaFeedback.notice('Only Master Administrators are permitted to archive a school year.');
-        }
-        return;
-    }
-
-    const target = schoolYearRecords.find(r => String(r.id) === String(recordId));
-    if (!target) return;
-
-    // Archiving an inactive year preserves the current live year and its sessions.
-    if (target.status !== 'Active') {
-        window.showSYConfirm('Archive School Year?', `Archive School Year ${target.yearStart}-${target.yearEnd}? Its sections and records will be preserved.`, async () => {
-            if (!await syncSchoolYearToDB({action:'archive',id:recordId})) return;
-            await window.fetchSchoolYearsFromDB?.();
-            window.renderSYManagerList();
-        }, 'Archive Year', 'Cancel');
-        return;
-    }
-
-    const yearTitle = `${target.yearStart} - ${target.yearEnd}`;
-    const inactiveYears = schoolYearRecords.filter(r => !r.isDeleted && r.status === 'Inactive' && String(r.id) !== String(recordId));
-
-    // Step 1: Prompt "Archive School Year {yearTitle}?" with detailed explanation of effects
-    window.showSYConfirm(
-        `Archive School Year ${yearTitle}?`,
-        `Archiving will conclude and finalize the ${yearTitle} academic session, freeze student submissions, and safely disconnect active non-admin sessions. All historical records will be preserved in the archive.`,
-        () => {
-            // Step 2: When user clicks "Archive Year", if a candidate exists, ask to activate it
-            if (inactiveYears.length > 0) {
-                const nextCandidate = inactiveYears[0];
-                const nextTitle = `${nextCandidate.yearStart} - ${nextCandidate.yearEnd}`;
-
-                // Show Activation confirmation modal (background panel remains unchanged)
-                setTimeout(() => {
-                    window.showSYConfirm(
-                        `Activate School Year ${nextTitle}?`,
-                        `Archiving School Year ${yearTitle} will conclude the current academic session. Would you like to activate School Year ${nextTitle} as the current live academic year now?`,
-                        () => {
-                            // On "Activate", perform archive + activate together and transfer panel
-                            window.executeArchiveAndActivate(recordId, nextCandidate.id);
-                        },
-                        'Activate',
-                        'Cancel'
-                    );
-                }, 50);
-            } else {
-                // If no other school years available, archive directly
-                window.executeArchiveSchoolYear(recordId);
-            }
-        },
-        'Archive Year',
-        'Cancel'
-    );
-};
-
-window.executeArchiveAndActivate = function (archiveRecordId, activateRecordId) {
-    if (!window.isCurrentMasterAdmin()) return;
-
-    const target = schoolYearRecords.find(r => String(r.id) === String(archiveRecordId));
-    if (!target) return;
-
-    const yearTitle = `${target.yearStart}-${target.yearEnd}`;
-    const archiveTimestamp = new Date().toISOString();
-
-    // 1. Freeze Incoming Activity
-    localStorage.setItem('sigma_sy_submission_frozen', 'true');
-    localStorage.setItem('sigma_sy_last_archived_year', yearTitle);
-
-    // 2. Force Logout All Active Student, Teacher, and Non-Master Admin Sessions
-    if (typeof window.broadcastForceLogout === 'function') {
-        const nextRecord = schoolYearRecords.find(r => String(r.id) === String(activateRecordId));
-        const activatedYearText = nextRecord ? `School Year ${nextRecord.yearStart}-${nextRecord.yearEnd}` : 'A new academic year';
-        window.broadcastForceLogout(`${activatedYearText} has been activated. Please log in again.`, 'non-master');
-    }
-
-    // 3. Save Academic Snapshot into School Year Archives
-    try {
-        const existingArchives = getStoredJson('sigma_sy_archives', []);
-        const archiveRecord = {
-            id: 'sy_archived_' + Date.now(),
-            syId: target.id,
-            yearStart: target.yearStart,
-            yearEnd: target.yearEnd,
-            status: 'Completed (Archived)',
-            archivedAt: archiveTimestamp,
-            archivedBy: (typeof window.getActiveUserData === 'function' && window.getActiveUserData()?.fullName) ? window.getActiveUserData().fullName : 'Master Admin',
-            snapshot: {
-                schoolYear: { ...target },
-                subjectsCount: (getStoredJson('sigma-admin-subjects', [])).length,
-                sectionsCount: (getStoredJson('sigma-sections-list', [])).length,
-                studentsCount: (getStoredJson('sigma-student-users', [])).length
-            }
-        };
-        existingArchives.unshift(archiveRecord);
-        window.saveStoredJson('sigma_sy_archives', existingArchives);
-    } catch (e) {
-        console.error('Failed to create archive record:', e);
-    }
-
-    // 4. Archive target year AND activate candidate year together
-    schoolYearRecords = schoolYearRecords.map(record => {
-        if (String(record.id) === String(archiveRecordId)) {
-            return {
-                ...record,
-                status: 'Completed (Archived)',
-                archivedAt: archiveTimestamp
-            };
-        } else if (activateRecordId && String(record.id) === String(activateRecordId)) {
-            return {
-                ...record,
-                status: 'Active'
-            };
-        } else if (activateRecordId && record.status === 'Active') {
-            return {
-                ...record,
-                status: 'Inactive'
-            };
-        }
-        return record;
-    });
-
-    // 5. Persist & Update UI (Panel and badges transfer now)
-    saveSYToStorage();
-    syncSchoolYearToDB({ action: 'archive', id: archiveRecordId, activateNextId: activateRecordId });
-    renderSchoolYearTable();
-    renderSchoolYearSummaryBar();
-    updateGlobalSYDisplay();
-    if (typeof window.renderSYManagerList === 'function') {
-        window.renderSYManagerList();
-    }
-};
-
-window.executeArchiveSchoolYear = function (recordId) {
-    if (!window.isCurrentMasterAdmin()) {
-        if (typeof window.showUserConfirm === 'function') {
-            window.showUserConfirm('Permission Denied', 'Only Master Administrators are permitted to archive a school year.', null, true);
-        } else {
-            window.SigmaFeedback.notice('Only Master Administrators are permitted to archive a school year.');
-        }
-        return;
-    }
-
-    const target = schoolYearRecords.find(r => String(r.id) === String(recordId));
-    if (!target) return;
-
-    const yearTitle = `${target.yearStart}-${target.yearEnd}`;
-    const archiveTimestamp = new Date().toISOString();
-
-    // 1. Freeze Incoming Activity
-    localStorage.setItem('sigma_sy_submission_frozen', 'true');
-    localStorage.setItem('sigma_sy_last_archived_year', yearTitle);
-
-    // 2. Force Logout All Active Student, Teacher, and Non-Master Admin Sessions
-    if (typeof window.broadcastForceLogout === 'function') {
-        window.broadcastForceLogout(`School Year ${yearTitle} has officially concluded and been archived. All student and teacher sessions have ended.`, 'non-master');
-    }
-
-    // 3. Save Academic Snapshot into School Year Archives
-    try {
-        const existingArchives = getStoredJson('sigma_sy_archives', []);
-        const archiveRecord = {
-            id: 'sy_archived_' + Date.now(),
-            syId: target.id,
-            yearStart: target.yearStart,
-            yearEnd: target.yearEnd,
-            status: 'Completed (Archived)',
-            archivedAt: archiveTimestamp,
-            archivedBy: (typeof window.getActiveUserData === 'function' && window.getActiveUserData()?.fullName) ? window.getActiveUserData().fullName : 'Master Admin',
-            snapshot: {
-                schoolYear: { ...target },
-                subjectsCount: (getStoredJson('sigma-admin-subjects', [])).length,
-                sectionsCount: (getStoredJson('sigma-sections-list', [])).length,
-                studentsCount: (getStoredJson('sigma-student-users', [])).length
-            }
-        };
-        existingArchives.unshift(archiveRecord);
-        window.saveStoredJson('sigma_sy_archives', existingArchives);
-    } catch (e) {
-        console.error('Failed to create archive record:', e);
-    }
-
-    // 4. Mark School Year Record as Completed (Archived)
-    schoolYearRecords = schoolYearRecords.map(record => {
-        if (String(record.id) === String(target.id)) {
-            return {
-                ...record,
-                status: 'Completed (Archived)',
-                archivedAt: archiveTimestamp
-            };
-        }
-        return record;
-    });
-
-    // 5. Persist & Update UI
-    saveSYToStorage();
-    renderSchoolYearTable();
-    renderSchoolYearSummaryBar();
-    updateGlobalSYDisplay();
-    if (typeof window.renderSYManagerList === 'function') {
-        window.renderSYManagerList();
-    }
-};
-
-window.promptRestoreSchoolYear = function (recordId) {
-    const target = schoolYearRecords.find(r => String(r.id) === String(recordId));
-    if (!target) return;
-
-    const yearTitle = `${target.yearStart} - ${target.yearEnd}`;
-    window.showSYConfirm(
-        `Restore School Year ${yearTitle}?`,
-        `Are you sure you want to restore School Year ${yearTitle}? This will reactivate this school year, unfreeze submissions, and set it as the active session.`,
-        () => {
-            window.executeRestoreSchoolYear(recordId);
-        },
-        'Restore Year',
-        'Cancel'
-    );
-};
-
-window.executeRestoreSchoolYear = function (recordId) {
-    const target = schoolYearRecords.find(r => String(r.id) === String(recordId));
-    if (!target) return;
-
-    const yearTitle = `${target.yearStart} - ${target.yearEnd}`;
-
-    // 1. Unfreeze Submissions & Broadcast Force Logout
-    localStorage.removeItem('sigma_sy_submission_frozen');
-
-    if (typeof window.broadcastForceLogout === 'function') {
-        window.broadcastForceLogout(`School Year ${yearTitle} has been restored and activated. Please log in again.`, 'non-master');
-    }
-
-    // 2. Set this record to Active, others to Inactive
-    schoolYearRecords = schoolYearRecords.map(record => {
-        if (String(record.id) === String(recordId)) {
-            const copy = { ...record, status: 'Active' };
-            delete copy.archivedAt;
-            return copy;
-        } else if (record.status === 'Active') {
-            return { ...record, status: 'Inactive' };
-        }
-        return record;
-    });
-
-    // Persist & Update UI
-    saveSYToStorage();
-    syncSchoolYearToDB({ action: 'activate', id: recordId });
-    renderSchoolYearTable();
-    renderSchoolYearSummaryBar();
-    updateGlobalSYDisplay();
-    if (typeof window.renderSYManagerList === 'function') {
-        window.renderSYManagerList();
-    }
-
-    if (typeof window.openAskingPanel === 'function') {
-        window.openAskingPanel({
-            title: 'School Year Restored',
-            message: `School Year ${yearTitle} has been restored and is now the active school year. Submissions are active and normal operations have resumed.`,
-            icon: 'fa-solid fa-rotate-left text-emerald-500',
-            confirmText: 'Done',
-            showCancel: false
-        });
-    }
-};
+// Archive and reactivate confirmations live in school-year-lifecycle.js.
 
 // Aliases for backwards compatibility
 window.openEndSchoolYearModal = function () {
@@ -10641,6 +10599,14 @@ window.getSectionPrerequisitesStatus = function () {
 };
 
 window.toggleSectionOverlay = function (show, sectionId = null) {
+    if (show && sectionId) {
+        const saved = getStoredJson(SECTIONS_STORAGE_KEY, []).find(section => String(section.id || section.name) === String(sectionId));
+        if (String(saved?.status || '').toLowerCase() === 'archived') {
+            window.SigmaFeedback.notice('This section is archived and read-only. Use Reactivate Year to return its sections to Draft.');
+            return;
+        }
+    }
+
     const overlay = document.getElementById('section-edit-overlay');
     const titleEl = document.getElementById('section-modal-title');
     window.currentEditingSectionId = sectionId;
@@ -11270,13 +11236,18 @@ window.renderScheduleSubpage = function () {
 
     let rowsHtml = window.stagedSectionDailySchedule.map((item) => {
         const isActive = Boolean(item.active);
-        const dayConflict = isActive ? conflicts.find(c => c.day === item.fullDay || c.day === item.day) : null;
+        const itemDayKey = normalizeSectionScheduleDay(item.fullDay || item.day)?.key;
+        const dayConflict = isActive ? conflicts.find(c => normalizeSectionScheduleDay(c.day)?.key === itemDayKey) : null;
+        const dayInvalid = isActive ? window.getInvalidScheduleSubpageEntries([item])[0] : null;
+        const hasInvalidHours = Boolean(dayInvalid);
 
         let badgeHtml = '';
         if (!isActive) {
             badgeHtml = `<span class="text-xs font-semibold text-black-fade">Off</span>`;
+        } else if (hasInvalidHours) {
+            badgeHtml = `<span class="text-xs font-bold text-rose-600" title="${escapeHtml(dayInvalid.reason)}">${item.startTime || item.endTime ? 'Invalid Hours' : 'Set Hours'}</span>`;
         } else if (dayConflict) {
-            badgeHtml = `<span class="text-xs font-bold text-rose-600" title="Occupied by Section ${escapeHtml(dayConflict.section.name)}">Room Occupied</span>`;
+            badgeHtml = `<span class="text-xs font-bold text-rose-600" title="Room conflict with Section ${escapeHtml(dayConflict.section.name)}">Room Conflict</span>`;
         } else if (item.startTime && item.endTime) {
             badgeHtml = `<span class="text-xs font-bold text-emerald-600">Available</span>`;
         } else {
@@ -11284,35 +11255,35 @@ window.renderScheduleSubpage = function () {
         }
 
         return `
-            <div class="p-4 hover:bg-black/[0.02] transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 font-['Inter'] ${isActive ? (dayConflict ? 'bg-rose-50/40' : '') : 'opacity-40'}">
+            <div class="p-4 hover:bg-black/[0.02] transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 font-['Inter'] ${isActive ? (dayConflict || hasInvalidHours ? 'bg-rose-50/40' : '') : 'opacity-40'}">
                 <!-- Day Toggle & Name -->
                 <div class="flex items-center gap-3.5 min-w-[150px]">
                     <input type="checkbox" ${isActive ? 'checked' : ''} onchange="window.handleScheduleDayToggle('${item.day}')"
                         class="w-5 h-5 rounded ${isActive ? 'accent-blue-600 text-blue-600 focus:ring-blue-500' : 'border-black/35 bg-black/[0.04] hover:border-black/60'} cursor-pointer transition-colors">
-                    <span class="text-sm font-bold ${isActive ? (dayConflict ? 'text-rose-700' : 'text-black') : 'text-black-fade'}">${escapeHtml(item.fullDay)}</span>
+                    <span class="text-sm font-bold ${isActive ? (dayConflict || hasInvalidHours ? 'text-rose-700' : 'text-black') : 'text-black-fade'}">${escapeHtml(item.fullDay)}</span>
                 </div>
 
                 <!-- Shared Hours Pickers -->
                 <div class="flex items-center gap-3 flex-1 w-full sm:w-auto">
                     <div class="flex items-center gap-2">
                         <!-- Start Time Input Box -->
-                        <div class="time-input-box relative flex items-center ${!isActive ? 'bg-black/[0.03] border border-black/10 opacity-50 pointer-events-none' : (dayConflict ? 'bg-white border border-rose-300' : 'bg-white border border-slate-200 hover:border-slate-300')} focus-within:border-slate-400 rounded-xl h-10 px-3 transition-all shadow-2xs font-['Inter'] w-[170px] sm:w-[195px] shrink-0 cursor-text">
+                        <div class="time-input-box relative flex items-center ${!isActive ? 'bg-black/[0.03] border border-black/10 opacity-50 pointer-events-none' : (dayConflict || hasInvalidHours ? 'bg-white border border-rose-300' : 'bg-white border border-slate-200 hover:border-slate-300')} focus-within:border-slate-400 rounded-xl h-10 px-3 transition-all shadow-2xs font-['Inter'] w-[170px] sm:w-[195px] shrink-0 cursor-text">
                             <input type="time" value="${item.startTime || ''}"
                                 ${!isActive ? 'disabled' : ''}
                                 onchange="window.handleScheduleDayTimeChange('${item.day}', 'start', this.value, this)"
                                 style="color-scheme: light;"
-                                class="w-full h-full bg-transparent text-xs font-semibold ${dayConflict ? 'text-rose-700' : 'text-black'} outline-none border-none p-0 font-['Inter']" />
+                                class="w-full h-full bg-transparent text-xs font-semibold ${dayConflict || hasInvalidHours ? 'text-rose-700' : 'text-black'} outline-none border-none p-0 font-['Inter']" />
                         </div>
 
                         <span class="text-black-fade font-bold text-xs select-none px-0.5">—</span>
 
                         <!-- End Time Input Box -->
-                        <div class="time-input-box relative flex items-center ${!isActive ? 'bg-black/[0.03] border border-black/10 opacity-50 pointer-events-none' : (dayConflict ? 'bg-white border border-rose-300' : 'bg-white border border-slate-200 hover:border-slate-300')} focus-within:border-slate-400 rounded-xl h-10 px-3 transition-all shadow-2xs font-['Inter'] w-[170px] sm:w-[195px] shrink-0 cursor-text">
+                        <div class="time-input-box relative flex items-center ${!isActive ? 'bg-black/[0.03] border border-black/10 opacity-50 pointer-events-none' : (dayConflict || hasInvalidHours ? 'bg-white border border-rose-300' : 'bg-white border border-slate-200 hover:border-slate-300')} focus-within:border-slate-400 rounded-xl h-10 px-3 transition-all shadow-2xs font-['Inter'] w-[170px] sm:w-[195px] shrink-0 cursor-text">
                             <input type="time" value="${item.endTime || ''}"
                                 ${!isActive ? 'disabled' : ''}
                                 onchange="window.handleScheduleDayTimeChange('${item.day}', 'end', this.value, this)"
                                 style="color-scheme: light;"
-                                class="w-full h-full bg-transparent text-xs font-semibold ${dayConflict ? 'text-rose-700' : 'text-black'} outline-none border-none p-0 font-['Inter']" />
+                                class="w-full h-full bg-transparent text-xs font-semibold ${dayConflict || hasInvalidHours ? 'text-rose-700' : 'text-black'} outline-none border-none p-0 font-['Inter']" />
                         </div>
                     </div>
                 </div>
@@ -11584,54 +11555,123 @@ window.applyMasterTimeToActiveDays = function () {
     window.renderScheduleSubpage();
 };
 
-window.getScheduleSubpageConflicts = function (scheduleList = null) {
-    const room = document.getElementById('edit-section-room')?.value.trim();
-    const schoolYear = document.getElementById('edit-section-school-year')?.value.trim();
-    const listToCheck = scheduleList || window.stagedSectionDailySchedule || window.selectedSectionDailySchedule || [];
-    const activeDays = listToCheck.filter(d => d.active && d.startTime && d.endTime);
+function normalizeSectionScheduleDay(value) {
+    const key = String(value || '').trim().toLowerCase().slice(0, 3);
+    const labels = { sun: 'Sunday', mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday' };
+    return labels[key] ? { key, label: labels[key] } : null;
+}
 
-    if (!room || activeDays.length === 0) return [];
+function parseSectionScheduleMinutes(value) {
+    const match = String(value || '').trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+    if (!match) return null;
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const period = (match[3] || '').toUpperCase();
+    if (minutes > 59) return null;
+    if (period) {
+        if (hours < 1 || hours > 12) return null;
+        if (period === 'AM' && hours === 12) hours = 0;
+        if (period === 'PM' && hours !== 12) hours += 12;
+    } else if (hours > 23) {
+        return null;
+    }
+    return hours * 60 + minutes;
+}
 
-    const sections = getStoredJson(SECTIONS_STORAGE_KEY, []);
-    const conflicts = [];
-    const parseMins = (t) => {
-        if (!t) return 0;
-        const [h, m] = t.split(':');
-        return (parseInt(h, 10) * 60) + parseInt(m || '0', 10);
+function getSectionScheduleSlots(record) {
+    if (!record || typeof record !== 'object') return [];
+    let daily = record.dailySchedules ?? record.daily_schedules ?? [];
+    if (typeof daily === 'string') {
+        try { daily = JSON.parse(daily); } catch (_) { daily = []; }
+    }
+
+    const toSlot = (day, startTime, endTime) => {
+        const normalizedDay = normalizeSectionScheduleDay(day);
+        const start = parseSectionScheduleMinutes(startTime);
+        const end = parseSectionScheduleMinutes(endTime);
+        if (!normalizedDay || start === null || end === null || end <= start) return null;
+        return { dayKey: normalizedDay.key, dayLabel: normalizedDay.label, start, end, startTime, endTime };
     };
 
-    activeDays.forEach(dayItem => {
-        const dStart = parseMins(dayItem.startTime);
-        const dEnd = parseMins(dayItem.endTime);
+    const dailySlots = Array.isArray(daily)
+        ? daily.filter(slot => slot && (slot.active === true || slot.active === 1 || slot.active === '1' || String(slot.active).toLowerCase() === 'true'))
+            .map(slot => toSlot(slot.day, slot.startTime ?? slot.start_time, slot.endTime ?? slot.end_time))
+            .filter(Boolean)
+        : [];
+    if (dailySlots.length) return dailySlots;
 
-        sections.forEach(s => {
-            if (window.isEditingSection && String(s.id) === String(window.currentEditingSectionId)) return;
-            if (s.status === 'Draft') return;
-            if (schoolYear && (s.schoolYear || '').trim() !== schoolYear) return;
-            if ((s.room || '').trim().toLowerCase() !== room.toLowerCase()) return;
+    let days = record.days ?? record.daysFormatted ?? record.days_formatted ?? [];
+    if (typeof days === 'string') {
+        try {
+            const decoded = JSON.parse(days);
+            days = Array.isArray(decoded) ? decoded : days.split(',');
+        } catch (_) { days = days.split(','); }
+    }
+    if (!Array.isArray(days)) days = [];
+    const startTime = record.startTime ?? record.start_time ?? '';
+    const endTime = record.endTime ?? record.end_time ?? '';
+    return days.map(day => toSlot(typeof day === 'string' ? day : day?.day, startTime, endTime)).filter(Boolean);
+}
 
-            let sOccupies = false;
-            let sStart = 0;
-            let sEnd = 0;
-            let sScheduleLabel = s.schedule || '';
+window.getInvalidScheduleSubpageEntries = function (scheduleList = null) {
+    const list = Array.isArray(scheduleList) ? scheduleList : (window.stagedSectionDailySchedule || []);
+    return list.filter(day => day && (day.active === true || day.active === 1 || day.active === '1' || String(day.active).toLowerCase() === 'true'))
+        .map(day => {
+            const normalizedDay = normalizeSectionScheduleDay(day.fullDay || day.day);
+            const start = parseSectionScheduleMinutes(day.startTime);
+            const end = parseSectionScheduleMinutes(day.endTime);
+            if (!normalizedDay) return { day: day.fullDay || day.day || 'Selected day', reason: 'Choose a valid weekday.' };
+            if (!day.startTime || !day.endTime) return { day: normalizedDay.label, reason: 'Set both a start and end time.' };
+            if (start === null || end === null || end <= start) return { day: normalizedDay.label, reason: 'End time must be later than start time.' };
+            return null;
+        })
+        .filter(Boolean);
+};
 
-            if (Array.isArray(s.dailySchedules)) {
-                const matchDay = s.dailySchedules.find(sd => sd.day === dayItem.day && sd.active && sd.startTime && sd.endTime);
-                if (matchDay) {
-                    sOccupies = true;
-                    sStart = parseMins(matchDay.startTime);
-                    sEnd = parseMins(matchDay.endTime);
-                    sScheduleLabel = `${matchDay.day} ${formatSectionSchedule(matchDay.startTime, matchDay.endTime)}`;
-                }
-            } else if (Array.isArray(s.days) && s.days.includes(dayItem.day) && s.startTime && s.endTime) {
-                sOccupies = true;
-                sStart = parseMins(s.startTime);
-                sEnd = parseMins(s.endTime);
-            }
+function formatSectionRoomConflictMessage(conflicts, room) {
+    const bySection = new Map();
+    conflicts.forEach(conflict => {
+        const section = conflict.section || {};
+        const key = String(section.id || section.name || 'section');
+        if (!bySection.has(key)) bySection.set(key, { name: section.name || 'Unnamed section', details: new Set() });
+        bySection.get(key).details.add(`${conflict.day}: ${conflict.candidateScheduleLabel} overlaps ${conflict.scheduleLabel}`);
+    });
+    const detail = [...bySection.values()].map(section =>
+        `Section "${section.name}" (${[...section.details].join('; ')})`
+    ).join('. ');
+    return `Room ${room || '(not set)'} has a schedule conflict. ${detail}. Adjust the room, day, or time before saving.`;
+}
 
-            if (sOccupies && Math.max(dStart, sStart) < Math.min(dEnd, sEnd)) {
-                conflicts.push({ day: dayItem.fullDay || dayItem.day, section: s, scheduleLabel: sScheduleLabel });
-            }
+window.getScheduleSubpageConflicts = function (scheduleList = null) {
+    const room = document.getElementById('edit-section-room')?.value.trim();
+    const schoolYear = document.getElementById('edit-section-school-year')?.value.trim().toLowerCase();
+    const listToCheck = Array.isArray(scheduleList) ? scheduleList : (window.stagedSectionDailySchedule || window.selectedSectionDailySchedule || []);
+    const activeSlots = getSectionScheduleSlots({ dailySchedules: listToCheck });
+    if (!room || activeSlots.length === 0) return [];
+
+    const roomKey = room.replace(/\s+/g, ' ').toLowerCase();
+    const sections = getStoredJson(SECTIONS_STORAGE_KEY, []);
+    const conflicts = [];
+
+    activeSlots.forEach(candidate => {
+        sections.forEach(section => {
+            if (window.isEditingSection && String(section.id) === String(window.currentEditingSectionId)) return;
+            if ([true, 1, '1', 'true'].includes(section.isDeleted) || [true, 1, '1', 'true'].includes(section.is_deleted)) return;
+            const status = String(section.status || 'Deployed').trim().toLowerCase();
+            if (['draft', 'archived', 'deleted'].includes(status)) return;
+            if (schoolYear && String(section.schoolYear ?? section.school_year ?? '').trim().toLowerCase() !== schoolYear) return;
+            const otherRoom = String(section.room || '').replace(/\s+/g, ' ').trim().toLowerCase();
+            if (otherRoom !== roomKey) return;
+
+            getSectionScheduleSlots(section).forEach(occupied => {
+                if (occupied.dayKey !== candidate.dayKey || Math.max(candidate.start, occupied.start) >= Math.min(candidate.end, occupied.end)) return;
+                conflicts.push({
+                    day: candidate.dayLabel,
+                    section,
+                    candidateScheduleLabel: formatSectionSchedule(candidate.startTime, candidate.endTime),
+                    scheduleLabel: formatSectionSchedule(occupied.startTime, occupied.endTime)
+                });
+            });
         });
     });
 
@@ -11642,7 +11682,7 @@ window.validateSubpageScheduleRoomConflict = function () {
     const alertEl = document.getElementById('subpage-schedule-room-conflict-alert');
     if (!alertEl) return;
     const room = document.getElementById('edit-section-room')?.value.trim();
-    const activeDays = (window.stagedSectionDailySchedule || []).filter(d => d.active && d.startTime && d.endTime);
+    const enabledDays = (window.stagedSectionDailySchedule || []).filter(d => d && d.active);
 
     if (!room) {
         alertEl.innerHTML = `
@@ -11654,7 +11694,7 @@ window.validateSubpageScheduleRoomConflict = function () {
         return;
     }
 
-    if (activeDays.length === 0) {
+    if (enabledDays.length === 0) {
         alertEl.innerHTML = `
             <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-800 flex items-center gap-2">
                 <i class="fa-solid fa-circle-exclamation text-amber-600"></i>
@@ -11664,24 +11704,32 @@ window.validateSubpageScheduleRoomConflict = function () {
         return;
     }
 
+    const invalidEntries = window.getInvalidScheduleSubpageEntries(window.stagedSectionDailySchedule);
+    if (invalidEntries.length > 0) {
+        const detail = invalidEntries.map(entry => `${escapeHtml(entry.day)}: ${escapeHtml(entry.reason)}`).join(' · ');
+        alertEl.innerHTML = `
+            <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl space-y-1 text-xs text-rose-700">
+                <div class="flex items-center gap-2 font-bold text-rose-800"><i class="fa-solid fa-triangle-exclamation text-rose-600"></i><span>Schedule Hours Need Attention</span></div>
+                <p class="font-normal leading-relaxed text-rose-600">${detail} Set valid hours before saving.</p>
+            </div>
+        `;
+        return;
+    }
+
     const conflicts = window.getScheduleSubpageConflicts(window.stagedSectionDailySchedule);
 
     if (conflicts.length > 0) {
-        const conflictDays = [...new Set(conflicts.map(c => c.day))].join(', ');
-
-        // Group by section — show section name + subject
         const sectionMap = new Map();
         conflicts.forEach(c => {
-            const key = c.section.name;
+            const key = String(c.section.id || c.section.name);
             if (!sectionMap.has(key)) {
-                sectionMap.set(key, { name: c.section.name, subject: c.section.subject || '', days: new Set() });
+                sectionMap.set(key, { name: c.section.name || 'Unnamed section', details: new Set() });
             }
-            sectionMap.get(key).days.add(c.day);
+            sectionMap.get(key).details.add(`${c.day}: ${c.candidateScheduleLabel} overlaps ${c.scheduleLabel}`);
         });
 
         const sectionLines = [...sectionMap.values()].map(s => {
-            const subjectLabel = s.subject ? ` — teaching <strong>${escapeHtml(s.subject)}</strong>` : '';
-            return `<li>Section <strong>"${escapeHtml(s.name)}"</strong>${subjectLabel} on ${[...s.days].join(', ')}</li>`;
+            return `<li>Section <strong>"${escapeHtml(s.name)}"</strong>: ${[...s.details].map(escapeHtml).join('; ')}</li>`;
         }).join('');
 
         alertEl.innerHTML = `
@@ -11690,7 +11738,7 @@ window.validateSubpageScheduleRoomConflict = function () {
                     <i class="fa-solid fa-triangle-exclamation text-rose-600 text-sm"></i>
                     <span>Room ${escapeHtml(room)} Schedule Conflict Detected (Saving Restricted)</span>
                 </div>
-                <p class="font-normal leading-relaxed text-rose-600">The following section(s) are already using this room at the selected time:</p>
+                <p class="font-normal leading-relaxed text-rose-600">The following section(s) already use this room during overlapping hours:</p>
                 <ul class="list-disc list-inside space-y-0.5 font-normal text-rose-600 leading-relaxed">
                     ${sectionLines}
                 </ul>
@@ -11777,18 +11825,16 @@ window.filterExistingSectionsMenu = function (query) {
 };
 
 window.formatSectionTeacherDisplayName = function (teacher) {
-    const name = String(typeof teacher === 'string' ? teacher : (teacher?.name || teacher?.fullName || '')).trim();
+    const name = String(typeof teacher === 'string' ? teacher : (teacher?.fullName || teacher?.name || '')).trim();
     const account = (typeof teacher === 'object' && teacher?.firstName && teacher?.lastName)
         ? teacher : window.findMatchedUserAccount?.('', name);
-    if (account?.firstName && account?.lastName) return `${account.firstName} ${account.lastName}`;
+    if (account?.firstName && account?.lastName) return [account.firstName, account.middleName, account.lastName].filter(Boolean).join(' ');
+    if (account?.fullName) return String(account.fullName).trim();
     if (name.includes(',')) {
         const [last, first] = name.split(',');
-        return `${first.trim().split(/\s+/)[0]} ${last.trim()}`;
+        return `${first.trim()} ${last.trim()}`.trim();
     }
-    const parts = name.split(/\s+/);
-    if (parts.length <= 2) return name;
-    const last = name.match(/\b(?:de la|dela|de los|del|de|san|santa|van|von)\s+\S+$/i)?.[0] || parts[parts.length - 1];
-    return `${parts[0]} ${last}`;
+    return name;
 };
 
 window.renderExistingSectionsList = function (query = '') {
@@ -12782,9 +12828,7 @@ window.switchAdminClassDetailTab = function (tabName, skipHash = false) {
     });
 
     if (tabName === 'attendance') {
-        if (typeof window.renderClassroomAttendanceTab === 'function') {
-            window.renderClassroomAttendanceTab(true);
-        }
+        window.enterClassroomAttendance?.();
     } else if (tabName === 'topics') {
         window.renderAdminRoomTopicsPanel?.();
     } else if (tabName === 'members') {
@@ -13197,7 +13241,7 @@ function getAdminTopicSubjectAndData(subjectId, subjectName, sectionName) {
     const bg = adminSubj?.bg || 'image/book1.jpg';
 
     const subject = {
-        id: effId,
+        id: adminSubj?.id || effId,
         code: code,
         name: title,
         title: title,
@@ -13408,7 +13452,7 @@ function getAdminTopicSubjectAndData(subjectId, subjectName, sectionName) {
     }
 
     const data = {
-        subjectId: effId,
+        subjectId: adminSubj?.id || effId,
         text: title,
         title: title,
         subtitle: `${strand} • ${type}`,
@@ -13425,11 +13469,11 @@ function getAdminTopicSubjectAndData(subjectId, subjectName, sectionName) {
 
 window.getAdminTopicSubjectAndData = getAdminTopicSubjectAndData;
 window.getTopicSubject = function (id) {
-    const res = getAdminTopicSubjectAndData(id);
+    const res = getAdminTopicSubjectAndData(id, id);
     return res?.subject || null;
 };
 window.getTopicData = function (id) {
-    const res = getAdminTopicSubjectAndData(id);
+    const res = getAdminTopicSubjectAndData(id, id);
     return res?.data || null;
 };
 
@@ -13696,6 +13740,7 @@ window.handleCurriculumHubBack = function (currentView) {
 };
 
 window.openTopicContent = function (subjectId, topicIdx = 0, tab = 'videos', subIdx = null, pushHistory = true, stateOverrides = {}) {
+    if (pushHistory) window.resetGradingStudentSelection?.(stateOverrides?.selectedStudent);
     const page = document.getElementById('section-topic-content');
     if (!page) return;
     if ((!page.children.length || !page.innerHTML.trim() || page.querySelector('.sigma-content-skeleton')) && typeof window.SigmaPageLoading?.showContentSkeleton === 'function') {
@@ -13837,7 +13882,7 @@ window.renderAdminTopicContentWorkstation = function () {
     const rawPerf = Array.isArray(topic?.performance) ? topic.performance : [];
     let assessments = [...rawAssign, ...rawQuiz, ...rawAct, ...rawPerf];
     if (typeof window.getUnifiedTopicAssessments === 'function') {
-        assessments = window.getUnifiedTopicAssessments('assessments', subjectId, topicIdx, assessments, effSection);
+        assessments = window.getUnifiedTopicAssessments('assessments', subjectId, topicIdx, assessments, effSection, topic);
     }
     if (typeof window.deduplicateMaterialsArray === 'function') {
         assessments = window.deduplicateMaterialsArray(assessments, { collapseRoles: true });
@@ -14013,6 +14058,7 @@ window.renderAdminTopicContentWorkstation = function () {
 };
 
 window.switchTopicTab = function (tab, itemIdx = null, preserveSubMode = false) {
+    if (!preserveSubMode || itemIdx == null) window.resetGradingStudentSelection?.();
     if (typeof window.stopAllTopicMedia === 'function') {
         window.stopAllTopicMedia();
     }
@@ -14062,7 +14108,7 @@ window.switchTopicTab = function (tab, itemIdx = null, preserveSubMode = false) 
     if (typeof window.renderAdminTopicContentWorkstation === 'function') {
         window.renderAdminTopicContentWorkstation();
     }
-    if (effItemIdx !== null || isMediaTab || isSubMode) {
+    if (!window._suppressSubmissionScrollToTop && (effItemIdx !== null || isMediaTab || isSubMode)) {
         try {
             window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
             document.documentElement.scrollTop = 0;
@@ -14071,7 +14117,7 @@ window.switchTopicTab = function (tab, itemIdx = null, preserveSubMode = false) 
             if (mc) mc.scrollTop = 0;
         } catch (_) { }
     }
-    if (isSubMode) {
+    if (isSubMode && !window._suppressSubmissionScrollToTop) {
         window.scrollSubmissionViewToTop?.();
     }
 };
@@ -14257,21 +14303,33 @@ window.handleSectionSave = function (status, createAnother = false) {
         return;
     }
 
-    // 2. Check room schedule conflict (same room, overlapping days & hours)
-    const conflicts = window.getScheduleSubpageConflicts ? window.getScheduleSubpageConflicts(window.selectedSectionDailySchedule) : [];
-    if (conflicts.length > 0) {
-        const conflict = conflicts[0];
-        const roomName = document.getElementById('edit-section-room')?.value || '';
-        const conflictMsg = `Room ${roomName} is already assigned to Section "${conflict.section.name}" on ${conflict.day} (${conflict.scheduleLabel || 'overlapping hours'}). Please assign a different room or adjust your schedule.`;
+    // 2. Reject incomplete/invalid time entries before building the saved section.
+    const invalidScheduleEntries = window.getInvalidScheduleSubpageEntries?.(window.selectedSectionDailySchedule || []) || [];
+    if (invalidScheduleEntries.length > 0) {
+        const detail = invalidScheduleEntries.map(entry => `${entry.day}: ${entry.reason}`).join(' ');
+        const msg = `Please correct the section schedule before saving. ${detail}`;
         if (typeof window.showAlertDialog === 'function') {
-            window.showAlertDialog('Room Schedule Conflict', conflictMsg);
+            window.showAlertDialog('Invalid Schedule Hours', msg);
         } else {
-            window.SigmaFeedback.notice(conflictMsg);
+            window.SigmaFeedback.notice(msg, 'error');
         }
         return;
     }
 
-    // 3. Check Teacher schedule conflicts
+    // 3. Check room schedule conflict (same room, overlapping days & hours)
+    const conflicts = window.getScheduleSubpageConflicts ? window.getScheduleSubpageConflicts(window.selectedSectionDailySchedule) : [];
+    if (conflicts.length > 0) {
+        const roomName = document.getElementById('edit-section-room')?.value || '';
+        const conflictMsg = formatSectionRoomConflictMessage(conflicts, roomName);
+        if (typeof window.showAlertDialog === 'function') {
+            window.showAlertDialog('Room Schedule Conflict', conflictMsg);
+        } else {
+            window.SigmaFeedback.notice(conflictMsg, 'error');
+        }
+        return;
+    }
+
+    // 4. Check Teacher schedule conflicts
     for (const t of (window.selectedSectionTeachers || [])) {
         const tConflict = window.getTeacherScheduleConflict ? window.getTeacherScheduleConflict(t.name) : null;
         if (tConflict) {
@@ -14285,7 +14343,7 @@ window.handleSectionSave = function (status, createAnother = false) {
         }
     }
 
-    // 4. Check Student schedule conflicts
+    // 5. Check Student schedule conflicts
     for (const s of (window.selectedSectionStudents || [])) {
         const sConflict = window.getStudentScheduleConflict ? window.getStudentScheduleConflict(s.id || s.uid) : null;
         if (sConflict) {
@@ -15004,7 +15062,11 @@ window.openSectionSubpage = function (subpageType, isChangeMode = false) {
             subjectSubpage.classList.remove('hidden');
             const search = document.getElementById('section-subpage-subject-search');
             if (search) { search.value = ''; search.focus(); }
-            document.getElementById('section-subpage-subject-dropdown')?.classList.add('hidden');
+            const subjectDropdown = document.getElementById('section-subpage-subject-dropdown');
+            if (subjectDropdown) {
+                subjectDropdown.dataset.gradeFilter = 'all';
+                subjectDropdown.classList.add('hidden');
+            }
             window.renderSubpageSubjectSelectedPanel();
         }
         if (confirmLabel) confirmLabel.textContent = window.subpageSubjectInitialSnapshot ? 'Change Subject' : 'Select Subject';
@@ -15029,26 +15091,37 @@ window.openSectionSubpage = function (subpageType, isChangeMode = false) {
 
 window.confirmSectionSubpage = function () {
     if (window.activeSectionSubpage === 'schedule') {
-        const conflicts = window.getScheduleSubpageConflicts ? window.getScheduleSubpageConflicts(window.stagedSectionDailySchedule) : [];
-        if (conflicts.length > 0) {
-            const conflict = conflicts[0];
-            const roomName = document.getElementById('edit-section-room')?.value || '';
-            const msg = `Schedule Conflict in Room ${roomName}: Overlaps on ${conflict.day} with Section "${conflict.section.name}" (${conflict.scheduleLabel || 'scheduled hours'}). You cannot save while overlapping with another section. Please adjust your hours or days.`;
+        const enabledDays = (window.stagedSectionDailySchedule || []).filter(d => d && d.active);
+        if (enabledDays.length === 0) {
+            const msg = 'Please activate at least 1 day with valid Start and End hours before saving.';
             if (typeof window.showAlertDialog === 'function') {
-                window.showAlertDialog('Schedule Conflict Detected', msg);
+                window.showAlertDialog('Incomplete Schedule', msg);
             } else {
                 window.SigmaFeedback.notice(msg);
             }
             return;
         }
 
-        const activeDays = (window.stagedSectionDailySchedule || []).filter(d => d.active && d.startTime && d.endTime);
-        if (activeDays.length === 0) {
-            const msg = 'Please activate at least 1 day with valid Start and End hours before saving.';
+        const invalidEntries = window.getInvalidScheduleSubpageEntries(window.stagedSectionDailySchedule);
+        if (invalidEntries.length > 0) {
+            const detail = invalidEntries.map(entry => `${entry.day}: ${entry.reason}`).join(' ');
+            const msg = `Please correct the schedule before saving. ${detail}`;
             if (typeof window.showAlertDialog === 'function') {
-                window.showAlertDialog('Incomplete Schedule', msg);
+                window.showAlertDialog('Invalid Schedule Hours', msg);
             } else {
-                window.SigmaFeedback.notice(msg);
+                window.SigmaFeedback.notice(msg, 'error');
+            }
+            return;
+        }
+
+        const conflicts = window.getScheduleSubpageConflicts ? window.getScheduleSubpageConflicts(window.stagedSectionDailySchedule) : [];
+        if (conflicts.length > 0) {
+            const roomName = document.getElementById('edit-section-room')?.value || '';
+            const msg = formatSectionRoomConflictMessage(conflicts, roomName);
+            if (typeof window.showAlertDialog === 'function') {
+                window.showAlertDialog('Schedule Conflict Detected', msg);
+            } else {
+                window.SigmaFeedback.notice(msg, 'error');
             }
             return;
         }
@@ -16435,13 +16508,20 @@ window.executeSubpageSubjectSearch = function () {
     window.handleSubpageSubjectSearch(cleanQuery);
 };
 
+window.setSubpageSubjectGradeFilter = function (grade) {
+    const dropdown = document.getElementById('section-subpage-subject-dropdown');
+    if (!dropdown || !['all', '11', '12'].includes(String(grade))) return;
+    dropdown.dataset.gradeFilter = String(grade);
+    const query = document.getElementById('section-subpage-subject-search')?.value || '';
+    window.handleSubpageSubjectSearch(query);
+};
+
 window.handleSubpageSubjectSearch = function (query = '') {
     const dropdown = document.getElementById('section-subpage-subject-dropdown');
     if (!dropdown) return;
 
     const q = (query || '').toLowerCase().trim();
     const currentSelectedSubject = (window.stagedSectionSubject || '').toLowerCase().trim();
-    const sectionGrade = document.getElementById('edit-section-grade')?.value || '';
     const subjects = getStoredJson(SUBJECTS_STORAGE_KEY, []);
 
     // Allow published or active subjects (default to published)
@@ -16457,62 +16537,62 @@ window.handleSubpageSubjectSearch = function (query = '') {
         return window.SigmaSearch.text(`${name} ${code}`, q);
     }) : unassignedSubjects;
 
-    if (filtered.length === 0) {
-        dropdown.innerHTML = `
-            <div class="divide-y divide-black/10 border-y border-black/10 border-x-0 rounded-none sigma-selected-faded-panel overflow-hidden">
-                <div class="p-6 text-center font-['Inter'] flex flex-col items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-file-circle-exclamation sigma-empty-icon" aria-hidden="true"></i>
-                    <p class="sigma-empty-title">No Published Subjects Found</p>
-                    <p class="sigma-empty-subtitle">Only subjects with "Published" status can be assigned to sections.</p>
-                </div>
-            </div>`;
-        dropdown.classList.remove('hidden');
-        return;
-    }
+    const getSubjectGrade = subject => String(subject.gradeLevel || '').match(/\b(11|12)\b/)?.[1] || '';
+    const gradeFilter = ['11', '12'].includes(dropdown.dataset.gradeFilter) ? dropdown.dataset.gradeFilter : 'all';
+    const visibleSubjects = (gradeFilter === 'all' ? filtered : filtered.filter(s => getSubjectGrade(s) === gradeFilter));
 
-    // Sort: matching section grade first
-    filtered.sort((a, b) => {
-        const matchA = (a.gradeLevel === sectionGrade || a.gradeLevel === 'All') ? 1 : 0;
-        const matchB = (b.gradeLevel === sectionGrade || b.gradeLevel === 'All') ? 1 : 0;
-        return matchB - matchA;
+    // Keep the All view grouped by grade, with Grade 11 subjects first.
+    visibleSubjects.sort((a, b) => {
+        const rank = grade => grade === '11' ? 0 : grade === '12' ? 1 : 2;
+        return rank(getSubjectGrade(a)) - rank(getSubjectGrade(b));
     });
 
-    dropdown.innerHTML = filtered.map(s => {
+    const filterOptions = [
+        ['all', 'All', 'fa-layer-group'],
+        ['11', 'Grade 11', 'fa-graduation-cap'],
+        ['12', 'Grade 12', 'fa-graduation-cap']
+    ];
+    const filterButtons = filterOptions.map(([value, label, icon]) => `
+        <button type="button" aria-pressed="${gradeFilter === value}" onclick="window.setSubpageSubjectGradeFilter('${value}')"
+            class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold font-['Inter'] transition-colors ${gradeFilter === value ? 'bg-[#15803d] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+            <i class="fa-solid ${icon}" aria-hidden="true"></i><span>${label}</span>
+        </button>`).join('');
+
+    const subjectRows = visibleSubjects.map(s => {
         const selected = (s.name || '').toLowerCase().trim() === currentSelectedSubject;
         const current = (s.name || '').toLowerCase().trim() === String(window.subpageSubjectInitialSnapshot || '').toLowerCase().trim();
-        const isMismatch = (sectionGrade && s.gradeLevel && s.gradeLevel !== 'All' && s.gradeLevel !== sectionGrade);
         const isAlreadyAssigned = window.isSubjectAlreadyAssignedToSection ? window.isSubjectAlreadyAssignedToSection(s.name) : false;
         
         let statusBadge = '';
         if (isAlreadyAssigned) {
             const secName = document.getElementById('edit-section-name')?.value.trim() || 'this Section';
             statusBadge = `<span class="text-xs font-semibold text-rose-600 flex items-center gap-1.5 shrink-0 font-['Inter']"><i class="fa-solid fa-circle-exclamation text-xs text-rose-600"></i>Already Assigned to Section ${escapeHtml(secName)}</span>`;
-        } else if (s.gradeLevel) {
-            statusBadge = isMismatch ? `<span class="text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">${escapeHtml(s.gradeLevel)}</span>` : `<span class="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">${escapeHtml(s.gradeLevel)}</span>`;
         }
 
         return `
             <label
-                class="p-4 hover:bg-black/[0.03] transition-colors cursor-pointer font-['Inter'] ${isAlreadyAssigned ? 'bg-rose-50/50' : ''}" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:16px;min-height:4.5rem">
-                <div class="flex items-center gap-4 min-w-0">
+                class="subject-choice-row p-4 hover:bg-black/[0.03] transition-colors cursor-pointer font-['Inter'] ${isAlreadyAssigned ? 'bg-rose-50/50' : ''}" style="display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;box-sizing:border-box;width:100%;gap:16px;min-height:4.5rem">
+                <div class="flex items-center gap-3 min-w-0 flex-1">
                     <input type="radio" name="section-subject-choice" value="${escapeHtml(s.name)}" ${selected ? 'checked' : ''} ${isAlreadyAssigned ? 'disabled' : ''} style="accent-color:#15803d;width:16px;height:16px;flex-shrink:0" onchange="window.selectSubpageSubject(this.value)">
-                    <div class="min-w-0">
-                        <div class="flex items-center gap-2 truncate">
-                            <p class="text-sm font-bold text-black tracking-tight truncate">${escapeHtml(s.name)}</p>
-                            ${statusBadge}
-                        </div>
-                        ${isMismatch ? `<p class="text-xs mt-0.5 text-black">Recommended for ${escapeHtml(s.gradeLevel)}</p>` : ''}
-                    </div>
+                    <p class="text-sm font-bold text-black tracking-tight truncate min-w-0 flex-1" title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</p>
+                    ${statusBadge}
                 </div>
-                <p class="text-sm text-black text-center">Code: ${escapeHtml(s.code || '—')}</p>
-                <span class="text-xs text-right" style="color:var(--icc-green,#15803d)">${current ? 'Currently assigned' : ''}</span>
+                <div class="flex items-center justify-end gap-4 shrink-0">
+                    ${current ? `<span class="text-xs text-right whitespace-nowrap" style="color:var(--icc-green,#15803d)">Currently assigned</span>` : ''}
+                    <span class="text-xs text-right whitespace-nowrap text-black-fade" style="min-width:9rem">Code: ${escapeHtml(s.code || '—')}</span>
+                </div>
             </label>
         `;
     }).join('');
 
     dropdown.innerHTML = `
-        <div class="divide-y divide-black/10 border-y border-black/10 border-x-0 rounded-none sigma-selected-faded-panel overflow-hidden">
-            ${dropdown.innerHTML}
+        <div class="border-y border-black/10 border-x-0 rounded-none sigma-selected-faded-panel overflow-hidden">
+            <div class="flex flex-wrap items-center gap-2 border-b border-black/10 px-4 py-3" role="group" aria-label="Filter subjects by grade">
+                ${filterButtons}
+            </div>
+            ${subjectRows
+                ? `<div class="divide-y divide-black/10">${subjectRows}</div>`
+                : `<div class="p-6 text-center font-['Inter'] flex flex-col items-center justify-center gap-1.5"><i class="fa-solid fa-file-circle-exclamation sigma-empty-icon" aria-hidden="true"></i><p class="sigma-empty-title">${filtered.length ? `No Grade ${gradeFilter} Subjects Found` : 'No Published Subjects Found'}</p><p class="sigma-empty-subtitle">${filtered.length ? 'Try another grade filter or adjust your search.' : 'Only subjects with "Published" status can be assigned to sections.'}</p></div>`}
         </div>
     `;
 
@@ -17021,6 +17101,7 @@ function renderSectionsTable() {
 
     tableBody.innerHTML = paginatedSections.map((sec, idx) => {
         const isInactive = (sec.status || 'Active').toLowerCase() === 'inactive';
+        const isArchived = String(sec.status || '').toLowerCase() === 'archived';
         const rowStripe = (idx % 2 === 1) ? 'bg-slate-50/60' : '';
         const rowNumber = window.hasTableSearchFilters(window.sectionSearchState) ? startIndex + idx + 1 : totalItems - startIndex - idx;
         const strandBadge = sec.strand ? `<span class="inline-block text-[11px] font-bold text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 font-['Inter']">${escapeHtml(sec.strand)}</span>` : '';
@@ -17126,7 +17207,7 @@ function renderSectionsTable() {
                     </div>
                 </td>
                 <td class="px-3 py-4 text-center">
-                    <div class="text-[14px] font-medium text-center tracking-tight font-['Inter']" style="${(sec.status || '').toLowerCase() === 'draft' ? 'color: #eab308 !important;' : 'color: #15803d !important;'}">${escapeHtml(sec.status || 'Deployed')}</div>
+                    <div class="text-[14px] font-medium text-center tracking-tight font-['Inter']" style="${isArchived ? 'color: #64748b !important;' : (sec.status || '').toLowerCase() === 'draft' ? 'color: #eab308 !important;' : 'color: #15803d !important;'}">${escapeHtml(sec.status || 'Deployed')}</div>
                 </td>
                 <td class="px-3 py-4 text-center">
                     <div class="flex justify-center">
@@ -17142,11 +17223,11 @@ function renderSectionsTable() {
                                     <i class="fa-solid fa-eye"></i>
                                     <span>Open Section</span>
                                 </button>
-                                <button onclick="window.editSection('${escapeHtml(sec.id || sec.name)}')" class="action-dropdown-item cursor-pointer">
+                                ${!isArchived ? `<button onclick="window.editSection('${escapeHtml(sec.id || sec.name)}')" class="action-dropdown-item cursor-pointer">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                     <span>Edit Section</span>
-                                </button>
-                                ${(typeof window.canCurrentAdminDelete === 'function' && window.canCurrentAdminDelete('section')) ? `
+                                </button>` : ''}
+                                ${!isArchived && (typeof window.canCurrentAdminDelete === 'function' && window.canCurrentAdminDelete('section')) ? `
                                 <button onclick="window.deleteSection('${escapeHtml(sec.id || sec.name)}')" class="action-dropdown-item cursor-pointer">
                                     <i class="fa-solid fa-trash-can"></i>
                                     <span>Delete Section</span>
@@ -17327,7 +17408,7 @@ function renderSubjectsTable() {
     if (!window.subjectCatalogState?.ready) {
         const failed = Boolean(window.subjectCatalogState?.error);
         tableBody._sigmaSubjectMarkup = null;
-        tableBody.innerHTML = `<tr><td colspan="10" class="py-12 text-center text-black" role="status">${failed ? 'Unable to load subjects. <button type="button" class="sigma-btn sigma-btn-white" onclick="window.fetchSubjectsFromDB()">Retry</button>' : '<i class="fa-solid fa-spinner fa-spin" aria-label="Loading subjects"></i>'}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="10" class="py-12 text-center text-black" role="status">${failed ? 'Unable to load subjects. <button type="button" class="sigma-btn sigma-btn-white" onclick="window.fetchSubjectsFromDB({force:true})">Retry</button>' : '<i class="fa-solid fa-spinner fa-spin" aria-label="Loading subjects"></i>'}</td></tr>`;
         const pagination = document.getElementById('subject-pagination-container');
         if (pagination) pagination.innerHTML = '';
         return;
@@ -17368,10 +17449,11 @@ function renderSubjectsTable() {
         const rowStripe = (idx % 2 === 1) ? 'bg-slate-50/60' : '';
 
         // Mapping for Type
-        let typeDisplay = sub.type;
-        if (sub.type.toLowerCase() === 'core') typeDisplay = 'Core Subject';
-        else if (sub.type.toLowerCase() === 'applied') typeDisplay = 'Applied Subject';
-        else if (sub.type.toLowerCase() === 'specialized') typeDisplay = 'Specialized Subject';
+        const subjectType = String(sub.type || '').trim();
+        let typeDisplay = escapeHtml(subjectType) || '-';
+        if (subjectType.toLowerCase() === 'core') typeDisplay = 'Core Subject';
+        else if (subjectType.toLowerCase() === 'applied') typeDisplay = 'Applied Subject';
+        else if (subjectType.toLowerCase() === 'specialized') typeDisplay = 'Specialized Subject';
 
         // Format units to always have .0 if integer
         let unitsDisplay = String(sub.units || '').trim();
@@ -17535,7 +17617,7 @@ window.showUserConfirm = function (title, desc, onProceed, isNotification = fals
 };
 
 window.addEventListener('sigma:subjectUpdated', function () {
-    void window.fetchSubjectsFromDB?.();
+    void window.fetchSubjectsFromDB?.({ force: true });
     if (typeof renderSubjectsTable === 'function') {
         renderSubjectsTable();
     }
@@ -17667,7 +17749,7 @@ let userStep = 1;
 // Setup Enter key listeners for User Creation inputs
 (function setupUserCreationEnterListeners() {
     // UI logical order for Step 1
-    const step1Ids = ['edit-user-role', 'edit-user-firstname', 'edit-user-middlename', 'edit-user-lastname', 'edit-user-gender'];
+    const step1Ids = ['edit-user-role', 'edit-user-firstname', 'edit-user-middlename', 'edit-user-lastname', 'edit-user-gender', 'edit-user-birthday'];
     const step2Ids = ['edit-user-email'];
 
     document.addEventListener('keydown', (e) => {
@@ -17695,6 +17777,152 @@ let userStep = 1;
     });
 })();
 
+window.findSameNameUserAccounts = function (candidate, users, excludeId = null) {
+    const normalize = value => String(value || '').trim().toLocaleLowerCase();
+    const firstName = normalize(candidate?.firstName);
+    const lastName = normalize(candidate?.lastName);
+    if (!firstName || !lastName || !Array.isArray(users)) return [];
+    return users.filter(user => {
+        const id = String(user?.uid || user?.id || '');
+        if (excludeId && id === String(excludeId)) return false;
+        if (user?.isDeleted === true || user?.is_deleted === true) return false;
+        return normalize(user?.firstName || user?.first_name || user?.fname) === firstName &&
+            normalize(user?.lastName || user?.last_name || user?.lname) === lastName;
+    });
+};
+
+window.describeSameNameUserAccounts = function (candidate, matches) {
+    const birthday = String(candidate?.dateOfBirth || '').trim();
+    const details = (Array.isArray(matches) ? matches : []).map(user => {
+        const id = String(user?.uid || user?.id || 'Unknown');
+        const existingBirthday = String(user?.dateOfBirth || user?.birthDate || user?.birth_date || '').trim();
+        if (!existingBirthday) return `ID #${id}: no birthday is recorded; use the account ID and confirm school records.`;
+        if (user?.dateOfBirthIsGenerated === true || user?.birthDateIsGenerated === true || user?.birth_date_is_generated === true) {
+            return `ID #${id}: ${existingBirthday} is a generated placeholder, so verify the date with school records and use the account ID.`;
+        }
+        return existingBirthday === birthday
+            ? `ID #${id}: the birthday also matches (${existingBirthday}); use each account's unique ID to distinguish them.`
+            : `ID #${id}: the existing birthday is ${existingBirthday}, different from the new birthday (${birthday}); each account will have its own ID.`;
+    });
+    return `An account with the same first and last name already exists. Birthday check: ${details.join(' ')}`;
+};
+
+window.isValidUserBirthday = function (value) {
+    const birthday = String(value || '').trim();
+    const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthday);
+    if (!parts) return false;
+    const parsed = new Date(Date.UTC(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3])));
+    if (parsed.toISOString().slice(0, 10) !== birthday) return false;
+    const today = new Date();
+    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return birthday <= todayString;
+};
+
+window.isAdultAccountRole = function (role) {
+    const normalized = String(role || '').toLowerCase().replace(/[^a-z]/g, '');
+    return ['teacher', 'admin', 'masteradmin', 'administrator'].includes(normalized);
+};
+
+window.getBirthdayMaximumDateForAge = function (minimumAge = 18, referenceDate = '') {
+    const today = new Date();
+    const fallback = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const reference = /^\d{4}-\d{2}-\d{2}$/.test(String(referenceDate)) ? String(referenceDate) : fallback;
+    const [year, month, day] = reference.split('-').map(Number);
+    const targetYear = year - Math.max(0, Number(minimumAge) || 18);
+    const lastDay = new Date(Date.UTC(targetYear, month, 0)).getUTCDate();
+    return `${targetYear}-${String(month).padStart(2, '0')}-${String(Math.min(day, lastDay)).padStart(2, '0')}`;
+};
+
+window.getUserAgeAtReferenceDate = function (birthday, referenceDate = '') {
+    const value = String(birthday || '').trim();
+    const reference = /^\d{4}-\d{2}-\d{2}$/.test(String(referenceDate))
+        ? String(referenceDate)
+        : (() => {
+            const today = new Date();
+            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        })();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+    const [birthYear, birthMonth, birthDay] = value.split('-').map(Number);
+    const [referenceYear, referenceMonth, referenceDay] = reference.split('-').map(Number);
+    let age = referenceYear - birthYear;
+    if (referenceMonth < birthMonth || (referenceMonth === birthMonth && referenceDay < birthDay)) age--;
+    return age;
+};
+
+window.getSHSBirthdayDateRange = function (minimumAge = 16) {
+    const minAge = Number(minimumAge) === 12 ? 12 : 16;
+    const activeYear = typeof getActiveSchoolYearRecord === 'function' ? getActiveSchoolYearRecord() : null;
+    const candidate = String(activeYear?.q1Start || '').trim();
+    let referenceDate = /^\d{4}-\d{2}-\d{2}$/.test(candidate) ? candidate : '';
+    if (!referenceDate) {
+        const now = new Date();
+        const startYear = Number(activeYear?.yearStart) || (now.getMonth() >= 5 ? now.getFullYear() : now.getFullYear() - 1);
+        referenceDate = `${startYear}-06-01`;
+    }
+    const [year, month, day] = referenceDate.split('-').map(Number);
+    const format = date => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+    const subtractYears = amount => {
+        const targetYear = year - amount;
+        const lastDay = new Date(Date.UTC(targetYear, month, 0)).getUTCDate();
+        return new Date(Date.UTC(targetYear, month - 1, Math.min(day, lastDay)));
+    };
+    const minDate = subtractYears(18);
+    minDate.setUTCDate(minDate.getUTCDate() + 1);
+    const maxDate = subtractYears(minAge);
+    return { referenceDate, min: format(minDate), max: format(maxDate), minAge, maxAge: 17 };
+};
+
+window.assessSHSStudentBirthday = function (value) {
+    const birthday = String(value || '').trim();
+    const range = window.getSHSBirthdayDateRange();
+    if (!window.isValidUserBirthday(birthday)) return null;
+    const age = window.getUserAgeAtReferenceDate(birthday, range.referenceDate);
+    return { ...range, age, typical: age >= 16 && age <= 17 };
+};
+
+window.updateUserBirthdayLimits = function () {
+    const input = document.getElementById('edit-user-birthday');
+    const rangeButton = document.getElementById('edit-user-birthday-range-toggle');
+    const role = String(document.getElementById('edit-user-role')?.value || '').trim();
+    if (rangeButton) {
+        rangeButton.classList.toggle('hidden', role !== 'Student');
+        rangeButton.textContent = window.currentUserBirthdayRangeAdvanced ? 'Use standard ages 16–17' : 'Advance to ages 12–17';
+    }
+    if (!input) return;
+    const today = new Date();
+    const todayText = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    input.disabled = !role;
+    if (role === 'Student') {
+        const range = window.getSHSBirthdayDateRange(window.currentUserBirthdayRangeAdvanced ? 12 : 16);
+        input.min = range.min;
+        input.max = range.max;
+    } else {
+        input.removeAttribute('min');
+        input.max = window.isAdultAccountRole(role)
+            ? window.getBirthdayMaximumDateForAge(18)
+            : todayText;
+    }
+};
+
+window.toggleUserBirthdayRange = function () {
+    window.currentUserBirthdayRangeAdvanced = !window.currentUserBirthdayRangeAdvanced;
+    window.updateUserBirthdayLimits?.();
+};
+
+window.updateUserNameMatchWarning = function () {
+    const warning = document.getElementById('edit-user-name-match-warning');
+    if (!warning) return;
+    const candidate = {
+        firstName: document.getElementById('edit-user-firstname')?.value,
+        lastName: document.getElementById('edit-user-lastname')?.value,
+        dateOfBirth: document.getElementById('edit-user-birthday')?.value
+    };
+    const currentId = window.isEditingUser ? (window.currentEditingUserId || document.getElementById('edit-user-id')?.value) : null;
+    const matches = window.findSameNameUserAccounts?.(candidate, getStoredJson(USER_STORAGE_KEY, []), currentId) || [];
+    warning.classList.toggle('hidden', matches.length === 0);
+    warning.textContent = matches.length ? window.describeSameNameUserAccounts(candidate, matches) : '';
+};
+
 window.getUserFormStateSnapshot = function () {
     return JSON.stringify({
         role: (document.getElementById('edit-user-role')?.value || '').trim(),
@@ -17702,6 +17930,7 @@ window.getUserFormStateSnapshot = function () {
         middleName: (document.getElementById('edit-user-middlename')?.value || '').trim(),
         lastName: (document.getElementById('edit-user-lastname')?.value || '').trim(),
         gender: (document.getElementById('edit-user-gender')?.value || '').trim(),
+        dateOfBirth: (document.getElementById('edit-user-birthday')?.value || '').trim(),
         branch: (document.getElementById('edit-user-school-branch')?.value || '').trim(),
         email: (document.getElementById('edit-user-email')?.value || '').trim().toLowerCase()
     });
@@ -17710,13 +17939,18 @@ window.getUserFormStateSnapshot = function () {
 window.toggleUserOverlay = function (show, userData = null) {
     const overlay = document.getElementById('user-edit-overlay');
     if (!overlay) return;
+    window.resetUserIdPreview();
 
     if (!overlay._hasUserChangeListeners) {
         overlay._hasUserChangeListeners = true;
         overlay.addEventListener('input', () => {
+            window.updateUserNameMatchWarning?.();
             if (window.isEditingUser) window.validateUserStep2();
         });
-        overlay.addEventListener('change', () => {
+        overlay.addEventListener('change', (event) => {
+            window.updateUserNameMatchWarning?.();
+            if (event?.target?.id === 'edit-user-role') window.currentUserBirthdayRangeAdvanced = false;
+            window.updateUserBirthdayLimits?.();
             if (window.isEditingUser) window.validateUserStep2();
         });
     }
@@ -17727,6 +17961,7 @@ window.toggleUserOverlay = function (show, userData = null) {
     const idEl = document.getElementById('edit-user-id');
 
     if (show) {
+        window.currentUserBirthdayRangeAdvanced = false;
         overlay.classList.remove('hidden');
         overlay.style.removeProperty('display');
         if (typeof window.pushModalHistoryState === 'function') {
@@ -17738,6 +17973,8 @@ window.toggleUserOverlay = function (show, userData = null) {
         window.userAccountCreated = false; // Reset creation state
         window.isEditingUser = !!userData;
         window.currentEditingUserId = userData ? (userData.id || userData.uid || null) : null;
+        window.currentEditingUserDateIsGenerated = userData?.dateOfBirthIsGenerated === true;
+        window.currentEditingUserBirthday = userData ? String(userData.dateOfBirth || userData.birthDate || '') : '';
 
         const statusBadge = document.getElementById('user-modal-status-badge');
         const segHeader = document.getElementById('user-segmented-header');
@@ -17769,6 +18006,11 @@ window.toggleUserOverlay = function (show, userData = null) {
             if (lnEl) lnEl.value = userData.lastName || '';
             const gnEl = document.getElementById('edit-user-gender');
             if (gnEl) gnEl.value = userData.gender || '';
+            const birthdayEl = document.getElementById('edit-user-birthday');
+            if (birthdayEl) birthdayEl.value = userData.dateOfBirth || userData.birthDate || '';
+            const generatedNote = document.getElementById('edit-user-birthday-generated-note');
+            const birthdayIsGenerated = userData.dateOfBirthIsGenerated === true;
+            generatedNote?.classList.toggle('hidden', !birthdayIsGenerated);
             const brEl = document.getElementById('edit-user-school-branch');
             if (brEl) brEl.value = userData.branch || '';
             const emEl = document.getElementById('edit-user-email');
@@ -17807,17 +18049,20 @@ window.toggleUserOverlay = function (show, userData = null) {
 
             if (idEl) {
                 idEl.value = '';
-                idEl.readOnly = false;
+                idEl.readOnly = true;
             }
 
             const inputs = overlay.querySelectorAll('input, select');
             inputs.forEach(input => {
                 if (input.tagName === 'SELECT') {
                     input.selectedIndex = 0;
+                } else if (input.type === 'checkbox') {
+                    input.checked = false;
                 } else {
                     input.value = '';
                 }
             });
+            document.getElementById('edit-user-birthday-generated-note')?.classList.add('hidden');
         }
 
         window.updateUserStepUI();
@@ -17825,6 +18070,8 @@ window.toggleUserOverlay = function (show, userData = null) {
         if (typeof window.updateSelectPlaceholderColors === 'function') {
             window.updateSelectPlaceholderColors(overlay);
         }
+        window.updateUserBirthdayLimits?.();
+        window.updateUserNameMatchWarning?.();
 
         // Populate school branch dropdown from live branch records
         if (typeof window.populateUserSchoolBranchSelect === 'function') {
@@ -17848,6 +18095,8 @@ window.toggleUserOverlay = function (show, userData = null) {
         window.isEditingUser = false;
         window.originalEditingUserState = null;
         window.currentEditingUserId = null;
+        window.currentEditingUserDateIsGenerated = false;
+        window.currentEditingUserBirthday = '';
         userStep = 1;
         window.updateUserStepUI();
         const newUserData = sessionStorage.getItem('sigma-new-user-toast');
@@ -17863,6 +18112,7 @@ window.toggleUserOverlay = function (show, userData = null) {
 };
 
 window.handleUserExit = function () {
+    if (window._userSavePending) return;
     if (userStep >= 3) {
         window.finishUserCreation();
         return;
@@ -17879,8 +18129,9 @@ window.handleUserExit = function () {
         const fname = (document.getElementById('edit-user-firstname')?.value || '').trim();
         const mname = (document.getElementById('edit-user-middlename')?.value || '').trim();
         const lname = (document.getElementById('edit-user-lastname')?.value || '').trim();
+        const birthday = (document.getElementById('edit-user-birthday')?.value || '').trim();
         const email = (document.getElementById('edit-user-email')?.value || '').trim();
-        hasChanges = Boolean(fname || mname || lname || email);
+        hasChanges = Boolean(fname || mname || lname || birthday || email);
     }
 
     if (hasChanges) {
@@ -17925,58 +18176,33 @@ window.handleUserStepNext = function () {
             const mname = (document.getElementById('edit-user-middlename')?.value || '').trim();
             const lname = (document.getElementById('edit-user-lastname')?.value || '').trim();
             const gender = (document.getElementById('edit-user-gender')?.value || '').trim();
+            const birthday = (document.getElementById('edit-user-birthday')?.value || '').trim();
 
-            if (!role || !fname || !mname || !lname || !gender) {
-                window.showUserConfirm('Missing Fields', 'Please fill in all required fields (Role, First Name, Middle Name, Last Name, and Gender).', null, true);
+            if (!role || !fname || !lname || !gender || !birthday) {
+                window.showUserConfirm('Missing Fields', 'Please fill in all required fields: Role, First Name, Last Name, Gender, and Birthday. Middle name is optional.', null, true);
+                return;
+            }
+            if (!window.isValidUserBirthday?.(birthday)) {
+                window.showUserConfirm('Check Birthday', 'Enter a valid birthday that is not in the future.', null, true);
                 return;
             }
 
-            // Check Duplicate: Block ONLY if Same Name + Same Gender + Same Role
             const currentUserId = window.isEditingUser ? (window.currentEditingUserId || document.getElementById('edit-user-id')?.value) : null;
             const users = getStoredJson(USER_STORAGE_KEY, []);
-            const normalizeStr = s => String(s || '').trim().toLowerCase();
-            const normalizedRole = normalizeUserRole(role);
-
-            const duplicateUser = users.find(u => {
-                if (currentUserId && String(u.uid || u.id || '') === String(currentUserId)) {
-                    return false; // Skip current user in edit mode
-                }
-                const uFname = normalizeStr(u.firstName || u.fname);
-                const uMname = normalizeStr(u.middleName || u.mname || u.middlename);
-                const uLname = normalizeStr(u.lastName || u.lname);
-                const uGender = normalizeStr(u.gender);
-                const uRole = normalizeUserRole(u.role || u.type);
-
-                const isSameName = (uFname === normalizeStr(fname)) &&
-                                   (uMname === normalizeStr(mname)) &&
-                                   (uLname === normalizeStr(lname));
-                const isSameGender = uGender === normalizeStr(gender);
-                const isSameRole = uRole === normalizedRole;
-
-                return isSameName && isSameGender && isSameRole;
-            });
-
-            if (duplicateUser) {
-                const fullDisplayName = `${fname} ${mname ? mname + ' ' : ''}${lname}`.trim();
-                const dupId = duplicateUser.id || duplicateUser.uid || 'N/A';
-                const dupMsg = `An active ${role} account for "${fullDisplayName}" (${gender}) already exists in the system with Login ID: ${dupId}.`;
-                
-                if (typeof window.showAlertDialog === 'function') {
-                    window.showAlertDialog({
-                        title: 'Duplicate Account Detected',
-                        message: dupMsg,
-                        buttonText: 'OK',
-                        icon: 'fa-solid fa-triangle-exclamation text-amber-500'
-                    });
-                } else if (typeof window.showUserConfirm === 'function') {
-                    window.showUserConfirm('Duplicate Account Detected', dupMsg, null, true);
-                } else {
-                    window.SigmaFeedback.notice(dupMsg);
-                }
+            const matches = window.findSameNameUserAccounts?.({ firstName: fname, lastName: lname }, users, currentUserId) || [];
+            const continueAfterIdentityCheck = () => {
+                window.generateUserId(role);
+                userStep++;
+                window.updateUserStepUI();
+            };
+            if (matches.length) {
+                const message = window.describeSameNameUserAccounts?.({ firstName: fname, lastName: lname, dateOfBirth: birthday }, matches)
+                    || 'An account with the same first and last name already exists. Compare birthdays and use the unique login IDs to distinguish the accounts.';
+                window.showUserConfirm('Verify Same-Name Account', message, continueAfterIdentityCheck, false);
                 return;
             }
-
-            window.generateUserId(role);
+            continueAfterIdentityCheck();
+            return;
         } else if (userStep === 2) {
             // Validation for step 2
             const email = document.getElementById('edit-user-email').value.trim();
@@ -18081,7 +18307,7 @@ window.resetUserModalForNew = function () {
     const finalId = document.getElementById('user-final-id')?.textContent || '';
     const fname = document.getElementById('edit-user-firstname')?.value || '';
     const lname = document.getElementById('edit-user-lastname')?.value || '';
-    const fullName = `${fname} ${lname}`.trim();
+    const fullName = [fname, document.getElementById('edit-user-middlename')?.value, lname].filter(Boolean).join(' ').trim();
 
     userStep = 1;
     window.toggleUserOverlay(true);
@@ -18107,6 +18333,11 @@ window.handleRoleChange = function (role) {
     // Auto-generate ID preview immediately when role is selected
     if (role) {
         window.generateUserId(role);
+    } else if (!window.isEditingUser) {
+        window.resetUserIdPreview();
+        const field = document.getElementById('edit-user-id');
+        if (field) field.value = '';
+        window.updateUserPreview();
     }
 };
 
@@ -18124,8 +18355,26 @@ window.commitUserSeq = function (role) {
     localStorage.setItem(key, String(next));
 };
 
-window.generateUserId = async function (role) {
-    if (!role) return;
+// Preview immediately from the loaded directory; reserve the final ID only on create.
+window.getImmediateUserIdPreview = function (role, branchCode) {
+    const roleCode = { 'Master Admin': '00', Admin: '01', Teacher: '02', Student: '03' }[role];
+    if (!roleCode || !/^\d{2}$/.test(branchCode)) return '';
+    const prefix = String(new Date().getUTCFullYear()).slice(-2) + branchCode + roleCode;
+    let highest = 0;
+    for (const user of getStoredJson(USER_STORAGE_KEY, [])) {
+        const id = String(user.id || user.uid || '');
+        if (!id.startsWith(prefix)) continue;
+        const suffix = id.slice(prefix.length);
+        if (/^\d+$/.test(suffix) && Number.isSafeInteger(Number(suffix))) highest = Math.max(highest, Number(suffix));
+    }
+    return prefix + String(highest + 1);
+};
+window.resetUserIdPreview = function () {
+    window._userIdPreviewPending = false;
+};
+
+window.generateUserId = function (role) {
+    if (!role || window.isEditingUser || window._userSavePending || window.userAccountCreated) return;
 
     // BB — branch code from selected branch dropdown
     const branchSelect = document.getElementById('edit-user-school-branch');
@@ -18134,22 +18383,10 @@ window.generateUserId = async function (role) {
         ? window.getSchoolBranchCode(selectedBranch)
         : '01';
 
-    // The server previews the next ID and atomically reserves it when saving.
-    let id;
-    try {
-        const result = await window.SigmaDatabase.request('users', {query:{action:'next_id',role,branchCode}});
-        if (document.getElementById('edit-user-role')?.value !== role) return;
-        id = result.id;
-    } catch (error) {
-        const field = document.getElementById('edit-user-id');
-        if (field) field.value = '';
-        window.showToast?.('Could not allocate an account ID. Please retry.', 'error');
-        return;
-    }
-
     const idInput = document.getElementById('edit-user-id');
-    if (idInput) idInput.value = id;
-
+    const immediateId = window.getImmediateUserIdPreview(role, branchCode);
+    if (idInput) idInput.value = immediateId;
+    window._userIdPreviewPending = false;
     window.updateUserPreview();
 };
 
@@ -18180,8 +18417,10 @@ window.updateUserPreview = function () {
     const passInput = document.getElementById('edit-user-password');
     const instCopy = document.getElementById('user-instruction-copy');
 
-    if (prevId) prevId.textContent = id;
-    if (prevPass) prevPass.textContent = password || 'Waiting for last name';
+    if (prevId) prevId.textContent = window._userIdPreviewPending ? 'Generating...' : id;
+    if (prevPass) prevPass.textContent = password || (lname
+        ? (window._userIdPreviewPending ? 'Generating...' : 'Waiting for account ID')
+        : 'Waiting for last name');
     if (passInput) passInput.value = password || '';
     if (instEmail) instEmail.textContent = email ? window.resolveUserFormEmail(email) : 'the provided email';
     if (finalId) finalId.textContent = id;
@@ -18224,6 +18463,11 @@ window.validateUserStep2 = function () {
     const emailPrefix = (emailInput?.value || '').trim().toLowerCase();
     const saveBtn = document.getElementById('user-save-btn');
     const dupWarningEl = document.getElementById('user-email-duplicate-warning');
+
+    if (window._userSavePending) {
+        if (saveBtn) saveBtn.disabled = true;
+        return false;
+    }
 
     if (!emailPrefix) {
         if (emailInput) {
@@ -18304,8 +18548,35 @@ window.validateUserStep2 = function () {
     return canSave;
 };
 
-window.handleUserSave = function () {
+window.handleUserSave = function (ageExceptionConfirmed = false) {
     if (window._userSavePending) return;
+    const role = String(document.getElementById('edit-user-role')?.value || '').trim();
+    const birthday = String(document.getElementById('edit-user-birthday')?.value || '').trim();
+    const firstName = String(document.getElementById('edit-user-firstname')?.value || '').trim();
+    const lastName = String(document.getElementById('edit-user-lastname')?.value || '').trim();
+    const gender = String(document.getElementById('edit-user-gender')?.value || '').trim();
+    if (!role || !firstName || !lastName || !gender || !birthday) {
+        window.showUserConfirm('Missing Fields', 'Please fill in the required Role, First Name, Last Name, Gender, and Birthday fields. Middle name is optional.', null, true);
+        return;
+    }
+    if (!window.isValidUserBirthday?.(birthday)) {
+        window.showUserConfirm('Check Birthday', 'Enter a valid birthday that is not in the future.', null, true);
+        return;
+    }
+    if (window.isAdultAccountRole?.(role) && (window.getUserAgeAtReferenceDate?.(birthday) ?? 0) < 18) {
+        window.showUserConfirm('Minimum Age', 'Teacher and Admin accounts must be at least 18 years old. Choose a birthday that makes the user 18 or older today.', null, true);
+        return;
+    }
+    const ageAssessment = role === 'Student' ? window.assessSHSStudentBirthday?.(birthday) : null;
+    if (ageAssessment && !ageAssessment.typical && !ageExceptionConfirmed) {
+        window.showUserConfirm(
+            'Verify Student Age',
+            `This birthday makes the learner ${ageAssessment.age} on the school-year start date (${ageAssessment.referenceDate}). DepEd describes 16 as the typical SHS entry age and 16–17 as the usual Grade 11–12 age range, not a strict cutoff. Check the learner’s enrollment record; continue only if this age is verified or an approved exception applies.`,
+            () => window.handleUserSave(true),
+            false
+        );
+        return;
+    }
     if (!window.validateUserStep2()) {
         const emailInput = document.getElementById('edit-user-email');
         emailInput?.focus();
@@ -18316,9 +18587,12 @@ window.handleUserSave = function () {
     const saveLabel = document.getElementById('user-save-label');
 
     if (loadingIcon) loadingIcon.classList.remove('hidden');
-    if (saveLabel) saveLabel.textContent = 'Creating...';
+    if (saveLabel) saveLabel.textContent = window.isEditingUser ? 'Saving...' : 'Creating...';
 
     window._userSavePending = true;
+    window.resetUserIdPreview();
+    const saveBtn = document.getElementById('user-save-btn');
+    if (saveBtn) saveBtn.disabled = true;
     setTimeout(async () => {
         try {
             const users = getStoredJson(USER_STORAGE_KEY, []);
@@ -18328,6 +18602,7 @@ window.handleUserSave = function () {
             const mnameEl = document.getElementById('edit-user-middlename');
             const lnameEl = document.getElementById('edit-user-lastname');
             const emailEl = document.getElementById('edit-user-email');
+            const birthdayEl = document.getElementById('edit-user-birthday');
             const roleEl = document.getElementById('edit-user-role');
             const genderEl = document.getElementById('edit-user-gender');
             const branchEl = document.getElementById('edit-user-school-branch');
@@ -18336,15 +18611,13 @@ window.handleUserSave = function () {
             const fname = fnameEl ? fnameEl.value.trim() : '';
             const mname = mnameEl ? mnameEl.value.trim() : '';
             const lname = lnameEl ? lnameEl.value.trim() : '';
+            const dateOfBirth = birthdayEl ? birthdayEl.value.trim() : '';
             const email = emailEl ? emailEl.value.trim() : '';
             const role = roleEl ? roleEl.value : 'User';
             const gender = genderEl ? genderEl.value : '';
             const branch = branchEl ? branchEl.value : 'Main Campus';
 
-            const isNewMaster = role === 'Master Admin';
-            const defaults = await window.SigmaDatabase.request('users', {query:{action:'permission_defaults'}});
-            const defaultPerms = defaults.roles[role];
-            if (!defaultPerms) throw new Error('Choose a supported institutional role.');
+            if (!['Student', 'Teacher', 'Admin', 'Master Admin'].includes(role)) throw new Error('Choose a supported institutional role.');
 
             const userFullName = [fname, mname, lname].filter(Boolean).join(' ');
 
@@ -18355,68 +18628,60 @@ window.handleUserSave = function () {
                 middleName: mname,
                 lastName: lname,
                 fullName: userFullName,
+                dateOfBirth: dateOfBirth,
                 gender: gender,
                 branch: branch,
                 email: window.resolveUserFormEmail(email),
                 role: role,
                 type: role.toUpperCase(),
                 status: 'Active',
-                password: buildManagedUserPassword(lname, id),
-                permissions: defaultPerms
+                password: buildManagedUserPassword(lname, id)
             };
 
             const existingIndex = users.findIndex(u => String(u.id || u.uid) === String(id));
-            const previousUser = existingIndex !== -1 ? { ...users[existingIndex] } : null;
-            if (existingIndex !== -1) {
-                // Update existing user - preserve createdAt, password, status, permissions, picture
-                users[existingIndex] = {
-                    ...users[existingIndex],
-                    ...userData,
-                    status: users[existingIndex].status || 'Active',
-                    password: users[existingIndex].password || userData.password,
-                    permissions: users[existingIndex].permissions || userData.permissions,
-                    updatedAt: new Date().toISOString()
-                };
-            } else {
-                // Add new user
+            const previousUser = window.isEditingUser && existingIndex !== -1 ? { ...users[existingIndex] } : null;
+            const originalBirthday = String(previousUser?.dateOfBirth || previousUser?.birthDate || window.currentEditingUserBirthday || '').trim();
+            userData.dateOfBirthIsGenerated = Boolean(
+                window.isEditingUser && (previousUser?.dateOfBirthIsGenerated === true || window.currentEditingUserDateIsGenerated === true) && dateOfBirth === originalBirthday
+            );
+            if (!window.isEditingUser) {
                 userData.createdAt = new Date().toISOString();
                 userData.createdVia = 'admin-panel';
-                
-                // Calculate sequential number (highest seq + 1)
-                const maxSeq = users.reduce((max, u) => Math.max(max, u.seq || 0), -1);
-                userData.seq = maxSeq + 1;
-                
-                users.unshift(userData);
-
             }
 
             const branchCode = window.getSchoolBranchCode?.(branch) || '01';
-            const accountPayload = window.isEditingUser && existingIndex !== -1 ? { ...users[existingIndex] } : userData;
+            const accountPayload = previousUser ? { ...previousUser, ...userData, status: previousUser.status || 'Active' } : userData;
             if (window.isEditingUser) delete accountPayload.password;
-            const saved = await window.SigmaDatabase.request('users', {data:{action:window.isEditingUser ? 'save' : 'create', branchCode, passwordAutoGenerated:!window.isEditingUser, user:accountPayload}});
+            delete accountPayload.permissions;
+            // Omitted permissions are normalized to defaults by the server for new
+            // accounts, and retained from the database for existing accounts.
+            const saved = await window.SigmaDatabase.request('users', {foreground:true, data:{action:window.isEditingUser ? 'save' : 'create', branchCode, passwordAutoGenerated:!window.isEditingUser, user:accountPayload}});
             const canonical = saved.record;
             if (!canonical?.id) throw new Error('The server did not confirm the saved account.');
             userData.id = canonical.id; userData.uid = canonical.id;
             if (idEl) idEl.value = canonical.id;
-            window.updateUserPreview();
+            if (!window.isEditingUser) window.updateUserPreview();
             const latestUsers = getStoredJson(USER_STORAGE_KEY, []);
             const savedIndex = latestUsers.findIndex(user => String(user.id || user.uid) === String(canonical.id));
             if (savedIndex < 0) latestUsers.unshift(canonical); else latestUsers[savedIndex] = canonical;
-            saveStoredJson(USER_STORAGE_KEY, latestUsers);
-            saveStoredJson('sigma-users-list', latestUsers);
-            if (existingIndex === -1) window.commitUserSeq?.(role);
+            // Browser caches are optional after a confirmed database save.
+            try {
+                saveStoredJson(USER_STORAGE_KEY, latestUsers);
+                saveStoredJson('sigma-users-list', latestUsers);
+            } catch (error) { console.warn('Could not cache the saved account:', error); }
 
             // Propagate user changes to all connected sections, subjects, rosters, and session
-            if (typeof window.propagateUserUpdateToAllConnected === 'function') {
+            if (window.isEditingUser && typeof window.propagateUserUpdateToAllConnected === 'function') {
                 window.propagateUserUpdateToAllConnected(canonical, previousUser);
             }
 
             // Save info for the notification bar (only for new users)
             if (!window.isEditingUser) {
-                sessionStorage.setItem('sigma-new-user-toast', JSON.stringify({
+                window.userAccountCreated = true;
+                try { sessionStorage.setItem('sigma-new-user-toast', JSON.stringify({
                     id: userData.id,
                     name: `${userData.firstName} ${userData.lastName}`
-                }));
+                })); } catch (_) {}
                 // After saving new user, move to Step 3 (Success Screen)
                 userStep = 3;
                 window.updateUserStepUI();
@@ -18452,6 +18717,7 @@ window.handleUserSave = function () {
             window._userSavePending = false;
             if (loadingIcon) loadingIcon.classList.add('hidden');
             if (saveLabel) saveLabel.textContent = window.isEditingUser ? 'Save Changes' : 'Create Account';
+            window.validateUserStep2();
         }
     }, 0);
 };
@@ -18487,7 +18753,7 @@ window.finishUserCreation = function () {
     const finalId = document.getElementById('user-final-id')?.textContent || '';
     const fname = document.getElementById('edit-user-firstname')?.value || '';
     const lname = document.getElementById('edit-user-lastname')?.value || '';
-    const fullName = `${fname} ${lname}`.trim();
+    const fullName = [fname, document.getElementById('edit-user-middlename')?.value, lname].filter(Boolean).join(' ').trim();
 
     window.toggleUserOverlay(false);
     if (typeof renderUserAccountsTable === 'function') {
@@ -18817,6 +19083,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Handle browser back/forward buttons and hash navigation
     function handleAdminRouteOrPopState(isPopState = false) {
+        if (window.SigmaSearchNavigation?.isCurrentHashActive()) return;
         if (location.hash === '#school-profile-view') { window.SigmaSchoolProfileView?.open(false); return; }
         if (window.guardMaterialLimitsHistory && !window.guardMaterialLimitsHistory(() => handleAdminRouteOrPopState(isPopState))) return;
         if (window.guardAdvancedLimitsHistory && !window.guardAdvancedLimitsHistory(() => handleAdminRouteOrPopState(isPopState))) return;
@@ -20045,40 +20312,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.loadIntegrationOverview = async function () {
-        const statuses = document.querySelectorAll('.gemini-status-text,.groq-status-text');
-        try {
-            const response = await window.SigmaDatabase.fetch(resolveAuthApiUrl('action=integration_status'));
-            const data = await response.json();
-            if (!response.ok || !data.success) throw new Error('Integration status unavailable');
-            for (const provider of ['gemini', 'groq']) {
-                document.querySelectorAll('.' + provider + '-status-text').forEach(status => {
-                    status.textContent = data.providers?.[provider]?.configured ? 'Configured' : 'Not Configured';
-                });
-            }
-        } catch (_) { statuses.forEach(status => { status.textContent = 'Status unavailable'; }); }
-    };
-
-    window.loadAiPageData = async function () {
-        try {
-            const res = await window.SigmaDatabase.fetch(resolveAuthApiUrl('action=ai_vault'));
-            const data = await res.json().catch(() => null);
-            if (data && data.success) {
+    let aiPageLoading = null;
+    window.loadAiPageData = function () {
+        if (aiPageLoading) return aiPageLoading;
+        const body = document.getElementById('ai-routing-rows');
+        const feedback = document.getElementById('ai-routing-feedback');
+        const fallback = document.getElementById('ai-allow-fallback');
+        if (feedback) feedback.textContent = '';
+        if (body && !body.querySelector('fieldset')) {
+            body.innerHTML = '<tr data-ai-loading><td colspan="4" role="status">Loading AI function assignments…</td></tr>';
+            if (fallback) fallback.disabled = true;
+        }
+        aiPageLoading = (async () => {
+            try {
+                const res = await window.SigmaDatabase.fetch(resolveAuthApiUrl('action=ai_vault'), { foreground: true, cache: 'no-store' });
+                const data = await res.json().catch(() => null);
+                if (!res.ok || !data?.success) throw new Error('Unable to load AI settings.');
                 window.renderAiRouting?.(data);
-            } else {
-                const feedback = document.getElementById('ai-routing-feedback');
-                window.renderSigmaLoadStatus(feedback, 'Unable to load AI settings.', window.loadAiPageData);
+            } catch (error) {
+                body?.querySelector('[data-ai-loading]')?.remove();
+                if (error.code === 'VAULT_AUTH_CANCELED') {
+                    if (feedback) feedback.textContent = '';
+                    return;
+                }
+                console.warn('[SIGMA] AI vault load error:', error);
+                window.renderSigmaLoadStatus(feedback, 'Unable to load AI settings. Try again.', window.loadAiPageData);
+            } finally {
+                aiPageLoading = null;
+                window.SigmaServiceVault?.finishLoading();
             }
-        } catch (e) {
-            if (e.code === 'VAULT_AUTH_CANCELED') {
-                const feedback = document.getElementById('ai-routing-feedback');
-                if (feedback) feedback.textContent = '';
-                return;
-            }
-            console.warn('[SIGMA] AI vault load error:', e);
-            const feedback = document.getElementById('ai-routing-feedback');
-            window.renderSigmaLoadStatus(feedback, 'Unable to connect to AI settings.', window.loadAiPageData);
-        } finally { window.SigmaServiceVault?.finishLoading(); }
+        })();
+        return aiPageLoading;
     };
 
     window.persistAiRoutingSettings = async function (routing) {
@@ -20345,7 +20609,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             console.error('[SIGMA] Save AI key error:', err);
-            window.SigmaFeedback.notice('Failed to connect to backend server.', 'error');
+            window.SigmaFeedback.notice(err?.message || 'Failed to connect to backend server.', 'error');
         } finally {
             if (btn) {
                 btn.disabled = false;

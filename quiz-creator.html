@@ -25,15 +25,15 @@
     <script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 
     <!-- CSS -->
-    <link rel="stylesheet" href="css/admin.css">
-    <link rel="stylesheet" href="css/topbar.css?v=20261024_initial_no_bar_v132">
+    <link rel="stylesheet" href="css/admin.css?v=20261029_site_speed_v1">
+    <link rel="stylesheet" href="css/topbar.css?v=20261029_site_speed_v1">
     <link rel="stylesheet" href="css/announcements.css?v=20261015quizDialogs1276">
     <link rel="stylesheet" href="css/forms.css?v=20261025_export_shell_v250">
-    <link rel="stylesheet" href="css/shared-components.css?v=20261025_attendance_quarters_v252">
+    <link rel="stylesheet" href="css/shared-components.css?v=20261029_site_speed_v1">
 
     <!-- TAILWIND: Compiled CSS -->
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="css/mobile.css?v=20261025_export_shell_v250">
+    <link rel="stylesheet" href="css/mobile.css?v=20261030_quiz_instructions_autoscroll_v1">
 
     <style>
         * {
@@ -1496,6 +1496,9 @@
             font-size: 15px !important;
         }
 
+        #library-modal-quizzes-list { min-height: 0; overflow-anchor: none; }
+        #lib-modal-grid { align-items: start; }
+
         /* Library Modal Responsive & Mobile Full Screen Styles */
         @media (min-width: 641px) {
             #open-quiz-library-dialog {
@@ -1835,7 +1838,7 @@
             #ai-generation-settings #ai-gen-engine-type-row {display:grid !important;grid-template-columns:minmax(0,1fr) 96px;gap:10px;align-items:start !important;}
             #ai-generation-settings #ai-gen-count-wrapper {width:96px !important;max-width:96px !important;}
             #ai-generation-settings #ai-gen-type-wrapper {width:100% !important;min-width:0;}
-            #ai-generation-settings #ai-gen-topic {min-height:76px !important;height:76px;padding:10px !important;line-height:1.5 !important;}
+            #ai-generation-settings #ai-gen-topic {min-height:76px !important;height:76px;padding:10px !important;line-height:1.5 !important;max-height:min(24vh,160px) !important;overflow-y:hidden !important;}
             #ai-generation-settings #ai-gen-count-wrapper > .flex {width:100%;min-width:0;gap:6px;}
             #ai-generation-settings #ai-gen-count-control {flex:1 1 0%;width:auto;min-width:0;}
             #ai-generation-settings #ai-gen-count-control #ai-gen-count {padding:0 4px;font-size:12px;}
@@ -1873,7 +1876,7 @@
         }
 
         /* Quiz form guidance has separate desktop and mobile reading scales. */
-        html body #import-questions-modal #import-paste-helper, #ai-bloom-description, #ai-blueprint-error,
+        html body #import-questions-modal #import-paste-helper, #ai-blueprint-error,
         #ai-generator-modal .sigma-question-upload-meta,
         #import-questions-modal .sigma-question-upload-meta {
             font-size: 13px !important;
@@ -1898,7 +1901,7 @@
         #import-paste-label { font-size: 14px !important; line-height: 1.5 !important; }
         html body #import-questions-modal #import-paste-helper kbd { font-size: 12px !important; }
         @media (min-width: 1024px) {
-            html body #import-questions-modal #import-paste-helper, #ai-bloom-description, #ai-blueprint-error,
+            html body #import-questions-modal #import-paste-helper, #ai-blueprint-error,
             #ai-generator-modal .sigma-question-upload-meta,
             #import-questions-modal .sigma-question-upload-meta { font-size: 14px !important; }
             html body #import-questions-modal #import-paste-textarea, html body #ai-generator-modal #ai-gen-topic { font-size: 16px !important; }
@@ -1906,7 +1909,7 @@
             html body #import-questions-modal #import-paste-helper kbd { font-size: 13px !important; }
         }
         @media (max-width: 639.98px) {
-            html body #import-questions-modal #import-paste-helper, #ai-bloom-description, #ai-blueprint-error,
+            html body #import-questions-modal #import-paste-helper, #ai-blueprint-error,
             #ai-generator-modal .sigma-question-upload-meta,
             #import-questions-modal .sigma-question-upload-meta { font-size: 11px !important; line-height: 1.5 !important; }
             html body #import-questions-modal #import-paste-textarea, html body #ai-generator-modal #ai-gen-topic { font-size: 12px !important; line-height: 1.6 !important; padding: 10px !important; border-radius: 12px !important; }
@@ -1919,20 +1922,40 @@
             border-color: #FFD000 !important;
             background: #fff !important;
         }
-        html body #ai-generator-modal :is(#ai-bloom-description, #ai-grounding-guidance, #ai-borrow-btn-sublabel, #ai-gen-file-meta, .sigma-question-upload-meta),
+        html body #ai-generator-modal #ai-gen-topic {
+            min-height:88px !important;
+            height:88px !important;
+            max-height:min(32vh,260px) !important;
+            overflow-y:hidden !important;
+            overscroll-behavior:contain;
+            resize:none !important;
+            scrollbar-gutter:stable;
+        }
+        @media(max-width:639.98px) {
+            html body #ai-generator-modal #ai-gen-topic {
+                min-height:76px !important;
+                height:76px !important;
+                max-height:min(24vh,160px) !important;
+            }
+        }
+        html body #ai-generator-modal :is(#ai-grounding-guidance, #ai-borrow-btn-sublabel, #ai-gen-file-meta, .sigma-question-upload-meta),
         html body :is(#ai-switch-source-desc, #ai-confirm-generate-desc, #import-paste-helper) {
             color:#000 !important;font-size:14px !important;line-height:1.55 !important;font-weight:400 !important;overflow-wrap:anywhere;
         }
         @media(max-width:639.98px) {
-            html body #ai-generator-modal :is(#ai-bloom-description, #ai-grounding-guidance, #ai-borrow-btn-sublabel, #ai-gen-file-meta, .sigma-question-upload-meta),
+            html body #ai-generator-modal :is(#ai-grounding-guidance, #ai-borrow-btn-sublabel, #ai-gen-file-meta, .sigma-question-upload-meta),
             html body :is(#ai-switch-source-desc, #ai-confirm-generate-desc, #import-paste-helper) {
                 font-size:12px !important;line-height:1.5 !important;
             }
         }
         #ai-bloom-levels {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
-        .ai-bloom-option {display:flex;align-items:center;gap:8px;min-width:0;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;font-size:14px;cursor:pointer;}
+        .ai-bloom-option {display:flex;align-items:flex-start;gap:8px;min-width:0;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;font-size:14px;cursor:pointer;}
+        .ai-bloom-option-copy {display:flex;flex-direction:column;gap:3px;min-width:0;}
+        .ai-bloom-option-title {font-weight:500;line-height:1.25;}
+        .ai-bloom-option-hint {color:#64748b;font-size:12px;font-weight:400;line-height:1.35;}
         .ai-bloom-option:has(:checked) {border-color:#15803d;background:#f0fdf4;}
         .ai-bloom-option input,.ai-bloom-select-all input {accent-color:#15803d;width:16px;height:16px;flex-shrink:0;}
+        .ai-bloom-option input {margin-top:1px;}
         .ai-bloom-select-all {display:flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap;cursor:pointer;}
         html body #ai-mixed-rows .ai-question-type-dropdown {display:block;min-width:0;width:100%;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;font-size:14px;}
         html body #ai-mixed-rows .ai-question-type-dropdown summary {min-height:42px;padding:0 10px;gap:8px;}
@@ -1945,7 +1968,7 @@
         html body #ai-mixed-rows .ai-question-type-dropdown .sigma-quarter-dropdown-menu button:disabled {opacity:.4;cursor:default;}
         @media(max-width:639.98px){html body #ai-mixed-rows .ai-question-type-dropdown{font-size:12px;}html body #ai-mixed-rows .ai-question-type-dropdown summary{min-height:36px;padding:0 6px;}html body #ai-mixed-rows .ai-question-type-dropdown .sigma-quarter-dropdown-menu button{font-size:12px!important;}}
 
-        @media(max-width:639.98px){#ai-bloom-levels{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}.ai-bloom-option{padding:9px;font-size:12px;gap:6px;}.ai-bloom-select-all{font-size:11px;}.ai-bloom-option input,.ai-bloom-select-all input{width:14px;height:14px;}}
+        @media(max-width:639.98px){#ai-bloom-levels{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}.ai-bloom-option{padding:9px;font-size:12px;gap:6px;}.ai-bloom-option-hint{font-size:10px;}.ai-bloom-select-all{font-size:11px;}.ai-bloom-option input,.ai-bloom-select-all input{width:14px;height:14px;}}
         html body #ai-generator-modal #ai-mixed-rows .ai-blueprint-row > button {
             display:flex !important;position:static !important;align-items:center;justify-content:center;
             width:36px !important;min-width:36px !important;height:36px !important;min-height:36px !important;padding:0 !important;
@@ -1956,13 +1979,72 @@
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261012standardAvatar513">
     <link rel="stylesheet" href="css/page-skeleton.css?v=20261022_navbar_shimmer_v41">
     <link rel="stylesheet" href="css/retry-links.css?v=20261022_retry_v1">
+    <style id="quiz-creator-autoscroll-fields">
+        /* Keep both authoring text boxes usable on short screens and long input. */
+        html body #ai-generator-modal #ai-gen-topic {
+            box-sizing: border-box !important;
+            min-height: 88px !important;
+            height: 88px !important;
+            max-height: min(32vh, 260px) !important;
+            overflow-y: hidden !important;
+            overscroll-behavior: contain;
+            resize: none !important;
+            scrollbar-gutter: stable;
+        }
+
+        html body #import-questions-modal .overflow-y-auto.flex-1 {
+            display: flex !important;
+            flex-direction: column !important;
+            min-height: 0 !important;
+            overscroll-behavior: contain;
+        }
+
+        html body #import-questions-modal .overflow-y-auto.flex-1 > .flex-1.flex.flex-col.min-h-0 {
+            flex: 0 0 auto !important;
+            min-height: auto !important;
+        }
+
+        html body #import-paste-section {
+            flex: 0 0 auto !important;
+            min-height: auto !important;
+        }
+
+        html body #import-questions-modal #import-paste-textarea {
+            box-sizing: border-box !important;
+            display: block !important;
+            flex: 0 0 auto !important;
+            width: 100% !important;
+            min-height: 180px !important;
+            height: 180px !important;
+            max-height: min(38vh, 320px) !important;
+            overflow-y: hidden !important;
+            overscroll-behavior: contain;
+            resize: none !important;
+            scrollbar-gutter: stable;
+            scroll-padding-block: 12px;
+        }
+
+        @media (max-width: 639.98px) {
+            html body #ai-generator-modal #ai-gen-topic {
+                min-height: 76px !important;
+                height: 76px !important;
+                max-height: min(24dvh, 160px) !important;
+            }
+
+            html body #import-questions-modal #import-paste-textarea {
+                min-height: 140px !important;
+                height: 140px !important;
+                max-height: min(30dvh, 220px) !important;
+            }
+        }
+    </style>
 </head>
 
 <body class="bg-admin-bg min-h-screen flex flex-col font-['Inter'] text-black">
-    <script src="js/database-client.js?v=20261025_delete_sync_v272"></script>
-<link rel="stylesheet" href="css/content-loading.css?v=20261025_action_dots_v269">
-<script src="js/content-loading.js?v=20261025_action_response_v271"></script>
-<script src="js/tab-session.js?v=20261025_session_exit_v221"></script>
+    <script src="js/database-client.js?v=20261030_signout_repair_v1"></script>
+<link rel="stylesheet" href="css/content-loading.css?v=20261029_site_speed_v1">
+<script src="js/content-loading.js?v=20261029_site_speed_v1"></script>
+<script src="js/tab-session.js?v=20261030_fast_signout_v2"></script>
 <script src="js/page-skeleton.js?v=20261022_refresh_shimmer_v20"></script>
 
     <!-- TOP NAVIGATION BAR -->
@@ -2317,7 +2399,7 @@
                     <div id="ai-generation-settings" class="hidden space-y-4 sm:space-y-5">
                         <div class="space-y-1.5">
                             <label for="ai-gen-topic" class="block text-xs sm:text-sm font-semibold text-black-fade" style="color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;">Additional Instructions (Optional)</label>
-                            <textarea id="ai-gen-topic" rows="3" maxlength="2000" placeholder="Specify the topic, pages, or learning objectives to focus on." oninput="window.syncAIGenerateButtonState()" class="sigma-one-border-textarea w-full bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-black resize-y leading-relaxed"></textarea>
+                            <textarea id="ai-gen-topic" rows="3" maxlength="2000" placeholder="Add optional instructions or learning objectives; borrowed files provide the source content." oninput="window.autoSizeAIGenInstructions(this);window.syncAIGenerateButtonState()" class="sigma-one-border-textarea w-full bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-black resize-none leading-relaxed"></textarea>
                         </div>
                     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3.5 w-full relative z-30" id="ai-gen-engine-type-row">
 
@@ -2403,7 +2485,6 @@
                             <label class="ai-bloom-select-all"><input id="ai-bloom-select-all" type="checkbox"> Select All</label>
                         </div>
                         <div id="ai-bloom-levels" role="group" aria-labelledby="ai-bloom-heading"></div>
-                        <p id="ai-bloom-description" class="text-xs text-black-fade leading-relaxed mt-2"></p>
                         <p id="ai-blueprint-error" class="hidden text-xs text-red-600 mt-2" role="status"></p>
                     </div>
                     <div class="relative z-10">
@@ -2435,7 +2516,7 @@
                         class="h-9 sm:h-11 px-4 sm:px-5 rounded-xl text-xs sm:text-sm font-semibold text-black hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200">
                         Cancel
                     </button>
-                    <button type="button" id="ai-generate-submit-btn" onclick="window.generateAIQuestions()"
+                    <button type="button" id="ai-generate-submit-btn" disabled aria-disabled="true" onclick="window.generateAIQuestions()"
                         class="sigma-btn sigma-btn-primary h-9 sm:h-11 px-4 sm:px-6 rounded-xl text-xs sm:text-sm font-bold text-white transition-all flex items-center gap-2 !shadow-none hover:bg-[#166534] active:scale-95 cursor-pointer"
                         style="box-shadow: none !important; filter: none !important;">
                         <i class="fa-solid fa-bolt text-xs text-[#FFD000]"></i>
@@ -2574,7 +2655,7 @@
                     class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-black hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200">
                     Cancel
                 </button>
-                <button type="button" id="ai-confirm-generate-btn" onclick="window.executeAIQuestionGeneration()"
+                <button type="button" id="ai-confirm-generate-btn" disabled aria-disabled="true" onclick="window.executeAIQuestionGeneration()"
                     class="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-[#15803d] hover:bg-emerald-800 transition-colors cursor-pointer !shadow-none flex items-center justify-center gap-2" style="box-shadow: none !important;">
                     <i class="fa-solid fa-bolt text-xs text-[#FFD000]"></i>
                     <span>Yes, Generate</span>
@@ -2726,7 +2807,7 @@
                         <textarea id="import-paste-textarea" maxlength="10000"
                             placeholder="What is the capital of the Philippines?&#10;Define photosynthesis.&#10;What are the three branches of government?"
                             oninput="window.updateImportPreviewCounter()"
-                            class="sigma-one-border-textarea flex-1 w-full bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 text-[10px] sm:text-[11px] font-sans text-black outline-none focus:bg-white focus:border-[#FFD000] transition-all placeholder:text-black-fade placeholder:text-[9.5px] sm:placeholder:text-[10.5px] min-h-[140px] sm:min-h-[180px] resize-y leading-relaxed"></textarea>
+                            class="sigma-one-border-textarea flex-1 w-full bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 text-[10px] sm:text-[11px] font-sans text-black outline-none focus:bg-white focus:border-[#FFD000] transition-all placeholder:text-black-fade placeholder:text-[9.5px] sm:placeholder:text-[10.5px] min-h-[140px] sm:min-h-[180px] resize-none leading-relaxed"></textarea>
                     </div>
                 </div>
             </div>
@@ -2845,7 +2926,7 @@
             </div>
 
             <!-- Modal Body (Scrollable Area) -->
-            <div class="p-3 sm:px-8 sm:py-5 overflow-y-auto flex-1 space-y-3 sm:space-y-4 font-['Inter'] flex flex-col min-h-0">
+            <div class="p-3 sm:px-8 sm:py-5 overflow-hidden flex-1 space-y-3 sm:space-y-4 font-['Inter'] flex flex-col min-h-0">
                 <!-- Search & Filter Controls -->
                 <div class="space-y-2 sm:space-y-3 shrink-0">
                     <div class="flex items-center gap-2">
@@ -2902,7 +2983,7 @@
                 </div>
 
                 <!-- Quizzes List Container (Scrollable) -->
-                <div id="library-modal-quizzes-list" class="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                <div id="library-modal-quizzes-list" class="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
                     <!-- Dynamically populated -->
                 </div>
             </div>
@@ -3073,23 +3154,23 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="js/vendor/mammoth-1.6.0/mammoth.browser.min.js"></script>
+    <script src="js/vendor/pdfjs-3.11.174/pdf.min.js"></script>
+    <script src="js/vendor/jszip-3.10.1/jszip.min.js"></script>
     <!-- CORE JAVASCRIPT CONTROLLERS (Consistent with Teacher/Admin Pages) -->
 <link rel="stylesheet" href="css/sigma-message-format.css?v=20261022_reply_format_v1">
 <script src="js/sigma-message-format.js?v=20261022_reply_format_v1"></script>
 <script src="js/table-pagination.js?v=20261022_page_groups_v22"></script>
-<script src="js/shared-components.js?v=20261025_delete_sync_v272"></script>
+<script src="js/shared-components.js?v=20261031_task_ai_type_v1"></script>
 <script src="js/online-presence.js?v=20261021_database_foundation_v5"></script>
     <script src="js/quiz-components.js?v=20261004alignfix1"></script>
     <script src="js/ai-log-store.js?v=20261010featureStatus291"></script>
-    <script src="js/quiz-generation-controls.js?v=20261025_quiz_custom_types_v208"></script>
+    <script src="js/quiz-generation-controls.js?v=20261103_bloom_subtitles_anytype_v1"></script>
     <script src="js/pdf-layout.js?v=20261025_pdf_fonts_v251"></script>
-    <script src="js/quiz-creator.js?v=20261025_delete_sync_v272"></script>
-    <script src="js/notifications.js?v=20261022_audit_context_v23"></script>
-    <script src="js/topbar.js?v=20261024_initial_no_bar_v132"></script>
-    <script src="js/search-results.js?v=20261022_structured_search_v17"></script>
+    <script src="js/quiz-creator.js?v=20261030_pdf_question_sheet_import_v1"></script>
+    <script src="js/notifications.js?v=20261027_grade_status_notifications_v306"></script>
+    <script src="js/topbar.js?v=20261029_site_speed_v1"></script>
+    <script src="js/search-results.js?v=20261029_site_speed_v1"></script>
     <script src="js/sidebar.js?v=20260916strictdef14"></script>
     <script src="js/secure-input-guard.js?v=20260912sec1"></script>
     <script src="js/document-viewer.js?v=20261025_database_subjects_viewer_v215"></script>

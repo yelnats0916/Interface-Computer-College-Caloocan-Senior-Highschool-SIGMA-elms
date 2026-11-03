@@ -11,6 +11,25 @@
         document.head.append(stylesheet);
     }
     const controls = new WeakMap(), dependencies = new Map();
+    const placeholderStyles = new Map();
+    let placeholderFrame = 0;
+    function syncPlaceholderStyle(input, empty) {
+        placeholderStyles.set(input, empty);
+        if (placeholderFrame) return;
+        placeholderFrame = requestAnimationFrame(() => {
+            placeholderFrame = 0;
+            // Read layout once for the batch, before applying any style writes.
+            const styles = Array.from(placeholderStyles, ([field, placeholder]) => {
+                const style = getComputedStyle(field);
+                return [placeholder, style.paddingLeft, style.font];
+            });
+            placeholderStyles.clear();
+            for (const [placeholder, left, font] of styles) {
+                if (placeholder.style.left !== left) placeholder.style.left = left;
+                if (placeholder.style.font !== font) placeholder.style.font = font;
+            }
+        });
+    }
     let active = null, popup = null, sequence = 0;
     function dependency(file, available) {
         if (available()) return Promise.resolve();
@@ -43,7 +62,12 @@
         if (!input || input.disabled || input.readOnly) return false;
         refreshScheduleBounds(input);
         const old = input.value; input.value = value;
-        const invalid = input.validity.rangeUnderflow || input.validity.rangeOverflow || input.validity.stepMismatch || input.validity.badInput;
+        const precision = input.type === 'date' ? 10 : input.type === 'month' ? 7 : 0;
+        const candidate = precision && value ? value.slice(0, precision) : '';
+        const belowCalendarMin = !!(precision && value && input.min && candidate < input.min.slice(0, precision));
+        const aboveCalendarMax = !!(precision && value && input.max && candidate > input.max.slice(0, precision));
+        const alreadyPickedForAnotherQuarter = !!window.getSYQuarterBlockedDatesForInput?.(input)?.has(value);
+        const invalid = alreadyPickedForAnotherQuarter || belowCalendarMin || aboveCalendarMax || input.validity.rangeUnderflow || input.validity.rangeOverflow || input.validity.stepMismatch || input.validity.badInput;
         if (invalid) { input.value = old; popup.querySelector('[data-picker-error]').textContent = 'Choose a value within the allowed range.'; return false; }
         if (dismiss) close();
         if (old !== input.value) { input.dispatchEvent(new Event('input', {bubbles:true})); input.dispatchEvent(new Event('change', {bubbles:true})); }
@@ -51,6 +75,7 @@
     }
     const pad = number => String(number).padStart(2,'0');
     function refreshScheduleBounds(input) {
+        if (/^edit-sy-q[1-4]-(start|end)$/.test(input.id)) window.updateSYDateConstraints?.();
         if (['teacher-exact-date-input','teacher-time-input','teacher-exact-end-date-input','teacher-end-time-input'].includes(input.id)) window.keepScheduleDateTimeForward?.(true);
     }
     function button(label, action, icon, iconStyle = 'fa-solid') {
@@ -59,9 +84,17 @@
         else node.textContent = label;
         node.onclick = action; return node;
     }
+    function clampCalendarMonth(control) {
+        const min=control.input.min.slice(0,7),max=control.input.max.slice(0,7);
+        let month=`${control.year}-${pad(control.month+1)}`;
+        if(min&&month<min)month=min;
+        if(max&&month>max)month=max;
+        if(/^\d{4}-\d{2}$/.test(month)){control.year=Number(month.slice(0,4));control.month=Number(month.slice(5,7))-1;}
+    }
     function renderCalendar() {
         if (!active || !popup) return;
         const {input} = active;
+        clampCalendarMonth(active);
         popup.replaceChildren();
         popup.classList.add('sigma-field-picker--calendar');
         const header = document.createElement('div'); header.className='cal-picker-header';
@@ -87,14 +120,20 @@
             const month=`${active.year}-${pad(index+1)}`;
             item.disabled=!!((minMonth && month<minMonth)||(maxMonth && month>maxMonth));
         });
+        const blockedQuarterDates = window.getSYQuarterBlockedDatesForInput?.(input) || new Set();
         for (const item of content.querySelectorAll('button.calendar-day-cell')) {
             const value=`${active.year}-${pad(active.month+1)}-${pad(Number(item.textContent))}`;
-            item.disabled = !!((input.min && value < input.min.slice(0,10)) || (input.max && value > input.max.slice(0,10)));
+            const outsideRange = (input.min && value < input.min.slice(0,10)) || (input.max && value > input.max.slice(0,10));
+            const pickedForAnotherQuarter = blockedQuarterDates.has(value);
+            item.disabled = !!(outsideRange || pickedForAnotherQuarter);
+            if (pickedForAnotherQuarter) item.title = 'This date is already assigned to another quarter.';
         }
         if(!monthMode)header.classList.add('sigma-field-picker-month-header');
         popup.append(header);
         popup.append(content); calendarFooter(input.type==='month'?'This Month':'Today',()=>{
-            const today=new Date();active.year=today.getFullYear();active.month=today.getMonth();
+            const today=new Date();const value=`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+            if((input.min&&value.slice(0,input.type==='month'?7:10)<input.min.slice(0,input.type==='month'?7:10))||(input.max&&value.slice(0,input.type==='month'?7:10)>input.max.slice(0,input.type==='month'?7:10)))return;
+            active.year=today.getFullYear();active.month=today.getMonth();
             if(input.type==='month') chooseDate(`${active.year}-${pad(active.month+1)}`);else window.SigmaDateTimeInputs.day(active.year,active.month,today.getDate());
         }); position();
     }
@@ -102,6 +141,10 @@
         const error=document.createElement('p');error.dataset.pickerError='true';error.setAttribute('role','status');popup.append(error);
         const row=document.createElement('div');row.className='cal-picker-footer';
         const today=button(label,action);today.className='cal-picker-footer-today';
+        const now=new Date(),input=active.input;
+        const value=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+        const blockedQuarterDates = window.getSYQuarterBlockedDatesForInput?.(input) || new Set();
+        today.disabled=!!((input.min&&value.slice(0,input.type==='month'?7:10)<input.min.slice(0,input.type==='month'?7:10))||(input.max&&value.slice(0,input.type==='month'?7:10)>input.max.slice(0,input.type==='month'?7:10))||(input.type==='date'&&blockedQuarterDates.has(value)));
         const mode=button(active.mode==='month'?'Calendar':'Month & Year',()=>{active.mode=active.mode==='month'?'day':'month';renderCalendar();});mode.className='cal-picker-footer-today';
         row.append(today);
         if(active.input.type!=='month')row.append(mode);
@@ -191,12 +234,15 @@
         controls.set(input,{input,wrapper,button:trigger});
         const empty=document.createElement('span');empty.className='sigma-date-time-empty';empty.setAttribute('aria-hidden','true');wrapper.append(empty);
         const sync=()=>{
-            trigger.disabled=input.disabled||input.readOnly;wrapper.hidden=input.hidden;
+            const disabled=input.disabled||input.readOnly;
+            if(trigger.disabled!==disabled)trigger.disabled=disabled;
+            if(wrapper.hidden!==input.hidden)wrapper.hidden=input.hidden;
             const show=input.readOnly&&!input.value&&(input.type==='date'||input.type==='time');
-            empty.hidden=!show;empty.textContent=input.type==='date'?'--/--/----':'--:--';
-            empty.style.left=getComputedStyle(input).paddingLeft;
-            empty.style.font=getComputedStyle(input).font;
-            input.classList.toggle('sigma-picker-empty',show);
+            if(empty.hidden===show)empty.hidden=!show;
+            const label=input.type==='date'?'--/--/----':'--:--';
+            if(empty.textContent!==label)empty.textContent=label;
+            if(show)syncPlaceholderStyle(input,empty);
+            if(input.classList.contains('sigma-picker-empty')!==show)input.classList.toggle('sigma-picker-empty',show);
         };sync();
         input.addEventListener('input',sync);input.addEventListener('change',sync);
         new MutationObserver(sync).observe(input,{attributes:true,attributeFilter:['disabled','readonly','hidden']});

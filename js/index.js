@@ -27,6 +27,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const AUTH_SESSION_KEY = 'sigma-authenticated-user';
     const LOGIN_SECURITY_KEY = 'sigma-login-security-config';
 
+    function cacheLoginValue(key, value) {
+        // The server and this tab's session own authentication. Shared browser
+        // copies are optional and must not interrupt a verified login when full.
+        try { localStorage.setItem(key, value); } catch (_) {}
+    }
+
     // --- CUSTOM LOGO SYNC ---
     const customLoginLogo = localStorage.getItem('sigma-custom-login-logo');
     if (customLoginLogo) {
@@ -69,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const cfg = getLoginSecurityConfig();
                     cfg.loginIdAttempts = data.threshold;
                     cfg.recaptchaEnabled = data.enabled !== false;
-                    localStorage.setItem(LOGIN_SECURITY_KEY, JSON.stringify(cfg));
+                    cacheLoginValue(LOGIN_SECURITY_KEY, JSON.stringify(cfg));
                 }
             })
             .catch(() => {}) : Promise.resolve();
@@ -560,13 +566,14 @@ document.addEventListener('DOMContentLoaded', function () {
             window.SigmaRecaptcha.challenge(container, () => {
                 if (pendingCaptchaFlow !== flow) return;
                 activeValidatedFlows[formType] = flow;
+                window.SigmaRecaptcha?.cancel(container);
                 recordAuthenticationEvent('reCAPTCHA verified', findManagedAccount(submission.id), 'success');
                 if (btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); }
                 container.classList.add('hidden');
-            }, () => {
+            }, (error) => {
                 if (pendingCaptchaFlow !== flow) return;
                 activeValidatedFlows[formType] = null;
-                recordAuthenticationEvent('reCAPTCHA verification failed', findManagedAccount(submission.id), 'failed');
+                if (!error?.silent) recordAuthenticationEvent('reCAPTCHA verification failed', findManagedAccount(submission.id), 'failed');
                 container.classList.remove('hidden');
                 if (btn) btn.disabled = true;
             });
@@ -736,6 +743,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const pass = String(rawPass || '').slice(0, 64000);
         const { validatedCaptchaFlow = null } = options;
         clearErrors();
+        if (!id || !pass) {
+            resetRecaptcha(formType);
+            if (!id) showLoginIdFeedback(formType, 'ID or Email is required.');
+            else showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, 'Password is required.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
+            setLoading(formType, false);
+            return;
+        }
 
         // Step 1: Check if reCAPTCHA is required but not yet solved
         const isRecaptchaActive = formType === 'modal' 
@@ -802,6 +816,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
                 flow = { type: 'wrong-password', id: attemptKey };
             } else if (['password_required','account_locked','account_inactive'].includes(error.code)) {
+                resetRecaptcha(formType);
+                if (error.code === 'account_locked') resetPasswordAttempts(attemptKey);
                 showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message, false,
                     formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
             } else {
@@ -889,7 +905,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     });
                     if (updated) {
-                        window.saveStoredJson(key, list);
+                        cacheLoginValue(key, JSON.stringify(list));
                     }
                 }
             });
@@ -972,9 +988,9 @@ document.addEventListener('DOMContentLoaded', function () {
             sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(userSessionObj));
             sessionStorage.setItem('currentUser', JSON.stringify(userSessionObj));
             sessionStorage.setItem('sigma-login-explicit', 'true');
-            localStorage.setItem('sigma-logged-in-user', JSON.stringify(userSessionObj));
-            localStorage.setItem('currentUser', JSON.stringify(userSessionObj));
-            localStorage.setItem('sigma-login-explicit', 'true');
+            cacheLoginValue('sigma-logged-in-user', JSON.stringify(userSessionObj));
+            cacheLoginValue('currentUser', JSON.stringify(userSessionObj));
+            cacheLoginValue('sigma-login-explicit', 'true');
             recordAuthenticationEvent('Login successful', userSessionObj, 'success');
             // Presentation-only handoff after the server issued the full login session.
             // API requests continue to validate this token on the server.
@@ -982,7 +998,9 @@ document.addEventListener('DOMContentLoaded', function () {
             sessionStorage.setItem('sigma-login-handoff', JSON.stringify({
                 token: loginSession.token, userId: loginSession.userId, issuedAt: Date.now()
             }));
-            window.location.replace(account.redirect);
+            const home = window.SigmaSessionNavigation?.homeForRole(userSessionObj.role)
+                || getRedirectForRole(userSessionObj.role) + (String(userSessionObj.role).toLowerCase().includes('admin') ? '#nav-dashboard' : String(userSessionObj.role).toLowerCase().includes('student') || String(userSessionObj.role).toLowerCase().includes('learner') ? '#home' : '#dashboard');
+            window.location.replace(home);
             return { success: true, redirecting: true };
         }
 
@@ -1294,7 +1312,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     });
                     if (changed) {
-                        window.saveStoredJson(key, list);
+                        cacheLoginValue(key, JSON.stringify(list));
                     }
                 }
             } catch (e) {}
@@ -1479,7 +1497,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (secretTxt) secretTxt.textContent = setupData.secret;
         if (setupData?.secret) {
-            localStorage.setItem(get2faSecretKey(userId), setupData.secret);
+            cacheLoginValue(get2faSecretKey(userId), setupData.secret);
         }
 
         // Dismiss modal if login was initiated from floating modal
@@ -1566,7 +1584,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (verified) {
                 gradeSyncOtp = code;
-                localStorage.setItem('sigma-2fa-enabled-' + current2faUserId, 'true');
+                cacheLoginValue('sigma-2fa-enabled-' + current2faUserId, 'true');
                 markLocalUser2faEnabled(current2faUserId, true);
                 recordAuthenticationEvent('Google Authenticator 2FA enabled', findManagedAccount(current2faUserId), 'success');
                 if (typeof current2faSuccessCallback === 'function') {
@@ -1852,7 +1870,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             if (!uid) throw new Error('Sign in again before accepting the agreement.');
             await window.SigmaDatabase.request('auth', { data: { action: 'accept_terms', id: uid } });
-            localStorage.setItem('sigma-terms-accepted-' + uid, 'true');
+            cacheLoginValue('sigma-terms-accepted-' + uid, 'true');
             saved = true;
         } catch (error) {
             if (err) { err.textContent = error.message || 'The agreement could not be saved. Please retry.'; err.classList.remove('hidden'); }

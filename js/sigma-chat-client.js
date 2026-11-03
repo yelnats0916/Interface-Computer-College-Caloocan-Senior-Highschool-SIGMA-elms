@@ -12,6 +12,17 @@
         const requestText = String(sourceOptions.question || text);
         const requestOwner = String(window.SigmaDatabase.currentUser?.()?.id || window.SigmaDatabase.currentUser?.()?.uid || '');
         const portalRole=/admin/i.test(location.pathname)?'admin':/teacher/i.test(location.pathname)?'teacher':'student';
+        const pageState = window.currentTopicState || {};
+        const routeParts = String(location.hash || '').match(/^#topic-content:([^:]+):(\d+):([^:]+):/);
+        let routeSubject = '';
+        try { routeSubject = routeParts ? decodeURIComponent(routeParts[1]) : ''; } catch (_) {}
+        const pageTopicIdx = Number.isInteger(Number(pageState.topicIdx)) && pageState.topicIdx !== null && pageState.topicIdx !== ''
+            ? Number(pageState.topicIdx) : (routeParts ? Number(routeParts[2]) : null);
+        const pageContext = {
+            pageSubjectId: String(pageState.subjectId || routeSubject || ''),
+            pageSection: String(pageState.selectedSection || window.currentClassroomSectionName || ''),
+            pageTopicIdx: pageTopicIdx
+        };
         if (!text) return;
         let notice = document.getElementById('sigmaChatError');
         if (!notice) {
@@ -58,10 +69,19 @@
                 : new URL(location.pathname.includes('/php/') ? 'api/sigma_chat.php' : 'php/api/sigma_chat.php', location.href).href;
             const response = await window.SigmaDatabase.fetch(apiUrl, { method: 'POST', foreground: true, credentials: 'include', signal: controller.signal,
                 headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: requestText, displayMessage: text, history, portalRole, ...conversation,
+                    ...pageContext,
                     ...window.SigmaChatChoices?.context(), sourceKey:sourceOptions.sourceKey || window.SigmaChatChoices?.context().sourceKey || '',
-                    sourceSubject:sourceOptions.subject || '', generalConcept:sourceOptions.generalConcept === true,
+                    sourceSubject:sourceOptions.subject || '', sourceSection:sourceOptions.sectionId || '', generalConcept:sourceOptions.generalConcept === true,
                     language:window.getSigmaAiLanguage?.('bot')||'auto' }) });
-            const result = await response.json();
+            let result;
+            try {
+                result = JSON.parse(await response.text());
+            } catch {
+                const message = response.status >= 500
+                    ? 'SIGMA is temporarily unavailable. Please try again.'
+                    : 'SIGMA returned an invalid response. Please try again.';
+                throw new Error(message);
+            }
             if (requestOwner !== String(window.SigmaDatabase.currentUser?.()?.id || window.SigmaDatabase.currentUser?.()?.uid || '')) throw new Error('The signed-in account changed. Please ask again.');
             if (!response.ok || !result.success || typeof result.text !== 'string' || !result.text.trim()) throw new Error(result.error || 'SIGMA could not get an answer. Try again.');
             if (['selection','guidance'].includes(result.kind)) {
@@ -71,7 +91,7 @@
                 if (result.generationId) answer.dataset.generationId = result.generationId;
                 if (result.model) answer.dataset.sigmaModel = result.model;
                 if (result.provider) answer.dataset.provider = result.provider;
-                if (result.kind === 'selection') answer.dataset.sigmaSourceChoice = JSON.stringify({ result: { kind:result.kind, options:result.options, text:result.text }, question:requestText });
+                if (result.kind === 'selection') answer.dataset.sigmaSourceChoice = JSON.stringify({ result: { kind:result.kind, options:result.options, generalOptionLabel:result.generalOptionLabel, text:result.text }, question:requestText });
                 messages.append(answer);
                 window.SigmaChatChoices?.show(result, requestText);
                 messages.scrollTop = messages.scrollHeight;

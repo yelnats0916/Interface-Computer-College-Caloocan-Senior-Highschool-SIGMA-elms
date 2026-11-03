@@ -76,16 +76,42 @@ function sigmaEnsureMaterialUploads(PDO $db): void {
     }
 }
 
-function sigmaSyncPendingMaterialUploads(PDO $db, int $limit=1): array {
+function sigmaQueueSubjectMaterialUpload(PDO $db,array $actor,array $subject,array $topic,string $title,string $kind,string $localUrl,string $fileName,string $materialType): string {
     sigmaEnsureMaterialUploads($db);
+    $id=bin2hex(random_bytes(16));
+    $db->prepare('INSERT INTO material_uploads(id,actor_id,subject_id,topic_id,material_title,asset_kind,local_url,file_name,folder_path) VALUES(?,?,?,?,?,?,?,?,?)')->execute([
+        $id,(string)$actor['id'],(string)$subject['id'],(string)$topic['id'],$title,$kind,$localUrl,$fileName,
+        json_encode(sigmaMaterialFolderPath($actor,$subject,$topic,$title,$kind,$materialType),JSON_THROW_ON_ERROR)
+    ]);
+    return $id;
+}
+
+function sigmaStartSubjectMaterialUploadSync(PDO $db): void {
+    if(PHP_OS_FAMILY==='Windows'||!is_callable('exec'))return;
+    try {
+        $pending=$db->query("SELECT 1 FROM material_uploads WHERE asset_kind IN ('instructions','rubric') AND synced_at IS NULL AND is_superseded=0 LIMIT 1")->fetchColumn();
+    } catch(Throwable $error) { return; }
+    if(!$pending)return;
+    $worker=dirname(__DIR__).'/workers/material-upload-sync.php';
+    $private='/home/sigma-elms/sigma-private';
+    if(!is_file($worker)||!is_dir($private))return;
+    @exec('nohup /usr/bin/php '.escapeshellarg($worker).' > '.escapeshellarg($private.'/material-upload-sync.log').' 2>&1 < /dev/null &');
+}
+
+function sigmaSyncPendingMaterialUploads(PDO $db, int $limit=1, bool $submissionsOnly=false, bool $announcementsOnly=false, bool $materialsOnly=false): array {
+    sigmaEnsureMaterialUploads($db);
+    $filter=$submissionsOnly?"asset_kind='submission'":"asset_kind<>'staged_submission'";
+    if($announcementsOnly)$filter="asset_kind='announcement'";
+    if($materialsOnly)$filter="asset_kind IN ('instructions','rubric')";
+    $rows=$db->query('SELECT * FROM material_uploads WHERE synced_at IS NULL AND is_superseded=0 AND '.$filter.' ORDER BY created_at,id LIMIT '.max(1,min(1,$limit)))->fetchAll(PDO::FETCH_ASSOC);
+    if(!$rows)return ['synced'=>0,'pending'=>0,'error'=>null];
     $settings=loadServiceSettings();$config=$settings['google_drive']??[];
     $token=getGdriveAccessToken('');$root=(string)($config['folder_id']??'');
     if (!$token || !$root) throw new RuntimeException('Connect Google Drive and select a storage folder first.');
-    $rows=$db->query('SELECT * FROM material_uploads WHERE synced_at IS NULL AND is_superseded=0 ORDER BY created_at,id LIMIT '.max(1,min(1,$limit)))->fetchAll(PDO::FETCH_ASSOC);
     $synced=0;$error=null;
     foreach ($rows as $row) {
         $path=dirname(__DIR__,2).'/'.$row['local_url'];
-        if (!preg_match('~^uploads/documents/[A-Za-z0-9_.-]+$~D',$row['local_url']) || !is_file($path)) { $error='A pending attachment is unavailable in server storage.';break; }
+        if (!preg_match('~^uploads/(documents|images|videos|materials)/[A-Za-z0-9_.-]+$~D',$row['local_url']) || !is_file($path)) { $error='A pending attachment is unavailable in server storage.';break; }
         $folder=resolveGdriveFolderPath($token,$root,json_decode($row['folder_path'],true)?:[]);
         if (empty($folder['id'])) { $error='Google Drive could not create the material folder.';break; }
         $file=sigmaUploadDriveFile($token,$path,$row['file_name'],$folder['id']);
@@ -94,10 +120,16 @@ function sigmaSyncPendingMaterialUploads(PDO $db, int $limit=1): array {
             'view_link'=>$file['webViewLink']??null,'download_link'=>$file['webContentLink']??null,'synced'=>true];
         $db->beginTransaction();
         try {
-            $find=$db->prepare('SELECT topics,materials FROM subjects WHERE id=? FOR UPDATE');$find->execute([$row['subject_id']]);$subject=$find->fetch(PDO::FETCH_ASSOC);
+            $subject=null;
+            if(!in_array($row['asset_kind'],['submission','announcement'],true)){
+                $find=$db->prepare('SELECT topics,materials FROM subjects WHERE id=? FOR UPDATE');$find->execute([$row['subject_id']]);$subject=$find->fetch(PDO::FETCH_ASSOC);
+            }
             $walk=function(&$node) use (&$walk,$row,$metadata) {
                 if (!is_array($node)) return;
                 if (($node['uploadId']??null)===$row['id']) $node['google_drive']=$metadata;
+                foreach(['fileUrlStorage','rubricUrlStorage','perfGuidelinesUrlStorage','perfRubricUrlStorage'] as $storageKey){
+                    if(is_array($node[$storageKey]??null)&&($node[$storageKey]['uploadId']??null)===$row['id'])$node[$storageKey]['google_drive']=$metadata;
+                }
                 foreach ($node as &$child) if(is_array($child))$walk($child);
             };
             if ($subject) {
@@ -107,9 +139,9 @@ function sigmaSyncPendingMaterialUploads(PDO $db, int $limit=1): array {
             }
             $db->prepare('UPDATE material_uploads SET drive_file_id=?,drive_folder_id=?,sync_error=NULL,synced_at=UTC_TIMESTAMP() WHERE id=?')->execute([$file['id'],$folder['id'],$row['id']]);
             require_once __DIR__.'/activity_audit.php';
-            sigmaRecordActivity($db,$row['actor_id'],'Uploaded Material File','Curriculum','File: '.$row['file_name']."\nMaterial: ".$row['material_title'],['uploadId'=>$row['id'],'subjectId'=>$row['subject_id']]);
+            sigmaRecordActivity($db,$row['actor_id'],$row['asset_kind']==='submission'?'Synced Submitted File':'Uploaded Material File',$row['asset_kind']==='submission'?'Submissions':'Curriculum','File: '.$row['file_name']."\nMaterial: ".$row['material_title'],['uploadId'=>$row['id'],'subjectId'=>$row['subject_id']]);
             $db->commit();$synced++;
         } catch(Throwable $failure) { if($db->inTransaction())$db->rollBack();throw $failure; }
     }
-    return ['synced'=>$synced,'pending'=>(int)$db->query('SELECT COUNT(*) FROM material_uploads WHERE synced_at IS NULL AND is_superseded=0')->fetchColumn(),'error'=>$error];
+    return ['synced'=>$synced,'pending'=>(int)$db->query('SELECT COUNT(*) FROM material_uploads WHERE synced_at IS NULL AND is_superseded=0 AND '.$filter)->fetchColumn(),'error'=>$error];
 }

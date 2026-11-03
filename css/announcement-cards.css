@@ -436,12 +436,14 @@
     word-break: break-word;
 }
 
-.sigma-card-see-more-btn {
+.sigma-card-post-body .sigma-card-see-more-btn {
     border: none;
     background: transparent;
-    color: #0f172a;
-    font-size: 14px;
-    font-weight: 700;
+    color: var(--announcement-green, #15803d) !important;
+    -webkit-text-fill-color: var(--announcement-green, #15803d) !important;
+    font-family: inherit;
+    font-size: 14px !important;
+    font-weight: 700 !important;
     cursor: pointer;
     padding: 0;
     margin-left: 4px;
@@ -449,7 +451,7 @@
     transition: text-decoration 0.12s ease;
 }
 
-.sigma-card-see-more-btn:hover {
+.sigma-card-post-body .sigma-card-see-more-btn:is(:hover, :focus-visible) {
     text-decoration: underline;
 }
 

@@ -1959,6 +1959,15 @@ window.initializeSharedCurriculumRelease = function () {
         if (!draft.assessmentShowCorrectAnswers) draft.assessmentShowCorrectAnswers = isEditMode ? { ...(saved?.assessmentShowCorrectAnswers || {}) } : {};
         if (!draft.assessmentAiAssisted) draft.assessmentAiAssisted = isEditMode ? { ...(saved?.assessmentAiAssisted || {}) } : {};
         if (!draft.assessmentRubrics) draft.assessmentRubrics = isEditMode ? { ...(saved?.assessmentRubrics || {}) } : {};
+        // Keep every material's saved settings when a batch switches its active item.
+        ['assessmentMaxScores', 'assessmentWeights', 'assessmentActivityComponents',
+            'assessmentMaxAttempts', 'assessmentLatePermissions', 'assessmentAutoSubmitOnExit',
+            'assessmentGradingModes', 'assessmentEssayGradingModes', 'assessmentShowCorrectAnswers',
+            'assessmentAiAssisted', 'assessmentRubrics', 'assessmentRubricUrls', 'assessmentHasTimers', 'assessmentTimeLimits',
+            'assessmentTimeLimitMinutes', 'assessmentManualReviewTypes', 'assessmentAllowFileUploads',
+            'assessmentCriteriaAiAuto', 'assessmentSelectedCriteria'].forEach(field => {
+            draft[field] = { ...(saved?.[field] || {}), ...(draft[field] || {}) };
+        });
         if (!draft.assignedStudents) draft.assignedStudents = isEditMode ? { ...(saved?.assignedStudents || {}) } : {};
 
         draft._isPickerFlow = (targetId === null && !isEditMode) || Boolean(draft._isPickerFlow);
@@ -1989,7 +1998,7 @@ window.initializeSharedCurriculumRelease = function () {
 
         const storedAssigned = draft.assignedStudents[effIdStr] || [];
         const assignedAliases = new Set(storedAssigned.map(value => String(value).trim().toLowerCase()));
-        const assignAll = assignedAliases.has('all') || assignedAliases.has('*');
+        const assignAll = storedAssigned.length === 0 || assignedAliases.has('all') || assignedAliases.has('*');
         if (sectionStudents.length > 0) {
             draft.assignedStudents[effIdStr] = sectionStudents.filter(student => {
                 const aliases = [student.id, student.studentId, student.uid, student.name, student.fullName,
@@ -2008,7 +2017,7 @@ window.initializeSharedCurriculumRelease = function () {
                 const stName = st.name || `${st.lastName || ''}, ${st.firstName || ''}`.trim() || '';
                 return currentAssignedList.includes(stId) || (stName && currentAssignedList.includes(stName));
             }).length;
-        const isAllSelected = (selectedStudentsCount === totalStudentsCount && totalStudentsCount > 0) || isAllWildcard;
+        const isAllSelected = (selectedStudentsCount === totalStudentsCount && (totalStudentsCount > 0 || currentAssignedList.length === 0)) || isAllWildcard;
         const selectedStudentsSummary = isAllSelected
             ? `<span class="inline-flex items-center gap-1.5 text-[#15803d] font-bold"><span class="w-3.5 h-3.5 rounded bg-[#15803d] text-white flex items-center justify-center text-[8.5px] leading-none shrink-0 font-bold shadow-2xs"><i class="fa-solid fa-check"></i></span><span>All</span></span>`
             : `${selectedStudentsCount}/${totalStudentsCount} selected`;
@@ -2204,7 +2213,9 @@ window.initializeSharedCurriculumRelease = function () {
 
         // Due date is only for tasks and quiz. Hide due date if selected item is a topic or learning material.
         const isDueDateSupported = (
+            category === 'assessments' ||
             activeItemCategory === 'assessments' ||
+            ['assignments','activity','activities','performance','performance task','perf. task'].includes(activeItemCategory) ||
             activeItemCategory === 'quiz' ||
             activeItemCategory === 'assignment' ||
             activeItemType.includes('quiz') ||
@@ -2453,7 +2464,7 @@ window.initializeSharedCurriculumRelease = function () {
             const isExplicitNonQuizType = [foundType, foundCat].some(type =>
                 ['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance tasks', 'performance', 'performancetasks', 'performancetask', 'pt'].includes(type));
             const hasLinkedQuiz = Boolean(foundAss?.selectedQuizId || foundAss?.quizId || foundAss?.rawItem?.selectedQuizId || foundAss?.rawItem?.quizId || activeSelectedItem?.selectedQuizId);
-            const typedAsQuiz = [foundType, foundCat].some(type => type === 'quiz' || type === 'quizzes') || hasLinkedQuiz;
+            const typedAsQuiz = !isExplicitNonQuizType && ([foundType, foundCat].some(type => type === 'quiz' || type === 'quizzes') || hasLinkedQuiz);
             if (typedAsQuiz || (!isExplicitNonQuizType && !foundType && !foundCat && (
                 cleanTitle.includes('quiz') || cleanId.includes('quiz') || activeTab === 'quizzes' || activeTab === 'quiz'
             ))) {
@@ -2497,6 +2508,8 @@ window.initializeSharedCurriculumRelease = function () {
         let initAutoSubmitOnExit = true;
         let initGradingMode = '';
         let initEssayGradingMode = '';
+        let quizReviewTypes = { essay: false, enumeration: false, shortAnswer: false };
+        let hasWrittenQuizQuestions = false;
         let initManualReviewEnumeration = false;
         let initManualReviewShort = false;
         let initShowCorrectAnswers = true;
@@ -2511,6 +2524,17 @@ window.initializeSharedCurriculumRelease = function () {
             if (effectiveId) {
                 const quizInfo = findQuizInfo(subjectId, effectiveId, targetTitle, foundAss);
                 const autoHps = quizInfo.points;
+                const attachedQuestions = [quizInfo?.matchedQuiz?.questions, quizInfo?.matchedQuiz?.quizQuestions, quizInfo?.matchedQuiz?.items,
+                    foundAss?.questions, foundAss?.quizQuestions, foundAss?.rawItem?.questions, foundAss?.rawItem?.quizQuestions]
+                    .find(questions => Array.isArray(questions) && questions.length) || [];
+                for (const question of attachedQuestions) {
+                    const type = String(question?.type || question?.questionType || '').toLowerCase().replace(/[_-]+/g, ' ');
+                    if (/essay|paragraph/.test(type)) quizReviewTypes.essay = true;
+                    if (/enum/.test(type)) quizReviewTypes.enumeration = true;
+                    if (/short answer|identification/.test(type)) quizReviewTypes.shortAnswer = true;
+                }
+                hasWrittenQuizQuestions = Object.values(quizReviewTypes).some(Boolean);
+
 
                 const readReleaseMapValue = (map) => {
                     if (!map || typeof map !== 'object') return undefined;
@@ -2565,13 +2589,16 @@ window.initializeSharedCurriculumRelease = function () {
                     initManualReviewShort = Boolean(savedReviewTypes.shortAnswer);
                 }
 
-                if (draft.assessmentShowCorrectAnswers?.[effectiveId] !== undefined) {
-                    initShowCorrectAnswers = Boolean(draft.assessmentShowCorrectAnswers[effectiveId]);
-                } else if (saved?.assessmentShowCorrectAnswers?.[effectiveId] !== undefined) {
-                    initShowCorrectAnswers = Boolean(saved.assessmentShowCorrectAnswers[effectiveId]);
-                } else {
-                    initShowCorrectAnswers = true;
+                if (!hasWrittenQuizQuestions) {
+                    initEssayGradingMode = 'auto';
+                    draft.assessmentEssayGradingModes[effectiveId] = 'auto';
                 }
+                initManualReviewEnumeration = quizReviewTypes.enumeration && initManualReviewEnumeration;
+                initManualReviewShort = quizReviewTypes.shortAnswer && initManualReviewShort;
+
+                const savedShowCorrect = readReleaseMapValue(draft.assessmentShowCorrectAnswers)
+                    ?? readReleaseMapValue(saved?.assessmentShowCorrectAnswers);
+                initShowCorrectAnswers = savedShowCorrect === undefined ? true : Boolean(savedShowCorrect);
 
                 const actualQuizRefId = String(
                     foundAss?.selectedQuizId ||
@@ -2628,14 +2655,12 @@ window.initializeSharedCurriculumRelease = function () {
                     if (!draft.assessmentMaxScores) draft.assessmentMaxScores = {};
                     draft.assessmentMaxScores[effectiveId] = initMaxScore;
                 } else {
-                    // For Paper Quizzes (no attached quiz file) and Non-Quizzes: editable HPS (blank by default)
-                    if (draft.assessmentMaxScores?.[effectiveId] !== undefined && draft.assessmentMaxScores[effectiveId] !== '' && draft.assessmentMaxScores[effectiveId] !== null && Number(draft.assessmentMaxScores[effectiveId]) > 0) {
-                        initMaxScore = Number(draft.assessmentMaxScores[effectiveId]);
-                    } else if (saved?.assessmentMaxScores?.[effectiveId] !== undefined && saved.assessmentMaxScores[effectiveId] !== '' && saved.assessmentMaxScores[effectiveId] !== null && Number(saved.assessmentMaxScores[effectiveId]) > 0) {
-                        initMaxScore = Number(saved.assessmentMaxScores[effectiveId]);
-                    } else {
-                        initMaxScore = '';
-                    }
+                    // Section overrides win; otherwise display the actual curriculum maximum.
+                    const maximum = [readReleaseMapValue(draft.assessmentMaxScores), readReleaseMapValue(saved?.assessmentMaxScores),
+                        foundAss?.maxScore, foundAss?.max, foundAss?.points, foundAss?.totalPoints, foundAss?.totalScore,
+                        foundAss?.rawItem?.maxScore, foundAss?.rawItem?.max, foundAss?.rawItem?.points]
+                        .find(value => value !== '' && value != null && Number.isFinite(Number(value)) && Number(value) > 0);
+                    initMaxScore = maximum === undefined ? '' : Number(maximum);
                     if (!draft.assessmentMaxScores) draft.assessmentMaxScores = {};
                 }
 
@@ -2669,13 +2694,13 @@ window.initializeSharedCurriculumRelease = function () {
                         initWeight = '';
                     }
                 }
-                if (draft.assessmentMaxAttempts?.[effectiveId] !== undefined && draft.assessmentMaxAttempts[effectiveId] !== '' && draft.assessmentMaxAttempts[effectiveId] !== 3 && draft.assessmentMaxAttempts[effectiveId] !== '3') {
+                if (draft.assessmentMaxAttempts?.[effectiveId] !== undefined && draft.assessmentMaxAttempts[effectiveId] !== '') {
                     initMaxAttempts = draft.assessmentMaxAttempts[effectiveId];
-                } else if (saved?.assessmentMaxAttempts?.[effectiveId] !== undefined && saved.assessmentMaxAttempts[effectiveId] !== '' && saved.assessmentMaxAttempts[effectiveId] !== 3 && saved.assessmentMaxAttempts[effectiveId] !== '3') {
+                } else if (saved?.assessmentMaxAttempts?.[effectiveId] !== undefined && saved.assessmentMaxAttempts[effectiveId] !== '') {
                     initMaxAttempts = saved.assessmentMaxAttempts[effectiveId];
-                } else if (foundAss?.maxAttempts !== undefined && foundAss?.maxAttempts !== '' && foundAss.maxAttempts !== 3 && foundAss.maxAttempts !== '3') {
+                } else if (foundAss?.maxAttempts !== undefined && foundAss?.maxAttempts !== '') {
                     initMaxAttempts = foundAss.maxAttempts;
-                } else if (foundAss?.attempts !== undefined && foundAss?.attempts !== '' && foundAss.attempts !== 3 && foundAss.attempts !== '3') {
+                } else if (foundAss?.attempts !== undefined && foundAss?.attempts !== '') {
                     initMaxAttempts = foundAss.attempts;
                 } else {
                     initMaxAttempts = 1;
@@ -2687,7 +2712,7 @@ window.initializeSharedCurriculumRelease = function () {
                 } else if (foundAss?.latePermission !== undefined) {
                     initLatePermission = Boolean(foundAss.latePermission);
                 } else {
-                    initLatePermission = false;
+                    initLatePermission = saved?.defaultLatePermission !== undefined ? Boolean(saved.defaultLatePermission) : true;
                 }
 
                 // Time Limit for Quizzes (Default: locked / untimed / no time limit -> No time limit checked by default)
@@ -2954,7 +2979,7 @@ window.initializeSharedCurriculumRelease = function () {
             overlay.classList.remove('hidden');
             overlay.classList.add('curriculum-hub-overlay', 'curriculum-hub-overlay--visible');
         }
-        overlay.style.setProperty('background', 'rgba(0, 0, 0, 0.45)', 'important');
+        overlay.style.setProperty('background', '#f8fafc', 'important');
         overlay.style.setProperty('opacity', '1', 'important');
         overlay.dataset._historyPushed = 'true';
         overlay.dataset._category = category;
@@ -3572,9 +3597,9 @@ window.initializeSharedCurriculumRelease = function () {
                                         <p class="text-[11px] font-normal text-black-fade block leading-relaxed mt-0.5">This scores the quiz file attached on this material.</p>
                                     </div>
                                     <input type="hidden" id="teacher-schedule-essay-grading-mode" value="${initEssayGradingMode === 'auto' || initEssayGradingMode === 'manual' ? initEssayGradingMode : ''}" />
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1 items-start font-['Inter']">
+                                    <div class="grid grid-cols-1 ${hasWrittenQuizQuestions ? 'sm:grid-cols-2' : ''} gap-3.5 pt-1 items-start font-['Inter']">
                                         <!-- Column 1: Manually Review & its nested sub-checkboxes -->
-                                        <div class="space-y-2.5 sm:space-y-3">
+                                        <div class="space-y-2.5 sm:space-y-3 ${hasWrittenQuizQuestions ? '' : 'hidden'}">
                                             <div onclick="window.selectTeacherScheduleEssayGradingMode?.('manual')" id="teacher-essay-mode-manual"
                                                 class="p-4 rounded-xl border-2 transition-all cursor-pointer select-none flex items-start gap-3.5 ${initEssayGradingMode === 'manual' ? 'border-[#15803d] bg-emerald-50/60 shadow-2xs' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'}">
                                                 <div class="w-5 h-5 rounded-full ${initEssayGradingMode === 'manual' ? 'bg-[#15803d] text-white' : 'border-2 border-slate-300 bg-white'} flex items-center justify-center text-[10px] shrink-0 mt-0.5" id="teacher-essay-mode-manual-icon">
@@ -3588,11 +3613,11 @@ window.initializeSharedCurriculumRelease = function () {
 
                                             <!-- Checkboxes panel: Directly below Manually Review -->
                                             <div id="teacher-manual-review-types" class="space-y-2.5 ${initEssayGradingMode === 'manual' ? '' : 'hidden'}">
-                                                <label class="flex items-start gap-2.5 p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 cursor-pointer select-none transition-all shadow-2xs">
+                                                <label class="flex items-start gap-2.5 p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 cursor-pointer select-none transition-all shadow-2xs ${quizReviewTypes.enumeration ? '' : 'hidden'}">
                                                     <input type="checkbox" id="teacher-manual-review-enumeration" ${initManualReviewEnumeration ? 'checked' : ''} onchange="window.cacheActiveAssessmentGradingSettings?.()" class="w-4 h-4 mt-0.5 rounded text-[#15803d] focus:ring-0 border-slate-300 cursor-pointer accent-[#15803d] shrink-0" />
                                                     <span class="min-w-0"><span class="text-xs font-bold text-slate-900 block leading-tight">Enumeration</span><span class="text-[11px] text-black-fade leading-snug">Listed answers</span></span>
                                                 </label>
-                                                <label class="flex items-start gap-2.5 p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 cursor-pointer select-none transition-all shadow-2xs">
+                                                <label class="flex items-start gap-2.5 p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 cursor-pointer select-none transition-all shadow-2xs ${quizReviewTypes.shortAnswer ? '' : 'hidden'}">
                                                     <input type="checkbox" id="teacher-manual-review-short" ${initManualReviewShort ? 'checked' : ''} onchange="window.cacheActiveAssessmentGradingSettings?.()" class="w-4 h-4 mt-0.5 rounded text-[#15803d] focus:ring-0 border-slate-300 cursor-pointer accent-[#15803d] shrink-0" />
                                                     <span class="min-w-0"><span class="text-xs font-bold text-slate-900 block leading-tight">Short Answer</span><span class="text-[11px] text-black-fade leading-snug">Brief written answers</span></span>
                                                 </label>
@@ -3608,7 +3633,7 @@ window.initializeSharedCurriculumRelease = function () {
                                                 </div>
                                                 <div class="min-w-0 flex-1">
                                                     <div class="text-xs font-bold text-slate-900 leading-tight">Automatic Score</div>
-                                                    <p class="text-[11px] text-black-fade leading-relaxed mt-1 font-normal">Correct answers are scored. Essays are scored perfect automatically.</p>
+                                                    <p class="text-[11px] text-black-fade leading-relaxed mt-1 font-normal">Correct answers are scored.${quizReviewTypes.essay ? ' Essays are scored perfect automatically.' : ''}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -3703,13 +3728,13 @@ window.initializeSharedCurriculumRelease = function () {
                                                     <button type="button" onclick="document.getElementById('teacher-rubric-file-input')?.click()" class="sigma-dashed-dropzone sigma-rubric-upload">
                                                         <span class="sigma-rubric-upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
                                                         <span class="sigma-rubric-upload-title">Upload Rubric</span>
-                                                        <span class="sigma-rubric-upload-meta">Supports PDF, DOCX, DOC, TXT, XLSX, CSV</span>
+                                                        <span class="sigma-rubric-upload-meta">Supports PDF, DOCX, TXT, CSV</span>
                                                     </button>
                                                 </div>
                                             </div>
                                         `}
                                     </div>
-                                    <input type="file" id="teacher-rubric-file-input" class="hidden" accept=".pdf,.docx,.doc,.txt,.xlsx,.csv" onchange="window.handleTeacherRubricFileUpload?.(this)" />
+                                    <input type="file" id="teacher-rubric-file-input" class="hidden" accept=".pdf,.docx,.txt,.csv" onchange="window.handleTeacherRubricFileUpload?.(this)" />
                                 </div>
 
                                 <!-- Assessment Criteria Selection (Shown when AI Assistant is Checked) -->
@@ -4299,7 +4324,7 @@ window.initializeSharedCurriculumRelease = function () {
             }
         }
 
-        if (window._unifiedPickerSelection) {
+        if (window._unifiedPickerSelection && isApplyAll) {
             const allDrafts = [window._topicReleaseDraftState, window._learningMaterialsReleaseDraftState, window._assessmentsReleaseDraftState];
             allDrafts.forEach(d => {
                 if (!d) return;
@@ -4702,8 +4727,8 @@ window.initializeSharedCurriculumRelease = function () {
             }
         }
 
-        // 3. For assessments, validate that Grading Settings (HPS, Attempts, Time Limit if timed, Category if Activity, Method) are inputted
-        if (category === 'assessments') {
+        // Schedule-only edits preserve existing grading settings without validating hidden fields.
+        if (category === 'assessments' && document.getElementById('teacher-topic-schedule-overlay')?.dataset?._editType !== 'schedule') {
             const pendingIds = draft[meta.pendingKey] || [];
             const targetIds = (pendingIds.length > 0) ? pendingIds : (targetId ? [targetId] : ['0']);
             const activeIdStr = String(targetId || (pendingIds.length > 0 ? pendingIds[0] : '0'));
@@ -4754,7 +4779,7 @@ window.initializeSharedCurriculumRelease = function () {
                     foundCat === 'performance' || foundCat === 'performancetasks' || foundCat === 'performancetask' || foundCat === 'pt'
                 );
                 const hasLinkedQuiz = Boolean(it?.selectedQuizId || it?.quizId || it?.rawItem?.selectedQuizId || it?.rawItem?.quizId);
-                const typedAsQuiz = foundType === 'quiz' || foundType === 'quizzes' || foundCat === 'quiz' || foundCat === 'quizzes' || hasLinkedQuiz;
+                const typedAsQuiz = !isExplicitNonQuizType && (foundType === 'quiz' || foundType === 'quizzes' || foundCat === 'quiz' || foundCat === 'quizzes' || hasLinkedQuiz);
                 const isQuiz = typedAsQuiz || (!isExplicitNonQuizType && !foundType && !foundCat && (titleStr.includes('quiz') || idStr.toLowerCase().includes('quiz')));
                 const isAct = foundType === 'activity' || foundType === 'activities' || foundCat === 'activity' || foundCat === 'activities' || titleStr.includes('activity') || idStr.toLowerCase().includes('activ');
                 return { item: it, isQuiz, isAct, title: it?.title || it?.name || '' };
@@ -4762,12 +4787,12 @@ window.initializeSharedCurriculumRelease = function () {
 
             targetIds.forEach(id => {
                 const idStr = String(id);
-                const isActive = (idStr === activeIdStr);
+                const isActive = (idStr === activeIdStr) || (targetIds.length > 1 && Boolean(document.getElementById('teacher-schedule-apply-all-chk')?.checked ?? draft._applyAll));
                 const itemMeta = getItemMeta(idStr);
-                const isQuizItem = (isActive && modalOverlay?.dataset?._isQuiz !== undefined)
+                const isQuizItem = (idStr === activeIdStr && modalOverlay?.dataset?._isQuiz !== undefined)
                     ? (modalOverlay.dataset._isQuiz === 'true')
                     : itemMeta.isQuiz;
-                const isActItem = (isActive && modalOverlay?.dataset?._isActivity !== undefined)
+                const isActItem = (idStr === activeIdStr && modalOverlay?.dataset?._isActivity !== undefined)
                     ? (modalOverlay.dataset._isActivity === 'true')
                     : itemMeta.isAct;
 
@@ -4861,9 +4886,9 @@ window.initializeSharedCurriculumRelease = function () {
                             }
                         } catch (e) {}
                     }
-                    if (!r && draft._adminLockedRubric) r = String(draft._adminLockedRubric).trim();
+                    if (!r && isActive && draft._adminLockedRubric) r = String(draft._adminLockedRubric).trim();
                     const rubricLabel = document.getElementById('teacher-rubric-file-label');
-                    if (!r && rubricLabel) {
+                    if (!r && isActive && rubricLabel) {
                         const labelText = String(rubricLabel.textContent || '').trim();
                         if (labelText && labelText !== 'Rubric Required by SIGMA AI') r = labelText;
                     }
@@ -5132,7 +5157,8 @@ window.initializeSharedCurriculumRelease = function () {
         }
 
         window.updateScheduleHelperSummary?.(category);
-        return errors.length === 0;
+        if(saveBtn && (draft._rubricReading || saveBtn.getAttribute('aria-busy')==='true')) saveBtn.disabled=true;
+        return errors.length === 0 && !draft._rubricReading;
     };
 
     window.updateScheduleHelperSummary = function (category = 'topics') {
@@ -5481,7 +5507,9 @@ window.initializeSharedCurriculumRelease = function () {
         if (isChecked) {
             requestAnimationFrame(() => {
                 setTimeout(() => {
-                    const scrollContainer = document.getElementById('teacher-schedule-modal-body');
+                    const modalBody = document.getElementById('teacher-schedule-modal-body');
+                    const scrollContainer = modalBody && getComputedStyle(modalBody).overflowY === 'visible'
+                        ? document.getElementById('teacher-topic-schedule-overlay') : modalBody;
                     const targetEl = rubricBox || criteriaBox;
                     if (scrollContainer && targetEl) {
                         const targetTop = targetEl.getBoundingClientRect().top;
@@ -5503,6 +5531,10 @@ window.initializeSharedCurriculumRelease = function () {
         if (!input || !input.files || input.files.length === 0) return;
         const file = input.files[0];
         const fileName = file.name;
+        if (file.size > 5 * 1024 * 1024 || !/\.(pdf|docx|txt|csv)$/i.test(fileName)) {
+            window.showToast?.('Upload a PDF, DOCX, TXT, or CSV rubric up to 5 MB.', 'error');
+            input.value = ''; return;
+        }
 
         const modalOverlay = document.getElementById('teacher-topic-schedule-overlay');
         const category = modalOverlay?.dataset?._category || 'assessments';
@@ -5523,7 +5555,7 @@ window.initializeSharedCurriculumRelease = function () {
         if (!draft.assessmentRubricFiles) draft.assessmentRubricFiles = {};
 
         const effectiveId = draft._targetId;
-        const targetKeys = (draft.pendingMaterialIds && draft.pendingMaterialIds.length > 0)
+        const targetKeys = (document.getElementById('teacher-schedule-apply-all-chk')?.checked && draft.pendingMaterialIds && draft.pendingMaterialIds.length > 0)
             ? draft.pendingMaterialIds.map(String)
             : (effectiveId ? [String(effectiveId)] : (draft._targetTitle ? [String(draft._targetTitle)] : []));
         if (targetKeys.length === 0 && effectiveId) targetKeys.push(String(effectiveId));
@@ -5534,16 +5566,24 @@ window.initializeSharedCurriculumRelease = function () {
             draft.assessmentRubricFiles[k] = { fileName: fileName, fileSize: file.size, fileType: file.type };
         });
 
+        draft._rubricReading = true;
         const reader = new FileReader();
-        reader.onload = function (e) {
-            const dataUrl = e.target.result;
-            targetKeys.forEach(k => {
-                if (draft.assessmentRubricUrls) draft.assessmentRubricUrls[k] = dataUrl;
-                if (draft.assessmentRubricFiles && draft.assessmentRubricFiles[k]) {
-                    draft.assessmentRubricFiles[k].fileUrl = dataUrl;
-                }
-            });
-        };
+        // Keep the read promise so Save Changes can wait for the actual file data.
+        draft._rubricReadPromise = new Promise((resolve, reject) => {
+            reader.onload = function (e) {
+                const dataUrl = e.target.result;
+                draft._uploadedRubricUrl = dataUrl;
+                targetKeys.forEach(k => {
+                    if (draft.assessmentRubricUrls) draft.assessmentRubricUrls[k] = dataUrl;
+                    if (draft.assessmentRubricFiles && draft.assessmentRubricFiles[k]) draft.assessmentRubricFiles[k].fileUrl = dataUrl;
+                });
+                resolve(dataUrl);
+            };
+            reader.onerror = function () { reject(reader.error || new Error('Rubric read failed')); };
+        }).finally(() => {
+            draft._rubricReading = false;
+            window.validateTeacherScheduleInputs?.(category, false);
+        });
         reader.readAsDataURL(file);
 
         draft._uploadedRubricName = fileName;
@@ -5587,7 +5627,7 @@ window.initializeSharedCurriculumRelease = function () {
 
         if (draft) {
             const effectiveId = draft._targetId;
-            const targetKeys = (draft.pendingMaterialIds && draft.pendingMaterialIds.length > 0)
+            const targetKeys = (document.getElementById('teacher-schedule-apply-all-chk')?.checked && draft.pendingMaterialIds && draft.pendingMaterialIds.length > 0)
                 ? draft.pendingMaterialIds.map(String)
                 : (effectiveId ? [String(effectiveId)] : (draft._targetTitle ? [String(draft._targetTitle)] : []));
             if (targetKeys.length === 0 && effectiveId) targetKeys.push(String(effectiveId));
@@ -5621,7 +5661,7 @@ window.initializeSharedCurriculumRelease = function () {
                         <button type="button" onclick="document.getElementById('teacher-rubric-file-input')?.click()" class="sigma-dashed-dropzone sigma-rubric-upload">
                             <span class="sigma-rubric-upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
                             <span class="sigma-rubric-upload-title">Upload Rubric</span>
-                            <span class="sigma-rubric-upload-meta">Supports PDF, DOCX, DOC, TXT, XLSX, CSV</span>
+                            <span class="sigma-rubric-upload-meta">Supports PDF, DOCX, TXT, CSV</span>
                         </button>
                     </div>
                 </div>
@@ -5659,7 +5699,9 @@ window.initializeSharedCurriculumRelease = function () {
         if (!isAuto) {
             requestAnimationFrame(() => {
                 setTimeout(() => {
-                    const scrollContainer = document.getElementById('teacher-schedule-modal-body');
+                    const modalBody = document.getElementById('teacher-schedule-modal-body');
+                    const scrollContainer = modalBody && getComputedStyle(modalBody).overflowY === 'visible'
+                        ? document.getElementById('teacher-topic-schedule-overlay') : modalBody;
                     if (scrollContainer && grid) {
                         const targetTop = grid.getBoundingClientRect().top;
                         const containerTop = scrollContainer.getBoundingClientRect().top;
@@ -6155,13 +6197,24 @@ window.initializeSharedCurriculumRelease = function () {
         window.closeTeacherUnifiedScheduleModal(returnToReleaseModal, category);
     };
 
-    window.saveTeacherUnifiedSchedule = function (category = 'topics') {
+    async function persistTeacherUnifiedSchedule(category = 'topics') {
+        const releaseWrites = [];
+        const saveRelease = (prefix, subject, section, config) => {
+            const saved = window.saveUnifiedReleaseConfig?.(prefix, subject, section, config);
+            if (saved !== false && window.SigmaAcademicRecords?.waitForRelease) {
+                const confirmation = window.SigmaAcademicRecords.waitForRelease(prefix, subject, section);
+                confirmation.catch(() => {});
+                releaseWrites.push(confirmation);
+            }
+            return saved;
+        };
         if (typeof window.cacheActiveAssessmentGradingSettings === 'function') {
             window.cacheActiveAssessmentGradingSettings();
         }
 
         if (typeof window.validateTeacherScheduleInputs === 'function' && !window.validateTeacherScheduleInputs(category, true)) {
-            return;
+            document.getElementById('teacher-schedule-error-banner')?.scrollIntoView({block:'center',behavior:'smooth'});
+            return false;
         }
 
         window.closeTeacherScheduleTimePopover?.();
@@ -6253,7 +6306,9 @@ window.initializeSharedCurriculumRelease = function () {
         }
 
         let config = {
-            publishAll: true,
+            ...JSON.parse(JSON.stringify(saved || {})),
+            // This form releases explicit IDs, including when correcting an older publish-all save.
+            publishAll: false,
             [meta.releasedIdKey]: (saved && Array.isArray(saved[meta.releasedIdKey])) ? [...saved[meta.releasedIdKey]] : [],
             [meta.hiddenIdKey]: (saved && Array.isArray(saved[meta.hiddenIdKey])) ? [...saved[meta.hiddenIdKey]] : [],
             [meta.scheduleKey]: (saved && saved[meta.scheduleKey] && typeof saved[meta.scheduleKey] === 'object') ? { ...saved[meta.scheduleKey] } : {},
@@ -6300,12 +6355,7 @@ window.initializeSharedCurriculumRelease = function () {
             config.assessmentCriteriaAiAuto = { ...(saved?.assessmentCriteriaAiAuto || {}) };
             config.assessmentSelectedCriteria = { ...(saved?.assessmentSelectedCriteria || {}) };
 
-            config.defaultMaxScore = maxScoreVal;
-            config.defaultWeight = weightVal;
-            config.defaultActivityComponent = activityComponentVal;
-            config.defaultMaxAttempts = maxAttemptsVal;
-            config.defaultLatePermission = latePermVal;
-            config.defaultGradingMode = gradingModeVal;
+            // Existing defaults remain unchanged; edits apply only to selected item maps.
         }
 
         // Cache current item inputs into draft first before committing
@@ -6323,6 +6373,20 @@ window.initializeSharedCurriculumRelease = function () {
         const targetIds = pendingIds.length > 0
             ? pendingIds
             : (targetId ? [targetId] : config[meta.releasedIdKey]);
+
+        if (category === 'assessments' && isApplyAll && targetId) {
+            const activeKey = String(targetId);
+            const fields = ['assessmentMaxScores', 'assessmentWeights', 'assessmentActivityComponents',
+                'assessmentMaxAttempts', 'assessmentLatePermissions', 'assessmentHasTimers',
+                'assessmentTimeLimits', 'assessmentTimeLimitMinutes', 'assessmentAutoSubmitOnExit',
+                'assessmentGradingModes', 'assessmentEssayGradingModes', 'assessmentManualReviewTypes',
+                'assessmentShowCorrectAnswers', 'assessmentAllowFileUploads', 'assessmentAiAssisted',
+                'assessmentCriteriaAiAuto', 'assessmentSelectedCriteria'];
+            fields.forEach(field => {
+                if (draft[field]?.[activeKey] === undefined) return;
+                targetIds.forEach(id => { draft[field][String(id)] = JSON.parse(JSON.stringify(draft[field][activeKey])); });
+            });
+        }
 
         if (!config.assignedStudents) config.assignedStudents = { ...(saved?.assignedStudents || {}) };
 
@@ -6508,7 +6572,13 @@ window.initializeSharedCurriculumRelease = function () {
                     window.ensureParentTopicReleased(subjectId, section, idStr);
                     if (foundAss && foundAss.title) window.ensureParentTopicReleased(subjectId, section, foundAss.title);
                 }
-                const isItemQuiz = idStr.toLowerCase().includes('quiz') || String(foundAss?.title || foundAss?.name || '').toLowerCase().includes('quiz') || ((foundAss?.category || foundAss?.type || '')).toLowerCase().includes('quiz') || foundAss?.isQuiz === true || Boolean(foundAss?.selectedQuizId || foundAss?.quizId || foundAss?.rawItem?.selectedQuizId || foundAss?.rawItem?.quizId) || (Array.isArray(foundAss?.questions) && foundAss.questions.length > 0) || (Array.isArray(foundAss?.quizQuestions) && foundAss.quizQuestions.length > 0) || (foundAss?.rawItem && Array.isArray(foundAss.rawItem.questions) && foundAss.rawItem.questions.length > 0) || (document.getElementById('teacher-topic-schedule-overlay')?.dataset?._isQuiz === 'true' && (String(id) === String(draft._targetId) || targetIds.length === 1));
+                const itemTypeValues = [foundAss?.type, foundAss?.materialType, foundAss?.category, foundAss?.kind, foundAss?.assessmentType]
+                    .map(value => String(value || '').trim().toLowerCase());
+                const isExplicitNonQuizItem = itemTypeValues.some(type => ['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance tasks', 'performance', 'performancetasks', 'performancetask', 'pt'].includes(type));
+                const itemComponentRaw = draft.assessmentActivityComponents?.[idStr] ?? draft.assessmentComponents?.[idStr] ?? ((String(idStr) === String(draft._targetId) || isApplyAll) ? activityComponentVal : '');
+                const selectedComponent = String(itemComponentRaw || '').trim().toLowerCase();
+                const selectedAsPerformanceTask = ['pt', 'performance', 'performance task', 'perf. task', 'perf task'].includes(selectedComponent);
+                const isItemQuiz = !selectedAsPerformanceTask && !isExplicitNonQuizItem && (idStr.toLowerCase().includes('quiz') || String(foundAss?.title || foundAss?.name || '').toLowerCase().includes('quiz') || ((foundAss?.category || foundAss?.type || '')).toLowerCase().includes('quiz') || foundAss?.isQuiz === true || Boolean(foundAss?.selectedQuizId || foundAss?.quizId || foundAss?.rawItem?.selectedQuizId || foundAss?.rawItem?.quizId) || (Array.isArray(foundAss?.questions) && foundAss.questions.length > 0) || (Array.isArray(foundAss?.quizQuestions) && foundAss.quizQuestions.length > 0) || (foundAss?.rawItem && Array.isArray(foundAss.rawItem.questions) && foundAss.rawItem.questions.length > 0) || (document.getElementById('teacher-topic-schedule-overlay')?.dataset?._isQuiz === 'true' && (String(id) === String(draft._targetId) || targetIds.length === 1)));
                 const actualQuizRefId = String(foundAss?.selectedQuizId || foundAss?.quizId || foundAss?.rawItem?.selectedQuizId || foundAss?.rawItem?.quizId || '').trim().toLowerCase();
                 const isSelfOrMatId = actualQuizRefId.startsWith('assess-') || actualQuizRefId.startsWith('mat-') || actualQuizRefId.startsWith('card-') || actualQuizRefId === idStr.toLowerCase() || actualQuizRefId === String(foundAss?.id || '').trim().toLowerCase();
                 const cleanRefId = (!isSelfOrMatId && actualQuizRefId && actualQuizRefId !== 'null' && actualQuizRefId !== 'undefined') ? actualQuizRefId : '';
@@ -6527,98 +6597,22 @@ window.initializeSharedCurriculumRelease = function () {
                 if (foundAss?.id) config.assessmentMaxScores[String(foundAss.id)] = effMaxScore;
                 if (foundAss?.title) config.assessmentMaxScores[foundAss.title] = effMaxScore;
 
-                // Synchronize effMaxScore directly to subject topics and materials in storage
-                if (effMaxScore && !isNaN(effMaxScore) && effMaxScore > 0) {
-                    if (foundAss) {
-                        foundAss.max = effMaxScore;
-                        foundAss.points = effMaxScore;
-                        foundAss.totalPoints = effMaxScore;
-                        foundAss.maxScore = effMaxScore;
-                        if (foundAss.rawItem) {
-                            foundAss.rawItem.max = effMaxScore;
-                            foundAss.rawItem.points = effMaxScore;
-                            foundAss.rawItem.totalPoints = effMaxScore;
-                            foundAss.rawItem.maxScore = effMaxScore;
-                        }
-                    }
-                    if (typeof getAllSubjectsRaw === 'function') {
-                        try {
-                        const allSubjects = getAllSubjectsRaw();
-                        const cleanSubjKey = String(subjectId).trim().toLowerCase();
-                        const sub = (Array.isArray(allSubjects) ? allSubjects : []).find(s => 
-                            String(s.id || '').toLowerCase() === cleanSubjKey || 
-                            String(s.name || '').toLowerCase() === cleanSubjKey ||
-                            String(s.title || '').toLowerCase() === cleanSubjKey
-                        );
-                        if (sub) {
-                            const tgtAssId = foundAss?.id || idStr;
-                            const tgtAssTitle = foundAss?.title || '';
-                            (Array.isArray(sub.topics) ? sub.topics : []).forEach(t => {
-                                if (!t || typeof t !== 'object') return;
-                                ['assignments', 'quizzes', 'activities', 'performance', 'qa'].forEach(k => {
-                                    const bucket = t[k];
-                                    if (!Array.isArray(bucket)) return;
-                                    bucket.forEach(m => {
-                                        if (!m || typeof m !== 'object') return;
-                                        if (m.id === tgtAssId || (tgtAssTitle && m.title === tgtAssTitle)) {
-                                            m.max = effMaxScore;
-                                            m.points = effMaxScore;
-                                            m.totalPoints = effMaxScore;
-                                            m.maxScore = effMaxScore;
-                                            const effComp = isItemQuiz ? 'ww' : (draft.assessmentActivityComponents?.[idStr] || activityComponentVal);
-                                            if (effComp) {
-                                                m.component = effComp;
-                                                m.gradebookComponent = effComp;
-                                            }
-                                            const effW = isItemQuiz ? ((typeof getSubjectGradebookWeights === 'function' ? getSubjectGradebookWeights(subjectId)?.ww : 25) || 25) : (draft.assessmentWeights?.[idStr] !== undefined ? draft.assessmentWeights[idStr] : weightVal);
-                                            if (effW !== undefined && effW !== '') {
-                                                m.weight = effW;
-                                            }
-                                        }
-                                    });
-                                });
-                            });
-                            (Array.isArray(sub.materials) ? sub.materials : []).forEach(m => {
-                                if (!m || typeof m !== 'object') return;
-                                if (m.id === tgtAssId || (tgtAssTitle && m.title === tgtAssTitle)) {
-                                    m.max = effMaxScore;
-                                    m.points = effMaxScore;
-                                    m.totalPoints = effMaxScore;
-                                    m.maxScore = effMaxScore;
-                                    const effComp = isItemQuiz ? 'ww' : (draft.assessmentActivityComponents?.[idStr] || activityComponentVal);
-                                    if (effComp) {
-                                        m.component = effComp;
-                                        m.gradebookComponent = effComp;
-                                    }
-                                    const effW = isItemQuiz ? ((typeof getSubjectGradebookWeights === 'function' ? getSubjectGradebookWeights(subjectId)?.ww : 25) || 25) : (draft.assessmentWeights?.[idStr] !== undefined ? draft.assessmentWeights[idStr] : weightVal);
-                                    if (effW !== undefined && effW !== '') {
-                                        m.weight = effW;
-                                    }
-                                }
-                            });
-                            if (typeof saveSubjectsToStorage === 'function') {
-                                saveSubjectsToStorage();
-                            }
-                        }
-                        } catch (err) {}
-                    }
-                    if (typeof clearCategoryDetailsCache === 'function') {
-                        clearCategoryDetailsCache();
-                    }
-                }
-
-                if (isItemQuiz) {
-                    const subjWeights = (typeof getSubjectGradebookWeights === 'function')
-                        ? getSubjectGradebookWeights(subjectId)
-                        : { ww: 25, pt: 50, qa: 25 };
-                    config.assessmentWeights[idStr] = subjWeights.ww;
-                    config.assessmentActivityComponents[idStr] = 'ww';
-                } else {
-                    config.assessmentWeights[idStr] = draft.assessmentWeights?.[idStr] !== undefined ? draft.assessmentWeights[idStr] : weightVal;
-                    config.assessmentActivityComponents[idStr] = draft.assessmentActivityComponents?.[idStr] !== undefined ? draft.assessmentActivityComponents[idStr] : activityComponentVal;
-                }
+                const subjWeights = (typeof getSubjectGradebookWeights === 'function')
+                    ? getSubjectGradebookWeights(subjectId)
+                    : { ww: 25, pt: 50, qa: 25 };
+                const selectedWeight = isItemQuiz
+                    ? subjWeights.ww
+                    : (draft.assessmentWeights?.[idStr] !== undefined ? draft.assessmentWeights[idStr] : weightVal);
+                const selectedGradebookComponent = isItemQuiz
+                    ? 'ww'
+                    : (draft.assessmentActivityComponents?.[idStr] !== undefined ? draft.assessmentActivityComponents[idStr] : activityComponentVal);
                 if (!config.assessmentComponents) config.assessmentComponents = { ...(saved?.assessmentComponents || {}) };
-                config.assessmentComponents[idStr] = config.assessmentActivityComponents[idStr];
+                const componentKeys = [...new Set([idStr, foundAss?.id, foundAss?.materialId, foundAss?.title, foundAss?.name].filter(Boolean).map(String))];
+                componentKeys.forEach(key => {
+                    config.assessmentWeights[key] = selectedWeight;
+                    config.assessmentActivityComponents[key] = selectedGradebookComponent;
+                    config.assessmentComponents[key] = selectedGradebookComponent;
+                });
                 if (foundAss) {
                     foundAss.component = config.assessmentActivityComponents[idStr];
                     foundAss.gradebookComponent = foundAss.component;
@@ -6668,7 +6662,8 @@ window.initializeSharedCurriculumRelease = function () {
                     if (foundAss?.id) config.assessmentManualReviewTypes[String(foundAss.id)] = reviewTypes;
                     if (foundAss?.title) config.assessmentManualReviewTypes[foundAss.title] = reviewTypes;
                 }
-                if (!config.assessmentShowCorrectAnswers) config.assessmentShowCorrectAnswers = { ...(saved?.assessmentShowCorrectAnswers || {}) };
+                // PHP encodes an empty map as []; named properties on a JS array disappear in JSON.
+                config.assessmentShowCorrectAnswers = { ...(config.assessmentShowCorrectAnswers || saved?.assessmentShowCorrectAnswers || {}) };
                 if (draft.assessmentShowCorrectAnswers?.[idStr] !== undefined) {
                     config.assessmentShowCorrectAnswers[idStr] = Boolean(draft.assessmentShowCorrectAnswers[idStr]);
                     if (foundAss?.id) config.assessmentShowCorrectAnswers[String(foundAss.id)] = Boolean(draft.assessmentShowCorrectAnswers[idStr]);
@@ -6686,12 +6681,16 @@ window.initializeSharedCurriculumRelease = function () {
                 if (!config.assessmentAiAssisted) config.assessmentAiAssisted = {};
                 if (!draft.assessmentAiAssisted) draft.assessmentAiAssisted = {};
                 const aiChkNow = document.getElementById('teacher-schedule-ai-assisted');
-                const _aiVal = aiChkNow
-                    ? Boolean(aiChkNow.checked)
-                    : Boolean(draft.assessmentAiAssisted?.[idStr]);
                 const aiKeys = [idStr];
                 if (foundAss?.id) aiKeys.push(String(foundAss.id));
                 if (foundAss?.title) aiKeys.push(foundAss.title);
+                const savedAiKey = aiKeys.find(key => config.assessmentAiAssisted[key] !== undefined);
+                const draftAiKey = aiKeys.find(key => draft.assessmentAiAssisted[key] !== undefined);
+                const _aiVal = aiChkNow && (isCurrentActive || isApplyAll)
+                    ? Boolean(aiChkNow.checked)
+                    : draftAiKey !== undefined
+                        ? Boolean(draft.assessmentAiAssisted[draftAiKey])
+                        : Boolean(config.assessmentAiAssisted[savedAiKey]);
                 aiKeys.forEach((key) => {
                     draft.assessmentAiAssisted[key] = _aiVal;
                     config.assessmentAiAssisted[key] = _aiVal;
@@ -6704,342 +6703,30 @@ window.initializeSharedCurriculumRelease = function () {
                         draft.assessmentRubrics?.[idStr] ||
                         draft.assessmentRubrics?.[String(foundAss?.id)] ||
                         draft.assessmentRubrics?.[foundAss?.title] ||
-                        draft._uploadedRubricName ||
-                        (draft.assessmentRubrics ? Object.values(draft.assessmentRubrics)[0] : '') ||
+                        ((isCurrentActive || isApplyAll) ? draft._uploadedRubricName : '') ||
                         ''
                     ).trim();
                     activeRubricUrl = (
                         draft.assessmentRubricUrls?.[idStr] ||
                         draft.assessmentRubricUrls?.[String(foundAss?.id)] ||
                         draft.assessmentRubricUrls?.[foundAss?.title] ||
-                        draft._uploadedRubricUrl ||
-                        (draft.assessmentRubricUrls ? Object.values(draft.assessmentRubricUrls)[0] : '') ||
+                        ((isCurrentActive || isApplyAll) ? draft._uploadedRubricUrl : '') ||
                         ''
                     );
                 }
 
+                // Rubrics belong to this section's release settings, never the shared material.
                 if (activeRubricName && !isItemQuiz) {
-                    config.assessmentRubrics[idStr] = activeRubricName;
-                    if (foundAss?.id) config.assessmentRubrics[String(foundAss.id)] = activeRubricName;
-                    if (foundAss?.title) config.assessmentRubrics[foundAss.title] = activeRubricName;
-                    if (!config.assessmentRubricUrls) config.assessmentRubricUrls = {};
-                    if (activeRubricUrl) {
-                        config.assessmentRubricUrls[idStr] = activeRubricUrl;
-                        if (foundAss?.id) config.assessmentRubricUrls[String(foundAss.id)] = activeRubricUrl;
-                        if (foundAss?.title) config.assessmentRubricUrls[foundAss.title] = activeRubricUrl;
-                    }
-
-                    const foundRole = String(foundAss?.authorRole || foundAss?.role || (foundAss?.isAdmin ? 'Admin' : (foundAss?.isTeacher ? 'Teacher' : ''))).toLowerCase();
-                    const foundIsAdminMaterial = Boolean(foundAss) && (foundRole === 'admin' || foundAss.isAdmin === true) && foundAss.isTeacher !== true;
-                    if (foundAss && !foundIsAdminMaterial) {
-                        foundAss.hasRubric = true;
-                        foundAss.rubricFileName = activeRubricName;
-                        foundAss.rubricUrl = activeRubricUrl;
-                        foundAss.rubric = {
-                            fileName: activeRubricName,
-                            type: (activeRubricName.split('.').pop() || 'docx').toLowerCase(),
-                            url: activeRubricUrl
-                        };
-                        if (foundAss.rawItem && foundAss.rawItem !== foundAss && foundAss.rawItem.isAdmin !== true) {
-                            foundAss.rawItem.hasRubric = true;
-                            foundAss.rawItem.rubricFileName = activeRubricName;
-                            foundAss.rawItem.rubricUrl = activeRubricUrl;
-                            foundAss.rawItem.rubric = activeRubricName;
-                        }
-                    }
-
-                    // Sync uploaded rubric directly to materials in storage
-                    try {
-                        const adminSubjects = (typeof getStoredJson === 'function') ? getStoredJson('sigma-admin-subjects', []) : [];
-                        let currentTeacher = null;
-                        try {
-                            const rawUser = sessionStorage.getItem('sigma-authenticated-user') || localStorage.getItem('sigma-logged-in-user') || localStorage.getItem('currentUser') || localStorage.getItem('sigma_active_user');
-                            if (rawUser) currentTeacher = JSON.parse(rawUser);
-                        } catch(e) {}
-                        const userRole = String(currentTeacher?.role || currentTeacher?.userType || '').toLowerCase();
-                        const isUserAdmin = userRole === 'admin' || userRole === 'administrator' || window.location.pathname.includes('admin.html');
-                        const currentTeacherId = currentTeacher ? String(currentTeacher.id || currentTeacher.uid || currentTeacher.username || 'teacher').trim() : 'teacher';
-                        const currentTeacherName = currentTeacher ? String(currentTeacher.name || `${currentTeacher.firstName || ''} ${currentTeacher.lastName || ''}`).trim() : 'Maria Santos Ramos';
-                        const cleanSubjId = String(subjectId).trim().toLowerCase().replace(/^(card-|subj-)/, '');
-
-                        const targetSubj = adminSubjects.find(s => {
-                            const sId = String(s.id || '').trim().toLowerCase().replace(/^(card-|subj-)/, '');
-                            const sCode = String(s.code || '').trim().toLowerCase().replace(/^(card-|subj-)/, '');
-                            const sName = String(s.name || '').trim().toLowerCase();
-                            return sId === cleanSubjId || sCode === cleanSubjId || sName === cleanSubjId || (s.id && String(s.id).toLowerCase() === String(subjectId).toLowerCase());
-                        });
-
-                        if (targetSubj) {
-                            if (!Array.isArray(targetSubj.materials)) targetSubj.materials = [];
-                            if (!Array.isArray(targetSubj.topics)) targetSubj.topics = [];
-
-                            const targetTitle = (foundAss?.title || foundAss?.name || '').trim().toLowerCase();
-                            const tgtAssId = String(foundAss?.id || idStr);
-
-                            let existingMatIdx = targetSubj.materials.findIndex(m => {
-                                if (!m) return false;
-                                const mId = String(m.id || '');
-                                const mTitle = String(m.title || m.name || '').trim().toLowerCase();
-                                return mId === tgtAssId || (targetTitle && mTitle === targetTitle);
-                            });
-
-                            let teacherMatIdx = targetSubj.materials.findIndex(m => {
-                                if (!m) return false;
-                                const mRole = m.authorRole || m.role || (m.isTeacher ? 'Teacher' : (m.isAdmin ? 'Admin' : ''));
-                                const isT = (typeof window.normalizeSubjectAuthorRole === 'function' ? window.normalizeSubjectAuthorRole(mRole) : mRole) === 'Teacher';
-                                if (!isT) return false;
-                                const mId = String(m.id || '');
-                                const mTitle = String(m.title || m.name || '').trim().toLowerCase();
-                                const mAdminId = String(m.originalAdminId || '');
-                                return mId === tgtAssId || mAdminId === tgtAssId || (targetTitle && mTitle === targetTitle);
-                            });
-
-                            let targetTopicId = foundAss?.topicId || '';
-                            if (!targetTopicId && existingMatIdx >= 0) {
-                                targetTopicId = targetSubj.materials[existingMatIdx].topicId || '';
-                            }
-                            if (!targetTopicId && targetSubj.topics.length > 0) {
-                                for (const top of targetSubj.topics) {
-                                    for (const arrKey of ['assignments', 'quizzes', 'activities', 'performanceTasks', 'tasks', 'materials']) {
-                                        if (Array.isArray(top[arrKey]) && top[arrKey].some(x => String(x.id || '') === tgtAssId || (targetTitle && String(x.title || x.name || '').trim().toLowerCase() === targetTitle))) {
-                                            targetTopicId = top.id;
-                                            break;
-                                        }
-                                    }
-                                    if (targetTopicId) break;
-                                }
-                            }
-                            if (!targetTopicId && targetSubj.topics.length > 0) targetTopicId = targetSubj.topics[0].id || 'topic-1';
-
-                            if (!isUserAdmin) {
-                                const targetSecStr = String(targetSection || '').trim();
-                                if (teacherMatIdx >= 0) {
-                                    const tMat = targetSubj.materials[teacherMatIdx];
-                                    tMat.hasRubric = true;
-                                    tMat.rubricFileName = activeRubricName;
-                                    if (activeRubricUrl) tMat.rubricUrl = activeRubricUrl;
-                                    tMat.rubric = activeRubricName;
-                                    tMat.section = targetSecStr;
-                                    tMat.roomSection = targetSecStr;
-                                    tMat.updatedAt = new Date().toISOString();
-                                } else if (existingMatIdx >= 0) {
-                                    const origMat = targetSubj.materials[existingMatIdx];
-                                    const origRole = origMat.authorRole || origMat.role || (origMat.isAdmin ? 'Admin' : (origMat.isTeacher ? 'Teacher' : 'Admin'));
-                                    const isOrigAdmin = (typeof window.normalizeSubjectAuthorRole === 'function' ? window.normalizeSubjectAuthorRole(origRole) : origRole) === 'Admin';
-
-                                    if (isOrigAdmin) {
-                                        if (teacherMatIdx < 0) {
-                                            const origMatIdStr = String(origMat.id || '');
-                                            teacherMatIdx = origMatIdStr ? targetSubj.materials.findIndex(m => {
-                                                if (!m) return false;
-                                                const mRole = m.authorRole || m.role || (m.isTeacher ? 'Teacher' : (m.isAdmin ? 'Admin' : ''));
-                                                const isT = (typeof window.normalizeSubjectAuthorRole === 'function' ? window.normalizeSubjectAuthorRole(mRole) : mRole) === 'Teacher';
-                                                if (!isT) return false;
-                                                const mSec = String(m.section || m.roomSection || '').trim().toLowerCase();
-                                                const tSec = targetSecStr.toLowerCase();
-                                                if (mSec && tSec && mSec !== tSec && mSec !== 'all') return false;
-                                                return String(m.originalAdminId || '') === origMatIdStr;
-                                            }) : -1;
-                                        }
-
-                                        if (teacherMatIdx >= 0) {
-                                            const tMat = targetSubj.materials[teacherMatIdx];
-                                            tMat.hasRubric = true;
-                                            tMat.rubricFileName = activeRubricName;
-                                            if (activeRubricUrl) tMat.rubricUrl = activeRubricUrl;
-                                            tMat.rubric = activeRubricName;
-                                            tMat.section = targetSecStr;
-                                            tMat.roomSection = targetSecStr;
-                                            tMat.updatedAt = new Date().toISOString();
-                                        } else {
-                                            // The admin material keeps the rubric uploaded on the admin page.
-                                        }
-                                    } else {
-                                        origMat.hasRubric = true;
-                                        origMat.rubricFileName = activeRubricName;
-                                        if (activeRubricUrl) origMat.rubricUrl = activeRubricUrl;
-                                        origMat.rubric = activeRubricName;
-                                        origMat.section = targetSecStr;
-                                        origMat.roomSection = targetSecStr;
-                                        origMat.updatedAt = new Date().toISOString();
-                                    }
-                                } else {
-                                    const newMat = {
-                                        id: `mat-teacher-${currentTeacherId}-${Date.now()}`,
-                                        originalAdminId: tgtAssId,
-                                        title: foundAss?.title || foundAss?.name || 'Assessment Task',
-                                        description: foundAss?.description || foundAss?.instructions || '',
-                                        topicId: targetTopicId || 'topic-1',
-                                        quarter: foundAss?.quarter || 'q1',
-                                        type: foundAss?.type || 'Task',
-                                        section: targetSecStr,
-                                        roomSection: targetSecStr,
-                                        authorRole: 'Teacher',
-                                        authorId: currentTeacherId,
-                                        authorName: currentTeacherName,
-                                        isTeacher: true,
-                                        isAdmin: false,
-                                        hasRubric: true,
-                                        rubricFileName: activeRubricName,
-                                        rubricUrl: activeRubricUrl || '',
-                                        rubric: activeRubricName,
-                                        fileName: foundAss?.fileName || (foundAss?.file ? String(foundAss.file).split('/').pop() : '') || '',
-                                        fileUrl: foundAss?.fileUrl || foundAss?.url || foundAss?.file || '',
-                                        createdAt: new Date().toISOString(),
-                                        updatedAt: new Date().toISOString()
-                                    };
-                                    targetSubj.materials.push(newMat);
-                                }
-                            }
-
-                            if (typeof window.deduplicateMaterialsArray === 'function' && Array.isArray(targetSubj.materials)) {
-                                targetSubj.materials = window.deduplicateMaterialsArray(targetSubj.materials, { collapseRoles: false });
-                            }
-
-                            if (Array.isArray(targetSubj.topics)) {
-                                targetSubj.topics.forEach(top => {
-                                    for (const arrKey of ['assignments', 'quizzes', 'activities', 'performanceTasks', 'tasks', 'materials']) {
-                                        if (Array.isArray(top[arrKey]) && typeof window.deduplicateMaterialsArray === 'function') {
-                                            top[arrKey] = window.deduplicateMaterialsArray(top[arrKey], { collapseRoles: false });
-                                        }
-                                    }
-                                });
-                            }
-
-                            if (typeof saveStoredJson === 'function') {
-                                saveStoredJson('sigma-admin-subjects', adminSubjects);
-                            } else {
-                                localStorage.setItem('sigma-admin-subjects', JSON.stringify(adminSubjects));
-                            }
-
-                            // Sync in-memory materials if matching targetSection
-                            try {
-                                const targetSecLower = String(targetSection || '').trim().toLowerCase();
-                                if (Array.isArray(window.currentSubjectAllMaterials)) {
-                                    const memTMat = window.currentSubjectAllMaterials.find(m => {
-                                        if (!m) return false;
-                                        const mRole = m.authorRole || m.role || (m.isTeacher ? 'Teacher' : '');
-                                        const isT = (typeof window.normalizeSubjectAuthorRole === 'function' ? window.normalizeSubjectAuthorRole(mRole) : mRole) === 'Teacher';
-                                        if (!isT && !isUserAdmin) return false;
-                                        const mSec = String(m.section || m.roomSection || '').trim().toLowerCase();
-                                        if (mSec && targetSecLower && mSec !== targetSecLower && mSec !== 'all') return false;
-                                        const mId = String(m.id || '');
-                                        const mTitle = String(m.title || m.name || '').trim().toLowerCase();
-                                        const mAdminId = String(m.originalAdminId || '');
-                                        return mId === tgtAssId || mAdminId === tgtAssId || (targetTitle && mTitle === targetTitle);
-                                    });
-                                    if (memTMat) {
-                                        memTMat.hasRubric = true;
-                                        memTMat.rubricFileName = activeRubricName;
-                                        if (activeRubricUrl) memTMat.rubricUrl = activeRubricUrl;
-                                        memTMat.rubric = activeRubricName;
-                                        memTMat.section = targetSection;
-                                        memTMat.roomSection = targetSection;
-                                    } else if (!isUserAdmin) {
-                                        const justCreated = targetSubj.materials[targetSubj.materials.length - 1];
-                                        if (justCreated && justCreated.isTeacher) {
-                                            window.currentSubjectAllMaterials.push({ ...justCreated });
-                                        }
-                                    }
-                                }
-                                if (Array.isArray(window.currentSubjectMaterials)) {
-                                    const memMat = window.currentSubjectMaterials.find(m => {
-                                        if (!m) return false;
-                                        const mRole = m.authorRole || m.role || (m.isTeacher ? 'Teacher' : '');
-                                        const isT = (typeof window.normalizeSubjectAuthorRole === 'function' ? window.normalizeSubjectAuthorRole(mRole) : mRole) === 'Teacher';
-                                        if (!isT && !isUserAdmin) return false;
-                                        const mSec = String(m.section || m.roomSection || '').trim().toLowerCase();
-                                        if (mSec && targetSecLower && mSec !== targetSecLower && mSec !== 'all') return false;
-                                        const mId = String(m.id || '');
-                                        const mTitle = String(m.title || m.name || '').trim().toLowerCase();
-                                        const mAdminId = String(m.originalAdminId || '');
-                                        return mId === tgtAssId || mAdminId === tgtAssId || (targetTitle && mTitle === targetTitle);
-                                    });
-                                    if (memMat) {
-                                        memMat.hasRubric = true;
-                                        memMat.rubricFileName = activeRubricName;
-                                        if (activeRubricUrl) memMat.rubricUrl = activeRubricUrl;
-                                        memMat.rubric = activeRubricName;
-                                        memMat.section = targetSection;
-                                        memMat.roomSection = targetSection;
-                                    }
-                                }
-                            } catch (e) {}
-                        }
-                    } catch (err) {
-                        console.warn('[saveTeacherUnifiedSchedule] Error syncing rubric to teacher material:', err);
-                    }
-                } else if (draft._rubricDeleted) {
-                    delete config.assessmentRubrics[idStr];
-                    if (foundAss?.id) delete config.assessmentRubrics[String(foundAss.id)];
-                    if (foundAss?.title) delete config.assessmentRubrics[foundAss.title];
-                    if (config.assessmentRubricUrls) {
-                        delete config.assessmentRubricUrls[idStr];
-                        if (foundAss?.id) delete config.assessmentRubricUrls[String(foundAss.id)];
-                        if (foundAss?.title) delete config.assessmentRubricUrls[foundAss.title];
-                    }
-                    if (foundAss) {
-                        foundAss.hasRubric = false;
-                        foundAss.rubricFileName = '';
-                        foundAss.rubricUrl = '';
-                        foundAss.rubric = null;
-                        if (foundAss.rawItem) {
-                            foundAss.rawItem.hasRubric = false;
-                            foundAss.rawItem.rubricFileName = '';
-                            foundAss.rawItem.rubricUrl = '';
-                            foundAss.rawItem.rubric = '';
-                        }
-                    }
-                    if (draft._rubricDeleted) {
-                        try {
-                            const adminSubjects = (typeof getStoredJson === 'function') ? getStoredJson('sigma-admin-subjects', []) : [];
-                            const cleanSubjId = String(subjectId).trim().toLowerCase().replace(/^(card-|subj-)/, '');
-                            const targetSubj = adminSubjects.find(s => {
-                                const sId = String(s.id || '').trim().toLowerCase().replace(/^(card-|subj-)/, '');
-                                const sCode = String(s.code || '').trim().toLowerCase().replace(/^(card-|subj-)/, '');
-                                const sName = String(s.name || '').trim().toLowerCase();
-                                return sId === cleanSubjId || sCode === cleanSubjId || sName === cleanSubjId || (s.id && String(s.id).toLowerCase() === String(subjectId).toLowerCase());
-                            });
-                            if (targetSubj) {
-                                const targetTitle = (foundAss?.title || foundAss?.name || '').trim().toLowerCase();
-                                const tgtAssId = String(foundAss?.id || idStr);
-                                if (Array.isArray(targetSubj.materials)) {
-                                    targetSubj.materials.forEach(m => {
-                                        const mId = String(m.id || '');
-                                        const mTitle = String(m.title || m.name || '').trim().toLowerCase();
-                                        const mAdminId = String(m.originalAdminId || '');
-                                        if (mId === tgtAssId || mAdminId === tgtAssId || (targetTitle && mTitle === targetTitle)) {
-                                            m.hasRubric = false;
-                                            m.rubricFileName = '';
-                                            m.rubricUrl = '';
-                                            m.rubric = '';
-                                        }
-                                    });
-                                }
-                                if (Array.isArray(targetSubj.topics)) {
-                                    targetSubj.topics.forEach(top => {
-                                        for (const arrKey of ['assignments', 'quizzes', 'activities', 'performanceTasks', 'tasks', 'materials']) {
-                                            if (Array.isArray(top[arrKey])) {
-                                                top[arrKey].forEach(x => {
-                                                    if (String(x.id || '') === tgtAssId || (targetTitle && String(x.title || x.name || '').trim().toLowerCase() === targetTitle)) {
-                                                        x.hasRubric = false;
-                                                        x.rubricFileName = '';
-                                                        x.rubricUrl = '';
-                                                        x.rubric = '';
-                                                    }
-                                                });
-                                            }
-                                        }
-                                    });
-                                }
-                                if (typeof saveStoredJson === 'function') {
-                                    saveStoredJson('sigma-admin-subjects', adminSubjects);
-                                } else {
-                                    localStorage.setItem('sigma-admin-subjects', JSON.stringify(adminSubjects));
-                                }
-                            }
-                        } catch (err) {}
-                    }
+                    config.assessmentRubricUrls ||= {};
+                    aiKeys.forEach(key => {
+                        config.assessmentRubrics[key] = activeRubricName;
+                        if (activeRubricUrl) config.assessmentRubricUrls[key] = activeRubricUrl;
+                    });
+                } else if (draft._rubricDeleted && (isCurrentActive || isApplyAll)) {
+                    aiKeys.forEach(key => {
+                        delete config.assessmentRubrics[key];
+                        if (config.assessmentRubricUrls) delete config.assessmentRubricUrls[key];
+                    });
                 }
                 if (!config.assessmentCriteriaAiAuto) config.assessmentCriteriaAiAuto = {};
                 config.assessmentCriteriaAiAuto[idStr] = draft.assessmentCriteriaAiAuto?.[idStr] !== undefined ? Boolean(draft.assessmentCriteriaAiAuto[idStr]) : true;
@@ -7064,33 +6751,23 @@ window.initializeSharedCurriculumRelease = function () {
                 chosenStudents = Array.isArray(defaultChosenStudentIds) ? defaultChosenStudentIds.slice() : [];
             }
 
-            // Expand chosen students with all alias representations so any student check succeeds
-            const expandedAssigned = new Set();
-
-            (chosenStudents || []).forEach(cs => {
-                const csStr = String(cs).trim();
-                if (!csStr) return;
-                expandedAssigned.add(csStr);
-                const csLower = csStr.toLowerCase();
-                expandedAssigned.add(csLower);
-
-                const matched = secStudentMap.get(csLower);
-                if (matched) {
-                    if (matched.id) { expandedAssigned.add(String(matched.id)); expandedAssigned.add(String(matched.id).toLowerCase()); }
-                    if (matched.studentId) { expandedAssigned.add(String(matched.studentId)); expandedAssigned.add(String(matched.studentId).toLowerCase()); }
-                    if (matched.uid) { expandedAssigned.add(String(matched.uid)); expandedAssigned.add(String(matched.uid).toLowerCase()); }
-                    if (matched.name) { expandedAssigned.add(String(matched.name)); expandedAssigned.add(String(matched.name).toLowerCase()); }
-                    if (matched.fullName) { expandedAssigned.add(String(matched.fullName)); expandedAssigned.add(String(matched.fullName).toLowerCase()); }
-                    if (matched.firstName && matched.lastName) {
-                        expandedAssigned.add(`${matched.firstName} ${matched.lastName}`);
-                        expandedAssigned.add(`${matched.firstName} ${matched.lastName}`.toLowerCase());
-                        expandedAssigned.add(`${matched.lastName}, ${matched.firstName}`);
-                        expandedAssigned.add(`${matched.lastName}, ${matched.firstName}`.toLowerCase());
-                    }
-                }
+            // Save account IDs, not presentation aliases, for live enrollment checks.
+            const chosenValues = (chosenStudents || []).map(value => String(value).trim());
+            const chosenKeys = new Set(chosenValues.map(value => value.toLowerCase()));
+            const explicitlyAllStudents = chosenValues.some(value => ['all', '*', 'all students', 'everyone'].includes(value.toLowerCase()));
+            const allRosterStudentsSelected = allSecStudents.length > 0 && allSecStudents.every(student => {
+                const aliases = [student.id, student.studentId, student.uid, student.name, student.fullName,
+                    `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+                    `${student.lastName || ''}, ${student.firstName || ''}`.trim()];
+                return aliases.some(value => value && chosenKeys.has(String(value).trim().toLowerCase()));
             });
-
-            const finalAssignedList = Array.from(expandedAssigned);
+            const selectedStudentIds = [...new Set(chosenValues.map(value => {
+                const matched = secStudentMap.get(String(value).trim().toLowerCase());
+                return String(matched?.id || matched?.studentId || matched?.uid || value).trim();
+            }).filter(Boolean))];
+            // Persist an open-ended audience instead of a roster snapshot, so
+            // all students in this section (including later enrollments) can see it.
+            const finalAssignedList = explicitlyAllStudents || allRosterStudentsSelected ? ['*'] : selectedStudentIds;
             config.assignedStudents[idStr] = [...finalAssignedList];
 
             if (category === 'assessments') {
@@ -7167,10 +6844,20 @@ window.initializeSharedCurriculumRelease = function () {
         });
 
 
+        if (category === 'assessments' && document.getElementById('teacher-topic-schedule-overlay')?.dataset?._editType === 'schedule') {
+            // Editing dates must not replace grading settings that are absent from this page.
+            for (const key of Object.keys(config)) {
+                if ((key.startsWith('assessment') && !/Schedules$|Dates$/.test(key)) || key.startsWith('default')) {
+                    if (saved && Object.prototype.hasOwnProperty.call(saved, key)) config[key] = saved[key];
+                    else delete config[key];
+                }
+            }
+        }
+
         if (subjectId) {
             let releaseSaved = true;
             if (typeof window.saveUnifiedReleaseConfig === 'function') {
-                releaseSaved = window.saveUnifiedReleaseConfig(meta.storagePrefix, subjectId, section, config) !== false;
+                releaseSaved = saveRelease(meta.storagePrefix, subjectId, section, config) !== false;
             } else {
                 try {
                     const cfgStr = JSON.stringify(config);
@@ -7286,10 +6973,19 @@ window.initializeSharedCurriculumRelease = function () {
             }
         }
 
+
         if (window._unifiedPickerSelection && subjectId && section) {
             const uSel = window._unifiedPickerSelection;
             const itemScheduleVal = (draft.isImmediate || !draft.startTime || draft.startTime === 'now') ? null : draft.startTime;
             const itemRelDate = itemScheduleVal || new Date().toISOString();
+            const selectionSchedule = (cat, id, cfg, key) => {
+                if (isApplyAll) return itemScheduleVal;
+                const ownMeta = window.getUnifiedScheduleMeta(cat);
+                const ownDraft = window[ownMeta.draftStateKey] || {};
+                if (Object.prototype.hasOwnProperty.call(ownDraft[ownMeta.scheduleKey] || {}, id))
+                    return ownDraft[ownMeta.scheduleKey][id];
+                return cfg[key]?.[id];
+            };
 
             if (category !== 'topics' && Array.isArray(uSel.topics) && uSel.topics.length > 0) {
                 let topCfg = { releasedTopicIds: [], hiddenTopicIds: [], topicReleaseDates: {}, topicSchedules: {} };
@@ -7303,20 +6999,23 @@ window.initializeSharedCurriculumRelease = function () {
                 if (!Array.isArray(topCfg.hiddenTopicIds)) topCfg.hiddenTopicIds = [];
                 if (!topCfg.topicReleaseDates) topCfg.topicReleaseDates = {};
                 if (!topCfg.topicSchedules) topCfg.topicSchedules = {};
+                topCfg.publishAll = false;
                 uSel.topics.forEach(tid => {
                     const sTid = String(tid);
                     if (!topCfg.releasedTopicIds.map(String).includes(sTid)) topCfg.releasedTopicIds.push(sTid);
                     topCfg.hiddenTopicIds = topCfg.hiddenTopicIds.filter(h => String(h) !== sTid);
-                    if (itemScheduleVal) {
-                        topCfg.topicSchedules[sTid] = itemScheduleVal;
-                        topCfg.topicReleaseDates[sTid] = itemScheduleVal;
+                    const ownSchedule = selectionSchedule('topics', sTid, topCfg, 'topicSchedules');
+                    if (ownSchedule === undefined) return;
+                    if (ownSchedule) {
+                        topCfg.topicSchedules[sTid] = ownSchedule;
+                        topCfg.topicReleaseDates[sTid] = ownSchedule;
                     } else {
                         delete topCfg.topicSchedules[sTid];
-                        topCfg.topicReleaseDates[sTid] = itemRelDate;
+                        topCfg.topicReleaseDates[sTid] = new Date().toISOString();
                     }
                 });
                 topCfg.updatedAt = new Date().toISOString();
-                window.saveUnifiedReleaseConfig?.('sigma_topic_release', subjectId, section, topCfg);
+                saveRelease('sigma_topic_release', subjectId, section, topCfg);
             }
 
             if (category !== 'learning' && Array.isArray(uSel.learning) && uSel.learning.length > 0) {
@@ -7331,20 +7030,23 @@ window.initializeSharedCurriculumRelease = function () {
                 if (!Array.isArray(lrnCfg.hiddenMaterialIds)) lrnCfg.hiddenMaterialIds = [];
                 if (!lrnCfg.materialReleaseDates) lrnCfg.materialReleaseDates = {};
                 if (!lrnCfg.materialSchedules) lrnCfg.materialSchedules = {};
+                lrnCfg.publishAll = false;
                 uSel.learning.forEach(mid => {
                     const sMid = String(mid);
                     if (!lrnCfg.releasedMaterialIds.map(String).includes(sMid)) lrnCfg.releasedMaterialIds.push(sMid);
                     lrnCfg.hiddenMaterialIds = lrnCfg.hiddenMaterialIds.filter(h => String(h) !== sMid);
-                    if (itemScheduleVal) {
-                        lrnCfg.materialSchedules[sMid] = itemScheduleVal;
-                        lrnCfg.materialReleaseDates[sMid] = itemScheduleVal;
+                    const ownSchedule = selectionSchedule('learning', sMid, lrnCfg, 'materialSchedules');
+                    if (ownSchedule === undefined) return;
+                    if (ownSchedule) {
+                        lrnCfg.materialSchedules[sMid] = ownSchedule;
+                        lrnCfg.materialReleaseDates[sMid] = ownSchedule;
                     } else {
                         delete lrnCfg.materialSchedules[sMid];
-                        lrnCfg.materialReleaseDates[sMid] = itemRelDate;
+                        lrnCfg.materialReleaseDates[sMid] = new Date().toISOString();
                     }
                 });
                 lrnCfg.updatedAt = new Date().toISOString();
-                window.saveUnifiedReleaseConfig?.('sigma_learning_release', subjectId, section, lrnCfg);
+                saveRelease('sigma_learning_release', subjectId, section, lrnCfg);
             }
 
             if (category !== 'assessments' && Array.isArray(uSel.assessments) && uSel.assessments.length > 0) {
@@ -7359,23 +7061,35 @@ window.initializeSharedCurriculumRelease = function () {
                 if (!Array.isArray(assCfg.hiddenMaterialIds)) assCfg.hiddenMaterialIds = [];
                 if (!assCfg.materialReleaseDates) assCfg.materialReleaseDates = {};
                 if (!assCfg.materialSchedules) assCfg.materialSchedules = {};
+                assCfg.publishAll = false;
                 uSel.assessments.forEach(aid => {
                     const sAid = String(aid);
                     if (!assCfg.releasedMaterialIds.map(String).includes(sAid)) assCfg.releasedMaterialIds.push(sAid);
                     assCfg.hiddenMaterialIds = assCfg.hiddenMaterialIds.filter(h => String(h) !== sAid);
-                    if (itemScheduleVal) {
-                        assCfg.materialSchedules[sAid] = itemScheduleVal;
-                        assCfg.materialReleaseDates[sAid] = itemScheduleVal;
+                    const ownSchedule = selectionSchedule('assessments', sAid, assCfg, 'materialSchedules');
+                    if (ownSchedule === undefined) return;
+                    if (ownSchedule) {
+                        assCfg.materialSchedules[sAid] = ownSchedule;
+                        assCfg.materialReleaseDates[sAid] = ownSchedule;
                     } else {
                         delete assCfg.materialSchedules[sAid];
-                        assCfg.materialReleaseDates[sAid] = itemRelDate;
+                        assCfg.materialReleaseDates[sAid] = new Date().toISOString();
                     }
                 });
                 assCfg.updatedAt = new Date().toISOString();
-                window.saveUnifiedReleaseConfig?.('sigma_assessment_release', subjectId, section, assCfg);
+                saveRelease('sigma_assessment_release', subjectId, section, assCfg);
             }
 
             window._unifiedPickerSelection = null;
+        }
+
+        try {
+            if (releaseWrites.length) await Promise.all(releaseWrites);
+            else await window.SigmaAcademicRecords?.flush();
+            // The release listener refreshes in the background after the save acknowledgement.
+        } catch (error) {
+            if (!error.sigmaAcademicReported) window.showToast?.(error.message || 'Release could not be saved. Please try again.', 'error');
+            return;
         }
 
         // Dispatch student notifications for released/scheduled items
@@ -7515,200 +7229,26 @@ window.initializeSharedCurriculumRelease = function () {
             window.openTeacherReleaseTopicsModal?.(true);
         }
 
-        // Two-way sync saved rubrics & criteria settings to materials/assessments databases in background
-        if (category === 'assessments') {
-            setTimeout(() => {
-                try {
-                    const customKey = `sigma_custom_assessments_${subjectId}`;
-                    let customAssessments = getStoredJson(customKey, []);
-                    let customUpdated = false;
-                    customAssessments = customAssessments.map(ass => {
-                        const isAssQuiz = Boolean(ass.type === 'Quiz' || String(ass.type || '').toLowerCase().includes('quiz') || ass.category === 'Quiz' || String(ass.category || '').toLowerCase().includes('quiz') );
-                        if (isAssQuiz) {
-                            if (ass.hasRubric || ass.rubric || ass.rubricFileName || ass.rubricName || ass.rubricFile) {
-                                ass.rubricName = '';
-                                ass.rubricFile = '';
-                                ass.rubricFileName = '';
-                                ass.rubricUrl = '';
-                                ass.hasRubric = false;
-                                ass.rubric = null;
-                                customUpdated = true;
-                            }
-                        } else {
-                            const idMatch = String(ass.id);
-                            const titleMatch = String(ass.title || '');
-                            const rFile = config.assessmentRubrics?.[idMatch] || config.assessmentRubrics?.[titleMatch];
-                            if (rFile) {
-                                ass.rubricName = rFile;
-                                ass.rubricFile = rFile;
-                                ass.rubricFileName = rFile;
-                                ass.hasRubric = true;
-                                customUpdated = true;
-                            }
-                        }
-                        if (config.assessmentCriteriaAiAuto?.[String(ass.id)] !== undefined) {
-                            ass.criteriaAiAuto = config.assessmentCriteriaAiAuto[String(ass.id)];
-                            customUpdated = true;
-                        }
-                        if (Array.isArray(config.assessmentSelectedCriteria?.[String(ass.id)])) {
-                            ass.selectedCriteria = config.assessmentSelectedCriteria[String(ass.id)];
-                            customUpdated = true;
-                        }
-                        if (config.assessmentAllowFileUploads?.[String(ass.id)] !== undefined) {
-                            ass.allowFileUpload = Boolean(config.assessmentAllowFileUploads[String(ass.id)]);
-                            customUpdated = true;
-                        } else if (config.assessmentAllowFileUploads?.[String(ass.title)] !== undefined) {
-                            ass.allowFileUpload = Boolean(config.assessmentAllowFileUploads[String(ass.title)]);
-                            customUpdated = true;
-                        }
-                        return ass;
-                    });
-                    if (customUpdated) localStorage.setItem(customKey, JSON.stringify(customAssessments));
+    };
 
-                    const materialsKey = `sigma_learning_materials_${subjectId}`;
-                    let materials = getStoredJson(materialsKey, []);
-                    let matUpdated = false;
-                    materials = materials.map(mat => {
-                        const isMatQuiz = Boolean(mat.type === 'Quiz' || String(mat.type || '').toLowerCase().includes('quiz') || mat.category === 'Quiz' || String(mat.category || '').toLowerCase().includes('quiz') );
-                        if (isMatQuiz) {
-                            if (mat.hasRubric || mat.rubric || mat.rubricFileName || mat.rubricName || mat.rubricFile) {
-                                mat.rubricName = '';
-                                mat.rubricFile = '';
-                                mat.rubricFileName = '';
-                                mat.rubricUrl = '';
-                                mat.hasRubric = false;
-                                mat.rubric = null;
-                                matUpdated = true;
-                            }
-                        } else {
-                            const rFile = config.assessmentRubrics[String(mat.id)] || config.assessmentRubrics[String(mat.title)] || config.assessmentRubrics[String(mat.name)];
-                            if (rFile) {
-                                mat.rubricName = rFile;
-                                mat.rubricFile = rFile;
-                                mat.rubricFileName = rFile;
-                                mat.hasRubric = true;
-                                matUpdated = true;
-                            }
-                        }
-                        if (config.assessmentAllowFileUploads?.[String(mat.id)] !== undefined) {
-                            mat.allowFileUpload = Boolean(config.assessmentAllowFileUploads[String(mat.id)]);
-                            matUpdated = true;
-                        } else if (config.assessmentAllowFileUploads?.[String(mat.title || mat.name)] !== undefined) {
-                            mat.allowFileUpload = Boolean(config.assessmentAllowFileUploads[String(mat.title || mat.name)]);
-                            matUpdated = true;
-                        }
-                        return mat;
-                    });
-                    if (matUpdated) localStorage.setItem(materialsKey, JSON.stringify(materials));
-
-                    const adminSubjects = getStoredJson('sigma-admin-subjects', []);
-                    let adminSubjUpdated = false;
-                    let currentTeacher = null;
-                    try {
-                        const rawUser = sessionStorage.getItem('sigma-authenticated-user') || localStorage.getItem('sigma-logged-in-user') || localStorage.getItem('currentUser') || localStorage.getItem('sigma_active_user');
-                        if (rawUser) currentTeacher = JSON.parse(rawUser);
-                    } catch(e) {}
-                    const userRole = String(currentTeacher?.role || currentTeacher?.userType || '').toLowerCase();
-                    const isUserAdmin = userRole === 'admin' || userRole === 'administrator' || window.location.pathname.includes('admin.html');
-
-                    adminSubjects.forEach(s => {
-                        if (Array.isArray(s.materials)) {
-                            s.materials.forEach(m => {
-                                const isMQuiz = Boolean(m.type === 'Quiz' || String(m.type || '').toLowerCase().includes('quiz') || m.category === 'Quiz' || String(m.category || '').toLowerCase().includes('quiz') );
-                                const mRole = String(m.authorRole || m.role || (m.isAdmin ? 'Admin' : '')).toLowerCase();
-                                const adminOwnsRubric = m.rubricSetByAdmin === true || m.isAdmin === true || mRole === 'admin';
-                                if (isMQuiz && !adminOwnsRubric) {
-                                    if (m.hasRubric || m.rubric || m.rubricFileName || m.rubricName || m.rubricFile) {
-                                        m.rubricFileName = '';
-                                        m.rubricName = '';
-                                        m.rubricFile = '';
-                                        m.hasRubric = false;
-                                        m.rubric = null;
-                                        adminSubjUpdated = true;
-                                    }
-                                } else {
-                                    const rRole = m.authorRole || m.role || (m.isTeacher ? 'Teacher' : (m.isAdmin ? 'Admin' : ''));
-                                    const isTeacherMat = (typeof window.normalizeSubjectAuthorRole === 'function' ? window.normalizeSubjectAuthorRole(rRole) : rRole) === 'Teacher';
-                                    if (!adminOwnsRubric && (isUserAdmin || isTeacherMat)) {
-                                        const rFile = config.assessmentRubrics[String(m.id)] || config.assessmentRubrics[String(m.title)] || config.assessmentRubrics[String(m.name)];
-                                        if (rFile) {
-                                            m.rubricFileName = rFile;
-                                            m.rubricName = rFile;
-                                            m.rubricFile = rFile;
-                                            m.hasRubric = true;
-                                            m.rubric = rFile;
-                                            adminSubjUpdated = true;
-                                        } else if (draft._rubricDeleted) {
-                                            m.rubricFileName = '';
-                                            m.rubricName = '';
-                                            m.rubricFile = '';
-                                            m.hasRubric = false;
-                                            m.rubric = '';
-                                            adminSubjUpdated = true;
-                                        }
-                                    }
-                                }
-                                if (config.assessmentAllowFileUploads?.[String(m.id)] !== undefined) {
-                                    m.allowFileUpload = Boolean(config.assessmentAllowFileUploads[String(m.id)]);
-                                    adminSubjUpdated = true;
-                                } else if (config.assessmentAllowFileUploads?.[String(m.title || m.name)] !== undefined) {
-                                    m.allowFileUpload = Boolean(config.assessmentAllowFileUploads[String(m.title || m.name)]);
-                                    adminSubjUpdated = true;
-                                }
-                            });
-                        }
-                        if (Array.isArray(s.topics)) {
-                            s.topics.forEach(t => {
-                                const subArrays = [t.assignments, t.quizzes, t.activities, t.performanceTasks, t.materials, t.handouts, t.videos];
-                                subArrays.forEach(arr => {
-                                    if (Array.isArray(arr)) {
-                                        arr.forEach(it => {
-                                            const isItQuiz = Boolean(it.type === 'Quiz' || String(it.type || '').toLowerCase().includes('quiz') || it.category === 'Quiz' || String(it.category || '').toLowerCase().includes('quiz') );
-                                            const itRole = String(it.authorRole || it.role || (it.isAdmin ? 'Admin' : '')).toLowerCase();
-                                            const adminOwnsTopicRubric = it.rubricSetByAdmin === true || it.isAdmin === true || itRole === 'admin';
-                                            if (isItQuiz && !adminOwnsTopicRubric) {
-                                                if (it.rubricFileName || it.rubricName || it.rubricFile || it.hasRubric) {
-                                                    it.rubricFileName = '';
-                                                    it.rubricName = '';
-                                                    it.rubricFile = '';
-                                                    it.hasRubric = false;
-                                                    it.rubric = null;
-                                                    adminSubjUpdated = true;
-                                                }
-                                            } else if (isUserAdmin && !adminOwnsTopicRubric) {
-                                                const rFile = config.assessmentRubrics[String(it.id)] || config.assessmentRubrics[String(it.title)] || config.assessmentRubrics[String(it.name)];
-                                                if (rFile) {
-                                                    it.rubricFileName = rFile;
-                                                    it.rubricName = rFile;
-                                                    it.rubricFile = rFile;
-                                                    it.hasRubric = true;
-                                                    it.rubric = rFile;
-                                                    adminSubjUpdated = true;
-                                                } else if (draft._rubricDeleted) {
-                                                    it.rubricFileName = '';
-                                                    it.rubricName = '';
-                                                    it.rubricFile = '';
-                                                    it.hasRubric = false;
-                                                    it.rubric = '';
-                                                    adminSubjUpdated = true;
-                                                }
-                                            }
-                                            if (config.assessmentAllowFileUploads?.[String(it.id)] !== undefined) {
-                                                it.allowFileUpload = Boolean(config.assessmentAllowFileUploads[String(it.id)]);
-                                                adminSubjUpdated = true;
-                                            } else if (config.assessmentAllowFileUploads?.[String(it.title || it.name)] !== undefined) {
-                                                it.allowFileUpload = Boolean(config.assessmentAllowFileUploads[String(it.title || it.name)]);
-                                                adminSubjUpdated = true;
-                                            }
-                                        });
-                                    }
-                                });
-                            });
-                        }
-                    });
-                    if (adminSubjUpdated) localStorage.setItem('sigma-admin-subjects', JSON.stringify(adminSubjects));
-                } catch (err) {}
-            }, 0);
+    let teacherScheduleSaving=false;
+    window.saveTeacherUnifiedSchedule=async function(category='topics'){
+        if(teacherScheduleSaving)return;
+        const overlay=document.getElementById('teacher-topic-schedule-overlay');
+        const saveButton=overlay?.querySelector('#teacher-save-schedule-btn');
+        const originalHtml=saveButton?.innerHTML;
+        teacherScheduleSaving=true;
+        if(saveButton){saveButton.disabled=true;saveButton.setAttribute('aria-busy','true');saveButton.innerHTML='<i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i><span>Saving…</span>';}
+        try{
+            // Paint feedback before validation and curriculum calculations start.
+            await new Promise(resolve=>setTimeout(resolve,20));
+            return await persistTeacherUnifiedSchedule(category);
+        }catch(error){
+            console.error('[saveTeacherUnifiedSchedule]',error);
+            if(!error.sigmaAcademicReported)window.showToast?.(error.message||'Could not save these details. Please try again.','error');
+        }finally{
+            teacherScheduleSaving=false;
+            if(saveButton?.isConnected){saveButton.innerHTML=originalHtml;saveButton.removeAttribute('aria-busy');saveButton.disabled=false;window.validateTeacherScheduleInputs?.(category,!overlay?.querySelector('#teacher-schedule-error-banner')?.classList.contains('hidden'));}
         }
     };
 
@@ -8072,12 +7612,23 @@ window.initializeSharedCurriculumRelease = function () {
         };
 
         const resolveItemType = (item) => {
-            const raw = String(item.type || item.category || '').trim().toLowerCase();
-            if (raw === 'quiz' || raw === 'quizzes' || item.quizId || item.selectedQuizId) return 'Quiz';
-            if (raw === 'activity' || raw === 'activities') return 'Activity';
-            if (raw === 'performance task' || raw === 'performance' || raw === 'perf. task') return 'Performance Task';
-            if (raw === 'assignment' || raw === 'assignments') return 'Assignment';
-            if (raw === 'task' || raw === 'tasks') return 'Task';
+            // Trust an explicit material/assessment type before using quiz IDs as a
+            // fallback. Task records can retain a quizId from older imports, which
+            // must not make them render as quizzes in the release panel.
+            const classify = (value) => {
+                const raw = String(value || '').trim().toLowerCase();
+                if (raw.includes('quiz')) return 'Quiz';
+                if (raw.includes('performance') || raw.includes('perf.')) return 'Performance Task';
+                if (raw.includes('assign')) return 'Assignment';
+                if (raw.includes('activ')) return 'Activity';
+                if (raw === 'task' || raw === 'tasks' || raw.startsWith('task ') || raw.startsWith('task-')) return 'Task';
+                return '';
+            };
+            const explicitType = [item.type, item.materialType, item.category, item.kind, item.assessmentType]
+                .map(classify)
+                .find(Boolean);
+            if (explicitType) return explicitType;
+            if (item.quizId || item.selectedQuizId) return 'Quiz';
             return 'Task';
         };
 
@@ -8874,7 +8425,7 @@ window.initializeSharedCurriculumRelease = function () {
         };
 
         const getAssessmentIconClass = (type) => {
-            if (type === 'Quiz') return { icon: 'fa-solid fa-stopwatch text-emerald-600', bg: 'bg-emerald-50 border-emerald-100' };
+            if (String(type || '').trim().toLowerCase().includes('quiz')) return { icon: 'fa-solid fa-stopwatch text-emerald-600', bg: 'bg-emerald-50 border-emerald-100' };
             return { icon: 'fa-solid fa-clipboard-list text-amber-600', bg: 'bg-amber-50 border-amber-100' };
         };
 

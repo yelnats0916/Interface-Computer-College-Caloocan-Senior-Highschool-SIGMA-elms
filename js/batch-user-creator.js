@@ -65,6 +65,27 @@
         return localPart.replace(/[^a-z0-9.]/g, '').replace(/^\.+|\.+$/g, '').slice(0, 64);
     }
 
+    function normalizeBirthday(raw) {
+        if (typeof raw === 'number' && Number.isFinite(raw) && raw > 1 && raw < 100000) {
+            const date = new Date(Date.UTC(1899, 11, 30) + Math.round(raw) * 86400000);
+            const value = date.toISOString().slice(0, 10);
+            return window.isValidUserBirthday?.(value) ? value : '';
+        }
+        const text = String(raw ?? '').trim();
+        if (!text) return '';
+        if (/^\d{5}$/.test(text) && Number(text) > 1 && Number(text) < 100000) return normalizeBirthday(Number(text));
+        let value = '';
+        let match = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(text);
+        if (match) value = `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`;
+        else if ((match = /^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$/.exec(text))) {
+            value = `${match[3]}-${String(match[1]).padStart(2, '0')}-${String(match[2]).padStart(2, '0')}`;
+        } else {
+            const parsed = new Date(text);
+            if (!Number.isNaN(parsed.getTime())) value = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+        }
+        return window.isValidUserBirthday?.(value) ? value : '';
+    }
+
     function getActiveBranchName() {
         const singleBranchSelect = document.getElementById('edit-user-school-branch');
         if (singleBranchSelect && singleBranchSelect.value) {
@@ -98,6 +119,12 @@
     function getExistingUsers() {
         try {
             const adminKey = window.USER_STORAGE_KEY || 'sigma-admin-users';
+            const directory = window.SigmaUserDirectory;
+            const directoryUsers = typeof directory?.records === 'function'
+                ? directory.records(adminKey)
+                : undefined;
+            if (Array.isArray(directoryUsers)) return directoryUsers.slice();
+
             const adminList = JSON.parse(localStorage.getItem(adminKey) || 'null');
             if (Array.isArray(adminList) && adminList.length) return adminList;
             const primary = JSON.parse(localStorage.getItem('sigma-managed-users') || 'null');
@@ -127,6 +154,8 @@
             firstName: formatPersonName(overrides.firstName),
             middleName: formatPersonName(overrides.middleName),
             lastName: formatPersonName(overrides.lastName),
+            dateOfBirth: normalizeBirthday(overrides.dateOfBirth || overrides.birthday || overrides.birthDate || overrides.dob),
+            birthdayRangeAdvanced: overrides.birthdayRangeAdvanced === true,
             gender: normalizeGenderValue(overrides.gender),
             emailPrefix: normalizeEmailPrefix(overrides.emailPrefix || overrides.email || overrides.gmail),
             previewId: '',
@@ -207,7 +236,8 @@
 
         if (/^(institutional\s+role|user\s+role|account\s+role|role|user\s+type|account\s+type|position|designation)$/.test(norm)) return 'role';
         if (/^(firstname|first\s+name|given\s+name|fname|first)$/.test(norm)) return 'firstName';
-        if (/^(middlename|middle\s+name|middle\s+initial|mname|middle|m\s+i|mi)$/.test(norm)) return 'middleName';
+        if (/^(middlename|middle\s+name|middle\s+initial|mname|middle|m\s+i|mi)(?:\s+optional)?$/.test(norm)) return 'middleName';
+        if (/^(birthday|birth\s*date|date\s+of\s+birth|dob)(?:\s+.*)?$/.test(norm)) return 'dateOfBirth';
         if (/^(lastname|last\s+name|surname|family\s+name|lname|last)$/.test(norm)) return 'lastName';
         if (/^(fullname|full\s+name|complete\s+name|student\s+name|teacher\s+name|user\s+name|name)$/.test(norm)) return 'fullName';
         if (/^(gender|sex)$/.test(norm)) return 'gender';
@@ -312,6 +342,7 @@
                     firstName: '',
                     middleName: '',
                     lastName: '',
+                    dateOfBirth: '',
                     gender: '',
                     emailPrefix: ''
                 };
@@ -330,6 +361,8 @@
                         record.role = normalizeRoleValue(val);
                     } else if (field === 'gender') {
                         record.gender = normalizeGenderValue(val);
+                    } else if (field === 'dateOfBirth') {
+                        record.dateOfBirth = normalizeBirthday(rawRow[colIdx] ?? val);
                     } else if (field === 'emailPrefix') {
                         record.emailPrefix = normalizeEmailPrefix(val);
                     } else if (field === 'firstName') {
@@ -350,7 +383,7 @@
 
                 const hasAnyData = Boolean(
                     record.role || record.firstName || record.middleName ||
-                    record.lastName || record.gender || record.emailPrefix
+                    record.lastName || record.dateOfBirth || record.gender || record.emailPrefix
                 );
                 if (hasAnyData) {
                     extracted.push(createBlankEntry(record));
@@ -379,13 +412,15 @@
         const firstRole = normalizeRoleValue(working[0]);
         const fifthGender = normalizeGenderValue(working[4]);
         if ((working.length >= 5) && (firstRole || fifthGender)) {
+            const hasBirthdayColumn = !!normalizeBirthday(working[5]);
             return {
                 role: firstRole,
                 firstName: formatPersonName(working[1] || ''),
                 middleName: formatPersonName(working[2] || ''),
                 lastName: formatPersonName(working[3] || ''),
                 gender: fifthGender,
-                emailPrefix: normalizeEmailPrefix(working[5] || '')
+                dateOfBirth: hasBirthdayColumn ? normalizeBirthday(working[5]) : '',
+                emailPrefix: normalizeEmailPrefix(working[hasBirthdayColumn ? 6 : 5] || '')
             };
         }
 
@@ -393,6 +428,7 @@
         let role = '';
         let gender = '';
         let emailPrefix = '';
+        let dateOfBirth = '';
         const nameCandidates = [];
 
         for (const cell of working) {
@@ -406,6 +442,10 @@
             }
             if (!gender && normalizeGenderValue(cell)) {
                 gender = normalizeGenderValue(cell);
+                continue;
+            }
+            if (!dateOfBirth && normalizeBirthday(cell)) {
+                dateOfBirth = normalizeBirthday(cell);
                 continue;
             }
             if (!emailPrefix && (cell.includes('@') || /^[a-z0-9]+(\.[a-z0-9]+)+$/i.test(cell))) {
@@ -442,10 +482,10 @@
             lastName = split.lastName;
         }
 
-        if (!role && !firstName && !middleName && !lastName && !gender && !emailPrefix) {
+        if (!role && !firstName && !middleName && !lastName && !gender && !emailPrefix && !dateOfBirth) {
             return null;
         }
-        return { role, firstName, middleName, lastName, gender, emailPrefix };
+        return { role, firstName, middleName, lastName, gender, dateOfBirth, emailPrefix };
     }
 
     function parseKeyValueOrLinesText(rawText) {
@@ -455,7 +495,7 @@
             .map(l => l.trim());
 
         // 1. Check if text contains Key: Value pairs (e.g. Firstname: Juan, Role: Student)
-        const kvRegex = /^(school\s*branch|branch|institutional\s*role|user\s*role|role|firstname|first\s*name|given\s*name|middlename|middle\s*name|middle\s*initial|lastname|last\s*name|surname|full\s*name|name|gender|sex|gmail|email(?:\s*address)?)\s*[:\-–]\s*(.*)$/i;
+        const kvRegex = /^(school\s*branch|branch|institutional\s*role|user\s*role|role|firstname|first\s*name|given\s*name|middlename|middle\s*name|middle\s*initial|lastname|last\s*name|surname|full\s*name|name|birthday|birth\s*date|date\s*of\s*birth|dob|gender|sex|gmail|email(?:\s*address)?)\s*[:\-–]\s*(.*)$/i;
         const kvMatches = lines.filter(l => kvRegex.test(l));
 
         if (kvMatches.length >= 2) {
@@ -465,7 +505,7 @@
 
             const pushCurrent = () => {
                 if (!current) return;
-                if (current.role || current.firstName || current.middleName || current.lastName || current.gender || current.emailPrefix) {
+                if (current.role || current.firstName || current.middleName || current.lastName || current.dateOfBirth || current.gender || current.emailPrefix) {
                     records.push(createBlankEntry(current));
                 }
                 current = null;
@@ -491,6 +531,7 @@
 
                 if (field === 'role') current.role = normalizeRoleValue(val);
                 else if (field === 'gender') current.gender = normalizeGenderValue(val);
+                else if (field === 'dateOfBirth') current.dateOfBirth = normalizeBirthday(val);
                 else if (field === 'emailPrefix') current.emailPrefix = normalizeEmailPrefix(val);
                 else if (field === 'firstName') current.firstName = formatPersonName(val);
                 else if (field === 'middleName') current.middleName = formatPersonName(val);
@@ -800,24 +841,24 @@
 
     const SAMPLE_TEMPLATE_POOL = [
         // Admins
-        { role: 'Admin', firstName: 'Clarissa', middleName: 'Mendoza', lastName: 'Bautista', gender: 'Female', gmail: 'clarissa.bautista.icc@gmail.com' },
-        { role: 'Admin', firstName: 'Eduardo', middleName: 'Ramos', lastName: 'Castillo', gender: 'Male', gmail: 'eduardo.castillo.icc@gmail.com' },
-        { role: 'Admin', firstName: 'Veronica', middleName: 'Pascual', lastName: 'Mercado', gender: 'Female', gmail: 'veronica.mercado.icc@gmail.com' },
-        { role: 'Admin', firstName: 'Gregorio', middleName: 'Salazar', lastName: 'Ocampo', gender: 'Male', gmail: 'gregorio.ocampo.icc@gmail.com' },
+        { role: 'Admin', firstName: 'Clarissa', middleName: 'Mendoza', lastName: 'Bautista', gender: 'Female', dateOfBirth: '1986-08-17', gmail: 'clarissa.bautista.icc@gmail.com' },
+        { role: 'Admin', firstName: 'Eduardo', middleName: 'Ramos', lastName: 'Castillo', gender: 'Male', dateOfBirth: '1984-05-22', gmail: 'eduardo.castillo.icc@gmail.com' },
+        { role: 'Admin', firstName: 'Veronica', middleName: 'Pascual', lastName: 'Mercado', gender: 'Female', dateOfBirth: '1990-11-03', gmail: 'veronica.mercado.icc@gmail.com' },
+        { role: 'Admin', firstName: 'Gregorio', middleName: 'Salazar', lastName: 'Ocampo', gender: 'Male', dateOfBirth: '1988-02-14', gmail: 'gregorio.ocampo.icc@gmail.com' },
         // Teachers
-        { role: 'Teacher', firstName: 'Rafael', middleName: 'Santos', lastName: 'Dela Cruz', gender: 'Male', gmail: 'rafael.delacruz.icc@gmail.com' },
-        { role: 'Teacher', firstName: 'Patricia', middleName: 'Aquino', lastName: 'Navarro', gender: 'Female', gmail: 'patricia.navarro.icc@gmail.com' },
-        { role: 'Teacher', firstName: 'Lorenzo', middleName: 'Tolentino', lastName: 'Velasco', gender: 'Male', gmail: 'lorenzo.velasco.icc@gmail.com' },
-        { role: 'Teacher', firstName: 'Marissa', middleName: 'Dizon', lastName: 'Magbanua', gender: 'Female', gmail: 'marissa.magbanua.icc@gmail.com' },
-        { role: 'Teacher', firstName: 'Benjamin', middleName: 'Flores', lastName: 'de Guzman', gender: 'Male', gmail: 'benjamin.deguzman.icc@gmail.com' },
-        { role: 'Teacher', firstName: 'Camille', middleName: 'Legaspi', lastName: 'Sarmiento', gender: 'Female', gmail: 'camille.sarmiento.icc@gmail.com' },
+        { role: 'Teacher', firstName: 'Rafael', middleName: 'Santos', lastName: 'Dela Cruz', gender: 'Male', dateOfBirth: '1990-02-05', gmail: 'rafael.delacruz.icc@gmail.com' },
+        { role: 'Teacher', firstName: 'Patricia', middleName: 'Aquino', lastName: 'Navarro', gender: 'Female', dateOfBirth: '1988-06-30', gmail: 'patricia.navarro.icc@gmail.com' },
+        { role: 'Teacher', firstName: 'Lorenzo', middleName: 'Tolentino', lastName: 'Velasco', gender: 'Male', dateOfBirth: '1985-09-19', gmail: 'lorenzo.velasco.icc@gmail.com' },
+        { role: 'Teacher', firstName: 'Marissa', middleName: 'Dizon', lastName: 'Magbanua', gender: 'Female', dateOfBirth: '1992-01-28', gmail: 'marissa.magbanua.icc@gmail.com' },
+        { role: 'Teacher', firstName: 'Benjamin', middleName: 'Flores', lastName: 'de Guzman', gender: 'Male', dateOfBirth: '1987-12-11', gmail: 'benjamin.deguzman.icc@gmail.com' },
+        { role: 'Teacher', firstName: 'Camille', middleName: 'Legaspi', lastName: 'Sarmiento', gender: 'Female', dateOfBirth: '1991-04-07', gmail: 'camille.sarmiento.icc@gmail.com' },
         // Students
-        { role: 'Student', firstName: 'Marco', middleName: 'Reyes', lastName: 'Villanueva', gender: 'Male', gmail: 'marco.villanueva2026@gmail.com' },
-        { role: 'Student', firstName: 'Hannah', middleName: 'Garcia', lastName: 'Soriano', gender: 'Female', gmail: 'hannah.soriano2026@gmail.com' },
-        { role: 'Student', firstName: 'Gabriel', middleName: 'Bautista', lastName: 'Mendoza', gender: 'Male', gmail: 'gabriel.mendoza2026@gmail.com' },
-        { role: 'Student', firstName: 'Beatriz', middleName: 'Lopez', lastName: 'Pangilinan', gender: 'Female', gmail: 'beatriz.pangilinan2026@gmail.com' },
-        { role: 'Student', firstName: 'Adrian', middleName: 'Fernandez', lastName: 'Quizon', gender: 'Male', gmail: 'adrian.quizon2026@gmail.com' },
-        { role: 'Student', firstName: 'Sophia', middleName: 'galang', lastName: 'Enriquez', gender: 'Female', gmail: 'sophia.enriquez2026@gmail.com' }
+        { role: 'Student', firstName: 'Marco', middleName: 'Reyes', lastName: 'Villanueva', gender: 'Male', dateOfBirth: '2009-09-14', gmail: 'marco.villanueva2026@gmail.com' },
+        { role: 'Student', firstName: 'Hannah', middleName: 'Garcia', lastName: 'Soriano', gender: 'Female', dateOfBirth: '2008-12-03', gmail: 'hannah.soriano2026@gmail.com' },
+        { role: 'Student', firstName: 'Gabriel', middleName: 'Bautista', lastName: 'Mendoza', gender: 'Male', dateOfBirth: '2009-01-11', gmail: 'gabriel.mendoza2026@gmail.com' },
+        { role: 'Student', firstName: 'Beatriz', middleName: 'Lopez', lastName: 'Pangilinan', gender: 'Female', dateOfBirth: '2010-02-18', gmail: 'beatriz.pangilinan2026@gmail.com' },
+        { role: 'Student', firstName: 'Adrian', middleName: 'Fernandez', lastName: 'Quizon', gender: 'Male', dateOfBirth: '2009-05-08', gmail: 'adrian.quizon2026@gmail.com' },
+        { role: 'Student', firstName: 'Sophia', middleName: 'galang', lastName: 'Enriquez', gender: 'Female', dateOfBirth: '2010-06-01', gmail: 'sophia.enriquez2026@gmail.com' }
     ];
 
     function getFiveSampleTemplateRows() {
@@ -849,12 +890,12 @@
             if (list[index]) return list[index];
             const suffix = String(Date.now()).slice(-3) + index;
             if (role === 'Admin') {
-                return { role: 'Admin', firstName: 'Clarissa', middleName: 'Mendoza', lastName: 'Bautista', gender: 'Female', gmail: `clarissa.bautista.${suffix}@gmail.com` };
+                return { role: 'Admin', firstName: 'Clarissa', middleName: 'Mendoza', lastName: 'Bautista', gender: 'Female', dateOfBirth: '1986-08-17', gmail: `clarissa.bautista.${suffix}@gmail.com` };
             }
             if (role === 'Teacher') {
-                return { role: 'Teacher', firstName: index === 0 ? 'Rafael' : 'Patricia', middleName: index === 0 ? 'Santos' : 'Aquino', lastName: index === 0 ? 'Dela Cruz' : 'Navarro', gender: index === 0 ? 'Male' : 'Female', gmail: `teacher.sample.${suffix}@gmail.com` };
+                return { role: 'Teacher', firstName: index === 0 ? 'Rafael' : 'Patricia', middleName: index === 0 ? 'Santos' : 'Aquino', lastName: index === 0 ? 'Dela Cruz' : 'Navarro', gender: index === 0 ? 'Male' : 'Female', dateOfBirth: index === 0 ? '1990-02-05' : '1988-06-30', gmail: `teacher.sample.${suffix}@gmail.com` };
             }
-            return { role: 'Student', firstName: index === 0 ? 'Marco' : 'Hannah', middleName: index === 0 ? 'Reyes' : 'Garcia', lastName: index === 0 ? 'Villanueva' : 'Soriano', gender: index === 0 ? 'Male' : 'Female', gmail: `student.sample.${suffix}@gmail.com` };
+            return { role: 'Student', firstName: index === 0 ? 'Marco' : 'Hannah', middleName: index === 0 ? 'Reyes' : 'Garcia', lastName: index === 0 ? 'Villanueva' : 'Soriano', gender: index === 0 ? 'Male' : 'Female', dateOfBirth: index === 0 ? '2009-09-14' : '2008-12-03', gmail: `student.sample.${suffix}@gmail.com` };
         };
 
         // 5 accounts across different roles in mixed order so automatic role sorting (1. Admin -> 2. Teacher -> 3. Student) is clearly demonstrated
@@ -872,6 +913,7 @@
             formatPersonName(item.middleName),
             formatPersonName(item.lastName),
             item.gender,
+            item.dateOfBirth || '',
             item.gmail
         ]);
     }
@@ -998,7 +1040,7 @@
   </w:docDefaults>
 </w:styles>`;
 
-        const colWidthsDxa = [1450, 1300, 1300, 1300, 1050, 2960];
+        const colWidthsDxa = [1250, 1250, 1100, 1250, 850, 1450, 2260];
         const allTableRows = [headers, ...rows];
         let trXml = '';
         allTableRows.forEach((rowCells, rIdx) => {
@@ -1092,7 +1134,7 @@
         doc.autoTable({head:[headers],body:rows.map(row=>row.map(window.SigmaPdfLayout.text)),startY:31,
             margin:{left:14,right:14,top:15,bottom:16},tableWidth:269,theme:'grid',showHead:'everyPage',rowPageBreak:'avoid',
             styles:{font:'SigmaSans',fontSize:9,cellPadding:3,overflow:'linebreak'},
-            columnStyles:Object.fromEntries([40,42,42,42,28,75].map((width,index)=>[index,{cellWidth:width}])),
+            columnStyles:Object.fromEntries([35,35,31,34,23,36,61].map((width,index)=>[index,{cellWidth:width}])),
             headStyles:{fillColor:[21,128,61],textColor:255}});
         window.SigmaPdfLayout.footer(doc);
         return doc.output('blob');
@@ -1111,7 +1153,7 @@
 
     window.downloadBatchUserTemplate = async function (format = 'xlsx') {
         const fmt = String(format || 'xlsx').trim().toLowerCase();
-        const headers = ['Institutional Role', 'Firstname', 'Middlename', 'Lastname', 'Gender', 'Gmail'];
+        const headers = ['Institutional Role', 'Firstname', 'Middlename (optional)', 'Lastname', 'Gender', 'Birthday (YYYY-MM-DD)', 'Gmail'];
         const sampleRows = getFiveSampleTemplateRows();
 
         if (fmt === 'docx' || fmt === 'doc') {
@@ -1163,6 +1205,7 @@
                 { wch: 22 },
                 { wch: 22 },
                 { wch: 16 },
+                { wch: 22 },
                 { wch: 32 }
             ];
             headers.forEach((_, colIdx) => {
@@ -1292,6 +1335,8 @@
         setBtnVisibility(finishBtn, batchStep === 3);
 
         if (nextBtn) {
+            // A page rerender must never leave an old ID-loading label or spinner behind.
+            nextBtn.innerHTML = '<span>Next</span>';
             const hasEntries = batchEntries.length > 0;
             nextBtn.disabled = !hasEntries;
             nextBtn.style.opacity = hasEntries ? '1' : '0.5';
@@ -1328,9 +1373,9 @@
         return Boolean(
             VALID_ROLES.includes(entry.role) &&
             entry.firstName.trim() &&
-            entry.middleName.trim() &&
             entry.lastName.trim() &&
-            VALID_GENDERS.includes(entry.gender)
+            VALID_GENDERS.includes(entry.gender) &&
+            window.isValidUserBirthday?.(entry.dateOfBirth)
         );
     }
 
@@ -1553,17 +1598,30 @@
         }
 
         const activeBranch = getActiveBranchName();
+        const today = new Date();
+        const todayText = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const existingAccounts = getExistingUsers();
         let html = '';
         let lastRoleKey = null;
 
         pageItems.forEach((item, idxOnPage) => {
             const accountNumber = startIdx + idxOnPage + 1;
+            const itemBirthdayRange = item.role === 'Student'
+                ? window.getSHSBirthdayDateRange?.(item.birthdayRangeAdvanced ? 12 : 16)
+                : null;
+            const itemBirthdayMax = item.role === 'Student'
+                ? (itemBirthdayRange?.max || todayText)
+                : (window.isAdultAccountRole?.(item.role) ? (window.getBirthdayMaximumDateForAge?.(18) || todayText) : todayText);
             const roleKey = VALID_ROLES.includes(item.role) ? item.role : '';
             const meta = getRoleSectionMeta(roleKey);
             const showGroupHeader = roleKey !== lastRoleKey;
             lastRoleKey = roleKey;
             const complete = isEntryComplete(item);
             const err = item._errors || {};
+            const sameNameMatches = window.findSameNameUserAccounts?.(item, existingAccounts) || [];
+            const identityWarning = sameNameMatches.length
+                ? window.describeSameNameUserAccounts({ firstName: item.firstName, lastName: item.lastName, dateOfBirth: item.dateOfBirth }, sameNameMatches)
+                : '';
             const borderClass = Object.keys(err).length > 0
                 ? 'border-rose-400 bg-rose-50/10'
                 : (complete ? 'border-slate-200 bg-white' : 'border-amber-300 bg-white');
@@ -1638,7 +1696,7 @@
 
                             <div class="space-y-2">
                                 <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
-                                    Middlename <span class="text-red-500">*</span>
+                                    Middlename <span class="text-xs font-normal text-slate-500">(optional)</span>
                                 </label>
                                 <input type="text" id="batch-mname-${item._uid}" maxlength="40"
                                     placeholder="Enter middle name"
@@ -1659,7 +1717,7 @@
                             </div>
                         </div>
 
-                        <!-- Row 3: Gender (Gmail is shown only in Step 2: Add Credentials) -->
+                        <!-- Row 3: Gender and Birthday (Gmail is shown only in Step 2: Add Credentials) -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div class="space-y-2">
                                 <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
@@ -1676,7 +1734,22 @@
                                     <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-black pointer-events-none"></i>
                                 </div>
                             </div>
+                            <div class="space-y-2">
+                                <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
+                                    Birthday <span class="text-red-500">*</span>
+                                </label>
+                                <input type="date" id="batch-birthday-${item._uid}" value="${escapeHtml(item.dateOfBirth)}" min="${item.role === 'Student' ? (itemBirthdayRange?.min || '') : ''}" max="${itemBirthdayMax}" ${item.role ? '' : 'disabled'}
+                                    onchange="window.updateBatchEntryField(${item._uid}, 'dateOfBirth', this.value, false)"
+                                    class="sigma-subject-input w-full bg-slate-50 border-b-2 ${err.dateOfBirth || !item.dateOfBirth ? 'border-rose-500' : 'border-slate-300'} rounded-none px-4 py-3 text-sm font-medium text-black outline-none hover:bg-slate-100 focus:bg-slate-100 focus:border-black transition-all font-['Inter'] shadow-none">
+                                ${item.role === 'Student' ? `
+                                    <button type="button" onclick="window.toggleBatchBirthdayRange?.(${item._uid})"
+                                        class="mt-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[#15803d] hover:bg-emerald-50 transition-colors">
+                                        ${item.birthdayRangeAdvanced ? 'Use standard ages 16–17' : 'Advance to ages 12–17'}
+                                    </button>
+                                ` : ''}
+                            </div>
                         </div>
+                        <div id="batch-identity-warning-${item._uid}" class="${identityWarning ? '' : 'hidden'} rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900" role="status" aria-live="polite">${escapeHtml(identityWarning)}</div>
                         ${err.message ? `
                             <div class="text-xs font-semibold text-rose-600 flex items-center gap-1.5 pt-1">
                                 <i class="fa-solid fa-circle-exclamation"></i>
@@ -1892,16 +1965,36 @@
 
     // ─── INTERACTION HANDLERS ───
 
+    window.toggleBatchBirthdayRange = function (uid) {
+        const entry = batchEntries.find(e => e._uid === uid);
+        if (!entry || entry.role !== 'Student') return;
+        entry.birthdayRangeAdvanced = !entry.birthdayRangeAdvanced;
+        renderBatchStep1Review();
+    };
+
     window.updateBatchEntryField = function (uid, field, rawValue, shouldReRender = false) {
         const entry = batchEntries.find(e => e._uid === uid);
         if (!entry) return;
 
-        if (field === 'role') entry.role = normalizeRoleValue(rawValue);
+        if (field === 'role') {
+            entry.role = normalizeRoleValue(rawValue);
+            entry.birthdayRangeAdvanced = false;
+        }
         else if (field === 'gender') entry.gender = normalizeGenderValue(rawValue);
+        else if (field === 'dateOfBirth') entry.dateOfBirth = normalizeBirthday(rawValue);
         else if (field === 'emailPrefix') entry.emailPrefix = normalizeEmailPrefix(rawValue);
         else if (field === 'firstName') entry.firstName = formatPersonName(rawValue);
         else if (field === 'middleName') entry.middleName = formatPersonName(rawValue);
         else if (field === 'lastName') entry.lastName = formatPersonName(rawValue);
+
+        const identityWarning = document.getElementById(`batch-identity-warning-${uid}`);
+        if (identityWarning) {
+            const matches = window.findSameNameUserAccounts?.(entry, getExistingUsers()) || [];
+            identityWarning.classList.toggle('hidden', matches.length === 0);
+            identityWarning.textContent = matches.length
+                ? window.describeSameNameUserAccounts({ firstName: entry.firstName, lastName: entry.lastName, dateOfBirth: entry.dateOfBirth }, matches)
+                : '';
+        }
 
         if (entry._errors) {
             delete entry._errors[field];
@@ -1927,6 +2020,7 @@
             middleName: `batch-mname-${uid}`,
             lastName: `batch-lname-${uid}`,
             gender: `batch-gender-${uid}`,
+            dateOfBirth: `batch-birthday-${uid}`,
             emailPrefix: `batch-email-${uid}`
         };
         const inputEl = document.getElementById(inputIds[field]);
@@ -2015,7 +2109,7 @@
             if (!parsedEntries.length) {
                 showNoticeDialog(
                     'No User Records Found',
-                    `Could not find readable user rows in "${fileName}". Make sure the file contains user names or columns (Institutional Role, Firstname, Middlename, Lastname, Gender, Gmail).`,
+                    `Could not find readable user rows in "${fileName}". Use columns for Institutional Role, Firstname, optional Middlename, Lastname, Gender, Birthday (YYYY-MM-DD), and Gmail.`,
                     true
                 );
                 return;
@@ -2041,8 +2135,6 @@
             batchRoleFilter = 'All';
             batchCurrentPage = 1;
             renderBatchStep1Review();
-            // Pre-warm role start IDs in parallel in the background so Next is instantaneous
-            prewarmBatchRoleStartIds();
         } catch (err) {
             console.error('Batch file parse error:', err);
             showNoticeDialog('Import Error', err?.message || `Could not read "${fileName}". Please check the file and try again.`, true);
@@ -2059,10 +2151,6 @@
             return false;
         }
 
-        const existingUsers = getExistingUsers();
-        const normalizeStr = s => String(s || '').trim().toLowerCase();
-        const seenNamesInBatch = new Set();
-
         let firstErrorUid = null;
         let firstErrorIndex = 0;
         let firstErrorMessage = '';
@@ -2070,72 +2158,32 @@
         for (let i = 0; i < batchEntries.length; i++) {
             const entry = batchEntries[i];
             entry._errors = {};
+            if (entry._createdAccount) continue;
 
             if (!VALID_ROLES.includes(entry.role)) entry._errors.role = true;
             if (!entry.firstName.trim()) entry._errors.firstName = true;
-            if (!entry.middleName.trim()) entry._errors.middleName = true;
             if (!entry.lastName.trim()) entry._errors.lastName = true;
             if (!VALID_GENDERS.includes(entry.gender)) entry._errors.gender = true;
+            if (!window.isValidUserBirthday?.(entry.dateOfBirth)) entry._errors.dateOfBirth = true;
+            const adultAge = window.isAdultAccountRole?.(entry.role)
+                ? window.getUserAgeAtReferenceDate?.(entry.dateOfBirth)
+                : null;
+            const adultBirthdayInvalid = adultAge !== null && adultAge < 18;
+            if (adultBirthdayInvalid) entry._errors.dateOfBirth = true;
 
             if (Object.keys(entry._errors).length > 0) {
-                entry._errors.message = 'All account fields (Institutional Role, Firstname, Middlename, Lastname, and Gender) are required.';
+                entry._errors.message = adultBirthdayInvalid
+                    ? 'Teacher and Admin accounts must be at least 18 years old.'
+                    : 'Institutional Role, Firstname, Lastname, Gender, and a valid Birthday are required. Middlename is optional.';
                 if (!firstErrorUid) {
                     firstErrorUid = entry._uid;
                     firstErrorIndex = i;
-                    firstErrorMessage = `Account #${i + 1}: Please fill in all blank required fields (Institutional Role, Firstname, Middlename, Lastname, and Gender).`;
+                    firstErrorMessage = adultBirthdayInvalid
+                        ? `Account #${i + 1}: Teacher and Admin accounts must be at least 18 years old.`
+                        : `Account #${i + 1}: Please fill in the required fields and enter a valid birthday.`;
                 }
                 continue;
             }
-
-            // Duplicate check against existing system users (Same Name + Gender + Role)
-            const fullDisplayName = `${entry.firstName} ${entry.middleName} ${entry.lastName}`.trim();
-            const dupSystemUser = existingUsers.find(u => {
-                const uFname = normalizeStr(u.firstName || u.fname);
-                const uMname = normalizeStr(u.middleName || u.mname || u.middlename);
-                const uLname = normalizeStr(u.lastName || u.lname);
-                const uGender = normalizeStr(u.gender);
-                const uRole = normalizeRoleValue(u.role || u.type);
-                return uFname === normalizeStr(entry.firstName) &&
-                    uMname === normalizeStr(entry.middleName) &&
-                    uLname === normalizeStr(entry.lastName) &&
-                    uGender === normalizeStr(entry.gender) &&
-                    uRole === entry.role;
-            });
-
-            if (dupSystemUser) {
-                const dupId = dupSystemUser.id || dupSystemUser.uid || 'N/A';
-                entry._errors.firstName = true;
-                entry._errors.lastName = true;
-                entry._errors.message = `An active ${entry.role} account for "${fullDisplayName}" (${entry.gender}) already exists with Login ID: ${dupId}.`;
-                if (!firstErrorUid) {
-                    firstErrorUid = entry._uid;
-                    firstErrorIndex = i;
-                    firstErrorMessage = entry._errors.message;
-                }
-                continue;
-            }
-
-            // Duplicate check within the batch itself (Same Name + Gender + Role)
-            const batchNameKey = [
-                normalizeStr(entry.firstName),
-                normalizeStr(entry.middleName),
-                normalizeStr(entry.lastName),
-                normalizeStr(entry.gender),
-                entry.role
-            ].join('|');
-
-            if (seenNamesInBatch.has(batchNameKey)) {
-                entry._errors.firstName = true;
-                entry._errors.lastName = true;
-                entry._errors.message = `Duplicate entry in batch for "${fullDisplayName}" (${entry.role}).`;
-                if (!firstErrorUid) {
-                    firstErrorUid = entry._uid;
-                    firstErrorIndex = i;
-                    firstErrorMessage = entry._errors.message;
-                }
-                continue;
-            }
-            seenNamesInBatch.add(batchNameKey);
         }
 
         if (firstErrorUid !== null) {
@@ -2166,6 +2214,7 @@
         for (let i = 0; i < batchEntries.length; i++) {
             const entry = batchEntries[i];
             entry._errors = {};
+            if (entry._createdAccount) continue;
 
             if (!entry.emailPrefix || !entry.emailPrefix.trim()) {
                 entry._errors.emailPrefix = true;
@@ -2229,47 +2278,28 @@
         return true;
     }
 
-    function prewarmBatchRoleStartIds() {
-        const branch = getActiveBranchName();
-        const branchCode = getBranchCodeForName(branch);
-        VALID_ROLES.forEach(role => {
-            if (batchRoleStartIds[role]) return;
-            window.SigmaDatabase?.request('users', {
-                query: { action: 'next_id', role, branchCode }
-            }).then(res => {
-                if (res?.id && !batchRoleStartIds[role]) {
-                    batchRoleStartIds[role] = String(res.id);
-                }
-            }).catch(() => {});
-        });
+    function getBatchRoleStartId(role, branchCode) {
+        if (typeof window.getImmediateUserIdPreview === 'function') {
+            const previewId = String(window.getImmediateUserIdPreview(role, branchCode) || '');
+            if (previewId) return previewId;
+        }
+        return '';
     }
 
-    async function allocatePreviewIdsByRole(forceRefresh = false) {
+    function allocatePreviewIdsByRole() {
         const branch = getActiveBranchName();
         const branchCode = getBranchCodeForName(branch);
         batchEntries = sortBatchEntriesByRole(batchEntries);
-
-        if (forceRefresh) {
-            batchRoleStartIds = {};
-        }
 
         const rolesNeeded = VALID_ROLES.filter(role =>
             batchEntries.some(e => e.role === role) && !batchRoleStartIds[role]
         );
 
-        // Fetch any uncached role start IDs in parallel (never re-fetches if already cached from earlier Next!)
-        if (rolesNeeded.length > 0) {
-            await Promise.all(rolesNeeded.map(async (role) => {
-                try {
-                    const res = await window.SigmaDatabase.request('users', {
-                        query: { action: 'next_id', role, branchCode }
-                    });
-                    if (res?.id) {
-                        batchRoleStartIds[role] = String(res.id);
-                    }
-                } catch (_) {}
-            }));
-        }
+        // Preview from the loaded user directory, just like the single-user form.
+        // The database still assigns and confirms the canonical ID during account creation.
+        rolesNeeded.forEach(role => {
+            batchRoleStartIds[role] = getBatchRoleStartId(role, branchCode);
+        });
 
         for (const role of VALID_ROLES) {
             const roleItems = batchEntries.filter(e => e.role === role);
@@ -2288,36 +2318,44 @@
         }
     }
 
-    window.handleBatchUserStepNext = async function () {
+    window.handleBatchUserStepNext = function () {
         if (batchStep !== 1) return;
         if (!validateStep1BatchEntries()) return;
 
-        const nextBtn = document.getElementById('batch-user-next-btn');
-        const needsNetworkFetch = VALID_ROLES.some(role =>
-            batchEntries.some(e => e.role === role) && !batchRoleStartIds[role]
-        );
-
-        if (nextBtn && needsNetworkFetch) {
-            nextBtn.disabled = true;
-            nextBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i><span>Generating IDs...</span>`;
-        }
-
-        try {
-            await allocatePreviewIdsByRole(false);
-            batchStep = 2;
-            batchRoleFilter = 'All';
-            batchCurrentPage = 1;
-            renderBatchStep2Credentials();
-            const bodyEl = document.getElementById('batch-user-form-body');
-            if (bodyEl) bodyEl.scrollTop = 0;
-        } catch (err) {
-            showNoticeDialog('ID Generation Error', err?.message || 'Could not generate preview IDs. Please try again.', true);
-        } finally {
-            if (nextBtn) {
-                nextBtn.disabled = false;
-                nextBtn.innerHTML = `<span>Next</span>`;
+        const continueToCredentials = () => {
+            try {
+                allocatePreviewIdsByRole();
+                batchStep = 2;
+                batchRoleFilter = 'All';
+                batchCurrentPage = 1;
+                renderBatchStep2Credentials();
+                const bodyEl = document.getElementById('batch-user-form-body');
+                if (bodyEl) bodyEl.scrollTop = 0;
+            } catch (err) {
+                showNoticeDialog('ID Generation Error', err?.message || 'Could not generate preview IDs. Please try again.', true);
             }
+        };
+        const existing = getExistingUsers();
+        const checks = batchEntries.flatMap(entry => {
+            const matches = window.findSameNameUserAccounts?.(entry, existing) || [];
+            return matches.map(user => window.describeSameNameUserAccounts(
+                { firstName: entry.firstName, lastName: entry.lastName, dateOfBirth: entry.dateOfBirth },
+                [user]
+            ));
+        });
+        if (checks.length) {
+            const visibleChecks = checks.slice(0, 6);
+            const remaining = checks.length - visibleChecks.length;
+            const message = `${visibleChecks.join('\n\n')}${remaining ? `\n\n${remaining} more same-name match(es) will receive separate login IDs.` : ''}`;
+            if (typeof window.showUserConfirm === 'function') {
+                window.showUserConfirm('Verify Same-Name Accounts', message, continueToCredentials, false);
+            } else {
+                window.alert(message);
+                continueToCredentials();
+            }
+            return;
         }
+        continueToCredentials();
     };
 
     window.handleBatchUserStepBack = function () {
@@ -2331,16 +2369,39 @@
         }
     };
 
-    window.handleBatchUserSave = async function () {
+    window.handleBatchUserSave = async function (ageExceptionsConfirmed = false) {
         if (batchSavePending || batchStep !== 2) return;
         if (!validateStep1BatchEntries()) {
             batchStep = 1;
             renderBatchStep1Review();
             return;
         }
+        const ageExceptions = batchEntries.flatMap((entry, index) => {
+            if (entry._createdAccount || entry.role !== 'Student') return [];
+            const assessment = window.assessSHSStudentBirthday?.(entry.dateOfBirth);
+            return assessment && !assessment.typical
+                ? [`Account #${index + 1} (${entry.firstName} ${entry.lastName}): age ${assessment.age} on ${assessment.referenceDate}.`]
+                : [];
+        });
+        if (ageExceptions.length && !ageExceptionsConfirmed) {
+            const visible = ageExceptions.slice(0, 6).join('\n');
+            const remaining = ageExceptions.length - Math.min(6, ageExceptions.length);
+            window.showUserConfirm(
+                'Verify Student Ages',
+                `${visible}${remaining ? `\n${remaining} more account(s) are outside the usual range.` : ''}\n\nDepEd describes 16 as the typical SHS entry age and 16–17 as the usual Grade 11–12 range, not a strict cutoff. Check each learner’s enrollment record; continue only if the age is verified or an approved exception applies.`,
+                () => window.handleBatchUserSave(true),
+                false
+            );
+            return;
+        }
         if (!validateStep2BatchEmails()) {
             return;
         }
+
+        batchEntries = sortBatchEntriesByRole(batchEntries);
+        const createdList = batchEntries
+            .map(entry => entry._createdAccount)
+            .filter(Boolean);
 
         const saveBtn = document.getElementById('batch-user-save-btn');
         const saveLabel = document.getElementById('batch-user-save-label');
@@ -2351,37 +2412,27 @@
         if (saveSpinner) saveSpinner.classList.remove('hidden');
 
         try {
-            // Organize strictly by role: 1. Admin, 2. Teacher, 3. Student
-            batchEntries = sortBatchEntriesByRole(batchEntries);
-
-            const defaultsRes = await window.SigmaDatabase.request('users', {
-                query: { action: 'permission_defaults' }
-            });
-            const roleDefaultPerms = defaultsRes?.roles || {};
-
             const branch = getActiveBranchName();
             const branchCode = getBranchCodeForName(branch);
-            const createdList = [];
             const adminKey = window.USER_STORAGE_KEY || 'sigma-admin-users';
-            const existingUsers = getExistingUsers();
-            const maxSeq = existingUsers.reduce((max, u) => Math.max(max, Number(u?.seq) || 0), 0);
-            const maxCreationNum = existingUsers.reduce((max, u) => Math.max(max, Number(u?.creationNumber) || 0), existingUsers.length);
+            const latestUsers = getExistingUsers();
+            let nextSeq = latestUsers.reduce((max, u) => Math.max(max, Number(u?.seq) || 0, Number(u?.creationNumber) || 0), 0);
+            let nextCreationNum = latestUsers.reduce((max, u) => Math.max(max, Number(u?.creationNumber) || 0), latestUsers.length);
             const baseTimestampMs = Date.now();
 
-            for (let i = 0; i < batchEntries.length; i++) {
-                const entry = batchEntries[i];
+            for (const entry of batchEntries) {
+                if (entry._createdAccount) continue;
+
                 if (saveLabel) {
-                    saveLabel.textContent = `Creating ${i + 1} of ${batchEntries.length}...`;
+                    saveLabel.textContent = `Creating ${createdList.length + 1} of ${batchEntries.length}...`;
                 }
 
                 const fullName = [entry.firstName, entry.middleName, entry.lastName].filter(Boolean).join(' ');
                 const fullEmail = `${entry.emailPrefix.toLowerCase()}@gmail.com`;
-                const defaultPerms = roleDefaultPerms[entry.role] || {};
-                // Assign strictly increasing createdAt and seq so that the LAST account in the batch list
-                // has the newest timestamp and highest seq, placing it at the very top of the User Accounts table!
-                const itemCreatedAt = new Date(baseTimestampMs + i * 1000).toISOString();
-                const itemSeq = maxSeq + i + 1;
-                const itemCreationNumber = maxCreationNum + i + 1;
+                // The server supplies role defaults, matching the single-user create flow.
+                const itemCreatedAt = new Date(baseTimestampMs + createdList.length * 1000).toISOString();
+                const itemSeq = ++nextSeq;
+                const itemCreationNumber = ++nextCreationNum;
 
                 const accountPayload = {
                     id: entry.previewId || undefined,
@@ -2390,13 +2441,14 @@
                     middleName: entry.middleName,
                     lastName: entry.lastName,
                     fullName: fullName,
+                    dateOfBirth: entry.dateOfBirth,
+                    dateOfBirthIsGenerated: false,
                     gender: entry.gender,
                     branch: branch,
                     email: fullEmail,
                     role: entry.role,
                     type: entry.role.toUpperCase(),
                     status: 'Active',
-                    permissions: defaultPerms,
                     createdAt: itemCreatedAt,
                     seq: itemSeq,
                     creationNumber: itemCreationNumber,
@@ -2427,39 +2479,46 @@
                 }
 
                 const generatedPassword = buildPasswordPreview(entry.lastName, canonical.id);
-                const latestUsers = getExistingUsers();
-                const savedIndex = latestUsers.findIndex(u => String(u.id || u.uid) === String(canonical.id));
-                if (savedIndex >= 0) {
-                    latestUsers.splice(savedIndex, 1);
-                }
-                // Unshift each created user in sequence (0 .. n-1) so index n-1 ends up at latestUsers[0] (top of table)
-                latestUsers.unshift(canonical);
-
-                if (typeof window.saveStoredJson === 'function') {
-                    window.saveStoredJson(adminKey, latestUsers);
-                } else {
-                    localStorage.setItem(adminKey, JSON.stringify(latestUsers));
-                    localStorage.setItem('sigma-users-list', JSON.stringify(latestUsers));
-                }
-                localStorage.setItem('sigma-managed-users', JSON.stringify(latestUsers));
-                window.commitUserSeq?.(entry.role);
-
-                createdList.push({
+                const createdAccount = {
                     id: canonical.id,
                     uid: canonical.id,
                     firstName: canonical.firstName || entry.firstName,
                     middleName: canonical.middleName || entry.middleName,
                     lastName: canonical.lastName || entry.lastName,
                     fullName: canonical.fullName || fullName,
+                    dateOfBirth: canonical.dateOfBirth || entry.dateOfBirth,
+                    dateOfBirthIsGenerated: false,
                     gender: canonical.gender || entry.gender,
                     role: canonical.role || entry.role,
                     email: canonical.email || fullEmail,
                     branch: canonical.branch || branch,
                     password: generatedPassword
-                });
+                };
+                entry._createdAccount = createdAccount;
+                createdList.push(createdAccount);
+                batchCreatedAccounts = createdList.slice();
+
+                // Browser storage is only a cache. A quota error must not turn a
+                // database-confirmed account into a failed batch or stop later rows.
+                try {
+                    const savedIndex = latestUsers.findIndex(u => String(u.id || u.uid) === String(canonical.id));
+                    if (savedIndex >= 0) latestUsers.splice(savedIndex, 1);
+                    latestUsers.unshift(canonical);
+                    window.SigmaUserDirectory?.update?.(adminKey, latestUsers);
+                    window.SigmaUserDirectory?.update?.('sigma-users-list', latestUsers);
+
+                    if (typeof window.saveStoredJson === 'function') {
+                        window.saveStoredJson(adminKey, latestUsers);
+                    } else {
+                        localStorage.setItem(adminKey, JSON.stringify(latestUsers));
+                        localStorage.setItem('sigma-users-list', JSON.stringify(latestUsers));
+                    }
+                } catch (cacheError) {
+                    console.warn('Account was created, but its optional browser cache could not be updated:', cacheError);
+                }
             }
 
-            batchCreatedAccounts = createdList;
+            batchCreatedAccounts = createdList.slice();
             batchRoleStartIds = {};
             if (window.userPaginationState) {
                 window.userPaginationState.currentPage = 1;
@@ -2476,7 +2535,15 @@
             if (bodyEl) bodyEl.scrollTop = 0;
         } catch (err) {
             console.error('Batch user creation error:', err);
-            showNoticeDialog('Batch Creation Error', err?.message || 'An error occurred while creating accounts.', true);
+            batchCreatedAccounts = createdList.slice();
+            const partialProgress = createdList.length
+                ? ` ${createdList.length} of ${batchEntries.length} accounts were confirmed. Click Create Accounts again to resume; confirmed accounts will be skipped.`
+                : '';
+            showNoticeDialog(
+                createdList.length ? 'Batch Creation Paused' : 'Batch Creation Error',
+                `${err?.message || 'An error occurred while creating accounts.'}${partialProgress}`,
+                true
+            );
         } finally {
             batchSavePending = false;
             if (saveBtn) saveBtn.disabled = false;
@@ -2566,7 +2633,6 @@
             }
 
             renderBatchStep1Review();
-            prewarmBatchRoleStartIds();
             overlay.scrollTop = 0;
             const bodyEl = document.getElementById('batch-user-form-body');
             if (bodyEl) bodyEl.scrollTop = 0;

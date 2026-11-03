@@ -1113,3 +1113,153 @@
     }
 }
 
+/* Subject filtering on the generated user insights directory. */
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters{
+    display:grid;
+    grid-template-columns:minmax(260px,1fr) minmax(150px,180px) minmax(360px,520px) max-content;
+    width:min(100%,1160px);
+    max-width:100%;
+    margin-left:auto;
+    box-sizing:border-box;
+    justify-content:stretch;
+    align-items:start;
+    position:relative;
+    z-index:20;
+    overflow:visible;
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-report-control,
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .sigma-select-wrapper,
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter{
+    width:100%;
+    min-width:0;
+    box-sizing:border-box;
+    position:relative;
+    z-index:1;
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter[open]{
+    z-index:80;
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter-summary{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    min-height:48px;
+    width:100%;
+    padding:9px 14px;
+    border:1px solid #cbd5e1;
+    border-radius:10px;
+    background:#fff;
+    color:#0f172a;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    line-height:1.35;
+    cursor:pointer;
+    list-style:none;
+    box-sizing:border-box;
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter-summary::-webkit-details-marker{
+    display:none;
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter-summary::marker{
+    content:'';
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter-current{
+    min-width:0;
+    overflow-wrap:anywhere;
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter-chevron{
+    flex:0 0 auto;
+    color:#64748b;
+    transition:transform .15s ease;
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter[open] > .insight-subject-filter-summary{
+    border-color:#eab308;
+    border-radius:10px 10px 0 0;
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter-summary:focus-visible{
+    outline:2px solid #eab308;
+    outline-offset:2px;
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter[open] .insight-subject-filter-chevron{
+    transform:rotate(180deg);
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter-options{
+    display:flex;
+    flex-direction:column;
+    position:absolute;
+    top:calc(100% - 1px);
+    left:0;
+    right:0;
+    max-height:280px;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    border:1px solid #eab308;
+    border-top:0;
+    border-radius:0 0 10px 10px;
+    background:#fff;
+    box-shadow:0 12px 24px rgba(15,23,42,.14);
+    z-index:80;
+    box-sizing:border-box;
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter-option{
+    width:100%;
+    min-height:38px;
+    padding:8px 12px;
+    border:0;
+    background:#fff;
+    color:#0f172a;
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    line-height:1.4;
+    text-align:left;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    cursor:pointer;
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter-option:hover,
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter-option:focus-visible{
+    outline:none;
+    background:#f0fdf4;
+}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-subject-filter-option[aria-pressed="true"]{
+    background:#e8f5ec;
+    color:#166534;
+    font-weight:700;
+}
+@media(max-width:1280px){
+    #ai-insights-view #ai-generates-user-insights > .insight-report-filters{
+        grid-template-columns:minmax(0,1fr) minmax(150px,200px);
+        width:100%;
+    }
+    #ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-report-subject-control,
+    #ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-report-search-button{
+        grid-column:1 / -1;
+    }
+    #ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-report-search-button{
+        justify-self:end;
+    }
+}
+@media(max-width:760px){
+    #ai-insights-view #ai-generates-user-insights > .insight-report-filters{
+        grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    }
+    #ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-report-search-button{
+        width:100%;
+    }
+}
+@media(max-width:520px){
+    #ai-insights-view #ai-generates-user-insights > .insight-report-filters{
+        grid-template-columns:minmax(0,1fr);
+    }
+    #ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-report-subject-control,
+    #ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-report-search-button{
+        grid-column:auto;
+    }
+}
+
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters .insight-report-search-button:disabled{
+    opacity:.55!important;
+    cursor:not-allowed!important;
+}
+

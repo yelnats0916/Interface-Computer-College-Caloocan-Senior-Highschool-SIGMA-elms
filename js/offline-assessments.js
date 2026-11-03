@@ -1,11 +1,134 @@
 (function () {
-    const key = 'sigma-offline-assessments-v1';
-    const read = () => JSON.parse(localStorage.getItem(key) || '[]');
+    // The signed-in database snapshot is authoritative; a device cache cannot create school records.
+    let records = [], readyFor = '', refreshing = null, revision = 0, writes = 0, queue = Promise.resolve();
+    const scoreQueues = new Map();
+    const scoreEdits = new Map();
+    let scoreNotifyTimer;
+    const actor = () => { try { return String(JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}').id || ''); } catch (_) { return ''; } };
+    const read = () => readyFor === actor() && readyFor ? records : [];
+    const scoreEditKey = (id, studentId) => JSON.stringify([actor(), id, String(studentId).replace(/^std-/i, '')]);
+    function paintScoreEdit(cell, edit) {
+        if (!cell?.isConnected || edit.owner !== actor()) return;
+        if (cell.dataset.manualSaveToken === edit.token && cell.querySelector('[data-manual-save-status]')) return;
+        cell.dataset.manualSaveToken = edit.token;
+        cell.setAttribute('aria-busy', String(edit.state === 'saving'));
+        cell.title = edit.state === 'saving' ? 'Saving score…' : edit.error;
+        const stack = document.createElement('div'); stack.className = 'gb-score-stack';
+        const value = document.createElement('span'); value.className = edit.score === '' ? 'gradebook-dash' : 'gradebook-score-value';
+        value.textContent = edit.score === '' ? '-' : String(edit.score); stack.appendChild(value);
+        const status = document.createElement(edit.state === 'failed' ? 'button' : 'span');
+        status.dataset.manualSaveStatus = edit.state;
+        status.style.cssText = 'display:block;font-size:10px;line-height:1.3;font-weight:500;color:#64748b';
+        if (edit.state === 'failed') {
+            status.type = 'button'; status.textContent = 'Not saved · Retry'; status.style.color = '#b91c1c';
+            status.onclick = event => { event.stopPropagation(); edit.retry(); };
+        } else { status.textContent = 'Saving…'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite'); }
+        stack.appendChild(status); cell.replaceChildren(stack);
+    }
+    function paintScoreEdits() {
+        if (!scoreEdits.size) return;
+        document.querySelectorAll('td[data-item-id][data-student-id]').forEach(cell => {
+            const edit = scoreEdits.get(scoreEditKey(cell.dataset.itemId, cell.dataset.studentId));
+            if (edit) paintScoreEdit(cell, edit);
+        });
+    }
+    if (typeof MutationObserver !== 'undefined' && document.documentElement) {
+        new MutationObserver(paintScoreEdits).observe(document.documentElement, { childList: true, subtree: true });
+    }
+    window.addEventListener('beforeunload', event => {
+        if (window.SigmaSessionNavigation?.isSigningOut?.()) return;
+        if (![...scoreEdits.values()].some(edit => edit.owner === actor())) return;
+        event.preventDefault(); event.returnValue = '';
+    });
+    const endpoint = () => location.port && !['80', '443'].includes(location.port) && ['localhost', '127.0.0.1'].includes(location.hostname)
+        ? 'http://localhost/sigma-elms/php/api/manual_assessments.php'
+        : new URL('php/api/manual_assessments.php', location.href).href;
+    const notify = () => {
+        window.clearCategoryDetailsCache?.();
+        if (document.getElementById('admin-gradebook-spreadsheet')) window.renderAdminGradebookWorkspace?.();
+        window.dispatchEvent(new CustomEvent('sigma-gradebook-updated', { detail: { remote: true, manual: true } }));
+    };
+    const notifyScore = () => {
+        window.clearCategoryDetailsCache?.();
+        clearTimeout(scoreNotifyTimer);
+        scoreNotifyTimer = setTimeout(function update() {
+            // Keep another student's open editor intact during rapid entry.
+            if (writes || document.querySelector('.gb-open-score-editor input')) {
+                scoreNotifyTimer = setTimeout(update, 250); return;
+            }
+            notify();
+        }, 50);
+    };
+    async function request(input) {
+        const owner = actor();
+        if (!owner || !window.SigmaDatabase?.fetch) throw new Error('Sign in to connect manual assessments to the database.');
+        const response = await window.SigmaDatabase.fetch(endpoint(), {
+            method: input ? 'POST' : 'GET', credentials: 'include', cache: 'no-store',
+            headers: { 'Content-Type': 'application/json' }, foreground: !!input, autoReconnect: false,
+            timeoutMs: input ? 45000 : 15000, ...(input ? { body: JSON.stringify(input) } : {})
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Manual assessment could not be saved.');
+        if (owner !== actor() || String(data.userId) !== owner) throw new Error('The signed-in account changed. Reopen the gradebook.');
+        return data;
+    }
+    async function refresh() {
+        if (readyFor && readyFor !== actor()) { records = []; readyFor = ''; notify(); }
+        if (!actor() || !window.SigmaDatabase?.fetch) return;
+        if (refreshing) return refreshing;
+        const started = revision;
+        refreshing = request().then(data => {
+            if (started !== revision || writes) return;
+            const changed = readyFor !== data.userId || JSON.stringify(records) !== JSON.stringify(data.records);
+            records = data.records || []; readyFor = String(data.userId);
+            if (changed) notify();
+        }).catch(error => { console.warn('Manual assessment sync:', error.message); }).finally(() => { refreshing = null; });
+        return refreshing;
+    }
+    async function persist(input, options = {}) {
+        revision++; writes++;
+        const owner = actor();
+        const scoreKey = input.action === 'score' ? JSON.stringify([input.id, input.studentId]) : null;
+        const before = scoreKey ? Promise.all([queue.catch(() => {}), (scoreQueues.get(scoreKey) || Promise.resolve()).catch(() => {})]) : Promise.all([queue.catch(() => {}), ...[...scoreQueues.values()].map(task => task.catch(() => {}))]);
+        const task = before.then(async () => {
+            if (owner !== actor()) throw new Error('The signed-in account changed. Reopen the gradebook.');
+            const data = await request(scoreKey ? { ...input, response: 'score' } : input);
+            if (data.savedScore) {
+                const saved = data.savedScore;
+                const record = records.find(item => item.id === saved.id && item.subjectId === saved.subjectId && item.sectionId === saved.sectionId);
+                if (!record || saved.id !== input.id || String(saved.studentId) !== String(input.studentId).replace(/^std-/i, '')) throw new Error('The saved score could not be matched. Refresh the gradebook.');
+                record.scores = { ...record.scores, [saved.studentId]: saved.score };
+                record.statuses = { ...record.statuses, [saved.studentId]: saved.status };
+            } else if (input.action === 'delete' && data.deletedAssessmentId === input.id) {
+                records = records.filter(item => item.id !== input.id);
+            } else if (data.savedAssessment) {
+                const saved = data.savedAssessment;
+                if (saved.id !== input.id || !saved.subjectId || !saved.sectionId) throw new Error('The saved assessment could not be matched. Refresh the gradebook.');
+                const index = records.findIndex(item => item.id === saved.id && item.subjectId === saved.subjectId && item.sectionId === saved.sectionId);
+                if (index >= 0) records[index] = { ...records[index], ...saved };
+                else records.push(saved);
+            } else {
+                if (!Array.isArray(data.records)) throw new Error('The saved assessment could not be confirmed. Please retry.');
+                records = data.records;
+            }
+            readyFor = String(data.userId); revision++;
+            if (!options.deferNotify) { if (scoreKey) notifyScore(); else notify(); }
+            return data;
+        });
+        if (scoreKey) scoreQueues.set(scoreKey, task); else queue = task;
+        try { return await task; } finally { writes--; if (scoreKey && scoreQueues.get(scoreKey) === task) scoreQueues.delete(scoreKey); }
+    }
+    window.SigmaManualAssessments = { refresh, save: persist };
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh);
+    else refresh();
     const normalize = value => String(value || '').replace(/^(card-|subj-)/i, '').trim().toLowerCase();
     const matchesSubject = (a, b) => (window.getUnifiedSubjectAliases?.(a) || [a]).some(alias => normalize(alias) === normalize(b));
     window.getOfflineAssessment = id => read().find(item => item.id === id);
     window.getOfflineAssessments = (subject, section, quarter, category) => read().filter(item =>
-        matchesSubject(subject, item.subjectId) && normalize(section) === normalize(item.section)
+        matchesSubject(subject, item.subjectId) && [item.section, item.sectionId].some(value => normalize(section) === normalize(value))
         && Number(quarter) === item.quarter && category === item.category);
     window.readOfflineAssessmentScore = (student, item) => {
         const record = window.getOfflineAssessment(item.id);
@@ -126,13 +249,12 @@
         const outside = e => { if (!menu.contains(e.target)) close(); };
         const keyboard = e => { if (e.key === 'Escape') { close(); trigger.focus(); } };
         menu.querySelector('[data-edit]').onclick = () => { close(); window.openOfflineAssessmentForm(id); };
-        menu.querySelector('[data-delete]').onclick = () => {
+        menu.querySelector('[data-delete]').onclick = async () => {
             close();
             const item = window.getOfflineAssessment(id);
             if (!item || !window.confirm(`Delete "${item.title}" and all its scores? This cannot be undone.`)) return;
-            localStorage.setItem(key, JSON.stringify(read().filter(row => row.id !== id)));
-            window.clearCategoryDetailsCache?.();
-            window.renderAdminGradebookWorkspace?.();
+            try { await persist({ action: 'delete', id, subjectId: item.subjectId, section: item.sectionId || item.section }); }
+            catch (error) { window.showToast?.(error.message, 'error'); }
         };
         document.body.append(menu);
         const size = menu.getBoundingClientRect();
@@ -147,7 +269,7 @@
         if (id && !existing) return;
         const state = window.sigmaGradesState;
         const scope = state?.selectedSubjectSection;
-        const category = ['pt', 'perf. task'].includes(state?.currentView) ? 'perf. task' : state?.currentView === 'qa' ? 'qa' : 'ww';
+        const category = existing?.category || (['pt', 'perf. task'].includes(state?.currentView) ? 'perf. task' : state?.currentView === 'qa' ? 'qa' : 'ww');
         if (!scope) return;
         document.getElementById('offline-assessment-modal')?.remove();
         const modal = document.createElement('div');
@@ -194,30 +316,29 @@
             }
         };
         modal.querySelector('[data-close]').onclick = close;
-        modal.querySelector('form').onsubmit = event => {
+        const newId = existing?.id || `offline-${crypto.randomUUID()}`;
+        let saving = false;
+        modal.querySelector('form').onsubmit = async event => {
             event.preventDefault();
+            if (saving) return;
             validate();
             if (!modal.querySelector('form').reportValidity()) return;
             const title = titleInput.value.trim().replace(/\s+/g, ' ');
             const max = Number(modal.querySelector('[name=hps]').value);
             if (!title || !Number.isInteger(max) || max < 1 || max > 100) return;
+            const button = modal.querySelector('[type=submit]'); const label = button.textContent;
+            saving = true; button.disabled = true; button.textContent = 'Saving…'; button.setAttribute('aria-busy', 'true');
+            modal.querySelector('[role=alert]').textContent = '';
             try {
-                const items = read();
-                if (existing) {
-                    const record = items.find(item => item.id === id);
-                    if (!record) throw new Error('Assessment no longer exists');
-                    if (Object.values(record.scores || {}).some(score => score !== '' && score != null && Number(score) > max)) {
-                        modal.querySelector('[role=alert]').textContent = 'HPS cannot be lower than an existing student score.';
-                        return;
-                    }
-                    Object.assign(record, { title, max, points: max });
-                } else items.push({ id: `offline-${crypto.randomUUID()}`, title, max, points: max, category,
-                    offline: true, subjectId: scope.subject, section: scope.sectionName, quarter: state.activeQuarter || 1,
-                    createdAt: new Date().toISOString(), date: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }), scores: {} });
-                localStorage.setItem(key, JSON.stringify(items));
-                window.clearCategoryDetailsCache?.();
+                await persist({ action: existing ? 'update' : 'create', id: newId, title, max, category,
+                    subjectId: existing?.subjectId || scope.subject, section: existing?.sectionId || scope.sectionName,
+                    quarter: Number(existing?.quarter || state.activeQuarter || 1) }, { deferNotify: true });
+                const items = window.getAdminGradebookAssessmentItems?.(category, Number(existing?.quarter || state.activeQuarter || 1), scope.subject, scope.sectionName) || [];
+                const index = items.findIndex(item => item.id === newId);
+                if (index >= 0) { state.assessmentPage = Math.floor(index / 4); state.mobileAssessmentSlot = index % 4; }
                 close(); window.renderAdminGradebookWorkspace?.();
-            } catch (_) { modal.querySelector('[role=alert]').textContent = 'Unable to save assessment. Please retry.'; }
+            } catch (error) { modal.querySelector('[role=alert]').textContent = error.message || 'Unable to save assessment. Please retry.'; }
+            finally { saving = false; button.disabled = false; button.textContent = label; button.removeAttribute('aria-busy'); }
         };
         document.body.appendChild(modal); document.addEventListener('keydown', keyboard);
         modal.querySelector('[name=title]').focus();
@@ -225,14 +346,19 @@
     window.editOfflineAssessmentScore = function (cell) {
         const item = window.getOfflineAssessment(cell.dataset.itemId);
         if (!item) return false;
+        const editKey = scoreEditKey(item.id, cell.dataset.studentId);
+        const previousEdit = scoreEdits.get(editKey);
+        if (previousEdit?.state === 'saving') { paintScoreEdit(cell, previousEdit); return true; }
+        if (previousEdit) { scoreEdits.delete(editKey); delete cell.dataset.manualSaveToken; cell.removeAttribute('aria-busy'); }
         if (cell.querySelector('input')) return true;
         const input = document.createElement('input');
+        input.name = 'manual-assessment-score';
         input.type = 'number'; input.min = '0'; input.max = String(item.max); input.step = '1';
         input.className = 'score-counter-input gb-open-score-counter';
         input.placeholder = ' ';
         input.autocomplete = 'off';
         input.inputMode = 'numeric';
-        input.value = cell.dataset.score || ''; input.setAttribute('aria-label', `${item.title} score`);
+        input.value = previousEdit ? previousEdit.score : (cell.dataset.score || ''); input.setAttribute('aria-label', `${item.title} score`);
         const restrict = () => {
             if (input.value === '') return;
             const value = Number(input.value);
@@ -248,18 +374,66 @@
             input.value = text;
             restrict();
         };
-        let attendance = cell.dataset.attendance || '';
-        const save = () => {
+        let attendance = previousEdit ? previousEdit.attendance : (cell.dataset.attendance || '');
+        let saving = false;
+        let committed = false;
+        const display = (target = cell) => {
+            committed = true;
+            input.onblur = null;
+            delete target.dataset.manualSaveToken; target.removeAttribute('aria-busy');
+            const saved = window.getOfflineAssessment(item.id);
+            const studentId = String(target.dataset.studentId).replace(/^std-/i, '');
+            const score = saved?.scores?.[studentId] ?? '';
+            const tone = saved?.statuses?.[studentId] || '';
+            target.dataset.score = String(score); target.dataset.attendance = tone;
+            for (const status of ['missing', 'absent', 'incomplete', 'excuse']) {
+                target.classList.toggle(`gb-cell-${status}`, status === tone);
+                target.classList.toggle(`gradebook-status-${status}`, status === tone);
+            }
+            if (window.gradebookAttendanceCellStyle) target.style.cssText = tone ? window.gradebookAttendanceCellStyle({ tone }) : '';
+            target.title = tone ? tone[0].toUpperCase() + tone.slice(1) : `0 to ${item.max}`;
+            const stack = document.createElement('div'); stack.className = 'gb-score-stack';
+            const label = document.createElement('span'); label.className = score === '' ? 'gradebook-dash' : 'gradebook-score-value';
+            label.textContent = score === '' ? '-' : String(score); stack.appendChild(label); target.replaceChildren(stack);
+        };
+        const save = async () => {
+            if (saving || committed) return;
             if (input.validity.badInput) { input.reportValidity(); return; }
             const raw = input.value.trim(); const value = Number(raw);
             if (raw && (!Number.isInteger(value) || value < 0 || value > item.max)) { input.reportValidity(); return; }
-            try {
-                const items = read(); const record = items.find(row => row.id === item.id);
-                record.scores[cell.dataset.studentId] = raw === '' ? '' : value;
-                record.statuses = record.statuses || {};
-                record.statuses[cell.dataset.studentId] = attendance;
-                localStorage.setItem(key, JSON.stringify(items)); window.renderAdminGradebookWorkspace?.();
-            } catch (_) { window.showToast?.('Score could not be saved.', 'error'); }
+            if (!previousEdit && (raw === '' ? '' : String(value)) === String(cell.dataset.score || '') && attendance === (cell.dataset.attendance || '')) { display(); return; }
+            saving = true; committed = true; input.onblur = null;
+            const edit = { owner: actor(), score: raw === '' ? '' : value, attendance, state: 'saving', token: crypto.randomUUID() };
+            const send = async () => {
+                if (scoreEdits.get(editKey) !== edit || edit.owner !== actor()) return;
+                edit.state = 'saving'; edit.token = crypto.randomUUID(); paintScoreEdit(cell, edit); paintScoreEdits();
+                try {
+                    await persist({ action: 'score', id: item.id, subjectId: item.subjectId, section: item.sectionId || item.section,
+                        studentId: cell.dataset.studentId, score: edit.score, status: edit.attendance });
+                    if (scoreEdits.get(editKey) === edit) {
+                        scoreEdits.delete(editKey);
+                        if (cell.isConnected && edit.owner === actor()) display();
+                        // A live update may have replaced the original cell while saving.
+                        document.querySelectorAll('td[data-manual-save-token]').forEach(current => {
+                            if (current.dataset.manualSaveToken === edit.token && current !== cell) {
+                                display(current);
+                            }
+                        });
+                        notifyScore();
+                    }
+                } catch (error) {
+                    if (scoreEdits.get(editKey) !== edit) return;
+                    edit.state = 'failed'; edit.error = error.message || 'Score could not be saved. Please retry.'; edit.token = crypto.randomUUID();
+                    paintScoreEdit(cell, edit); paintScoreEdits();
+                    window.showToast?.(edit.error, 'error');
+                } finally { saving = false; }
+            };
+            edit.retry = () => { if (edit.state === 'failed') return send(); };
+            scoreEdits.set(editKey, edit);
+            // Close the counter synchronously; the visible status stays pending
+            // until the server acknowledges. Other students remain editable.
+            paintScoreEdit(cell, edit);
+            await send();
         };
         input.onblur = event => { if (!event.relatedTarget || !cell.contains(event.relatedTarget)) save(); };
         input.onkeydown = event => {

@@ -25,11 +25,15 @@ try{
         $input=json_decode($raw,true,64,JSON_THROW_ON_ERROR); sigmaRequireRealRecords($input);
     }elseif($method!=='GET')throw new InvalidArgumentException('Unsupported request method.');
     $action=$input['action']??'';
+    if($action==='assessment_generations' && $method==='GET'){
+        if(!$admin){http_response_code(403);echo json_encode(['success'=>false,'error'=>'Only administrators can read generated assessments.']);exit;}
+        echo json_encode(['success'=>true,'logs'=>aiAssessmentGenerationLogs($db)]);exit;
+    }
     // Usage is a read-only view of server records for a verified administrator.
     if ($action === 'logs' && $method === 'GET') {
         if (!$admin) { http_response_code(403); echo json_encode(['success'=>false,'error'=>'Only administrators can read AI activity.']); exit; }
         if (($input['view']??'') === 'usage') {
-            echo json_encode(['success'=>true,'usageOnly'=>true,'logs'=>aiRecordUsage($db)]);exit;
+            echo json_encode(['success'=>true,'usageOnly'=>true,'logs'=>aiRecordUsage($db, ($input['range']??'') === 'recent')]);exit;
         }
         if (!sigmaActorPermission($actorUser,'auditMain') || !sigmaActorPermission($actorUser,'auditAi')) { http_response_code(403);echo json_encode(['success'=>false,'error'=>'AI log access is not enabled for this account.']);exit; }
         echo json_encode(['success'=>true,'logs'=>aiRecordLogs($db, ($_GET['export'] ?? '') === '1'),'usageLogs'=>aiRecordUsage($db)]); exit;
@@ -51,7 +55,7 @@ try{
             $log=json_decode($row['payload'],true);
             if(!in_array($log['status']??'',['Success','Fallback Used'],true))continue;
             $exact=isset($log['gradeEvidenceKey'])&&hash_equals($log['gradeEvidenceKey'],$evidence);
-            $legacy=!isset($log['gradeEvidenceKey'])&&(in_array($log['generationId']??'',$candidates,true)||($legacyPrompt!==''&&($log['prompt']??'')===$legacyPrompt));
+            $legacy=!isset(json_decode($evidence,true)['insightPolicyVersion'])&&!isset($log['gradeEvidenceKey'])&&(in_array($log['generationId']??'',$candidates,true)||($legacyPrompt!==''&&($log['prompt']??'')===$legacyPrompt));
             if(!$exact&&!$legacy)continue;
             $cards=json_decode($log['response']??'',true);
             foreach(is_array($cards)?$cards:[] as $index=>$card){
@@ -92,6 +96,7 @@ try{
                     $owner=isset($cards[(int)$index]['analyses'])?$logRow['user_id']:false;
                 }else throw new InvalidArgumentException('Invalid insight type.');
                 if(!$owner)throw new RuntimeException('Insight no longer available. Reload and try again.');
+                if(isset($input['userId'])&&(string)$input['userId']!==(string)$owner)throw new InvalidArgumentException('The selected insight does not belong to this user account.');
                 $q=$db->prepare('INSERT INTO ai_insight_controls(source_type,source_id,user_id,hidden,is_deleted,changed_by) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE hidden=VALUES(hidden),is_deleted=GREATEST(is_deleted,VALUES(is_deleted)),changed_by=VALUES(changed_by)');
                 $q->execute([$type,$id,$owner,$operation==='show'?0:1,$operation==='delete'?1:0,$actor]);
             }
@@ -101,57 +106,8 @@ try{
     }
     if($action==='report' && $method==='GET'){
         if(!$admin)throw new RuntimeException('Only administrators can read insight reports.');
-        $users=$db->query("SELECT id,full_name,first_name,last_name,role,avatar FROM users WHERE is_deleted=0 AND LOWER(REPLACE(role,' ','')) IN ('student','teacher') ORDER BY full_name,id")->fetchAll();
-        $owners=[];
-        $controls=[];
-        foreach($db->query('SELECT source_type,source_id,hidden,is_deleted FROM ai_insight_controls')->fetchAll() as $control)$controls[$control['source_type'].':'.$control['source_id']]=$control;
-        $currentGradeViews=[];
-        foreach($db->query('SELECT user_id,generation_id FROM ai_grade_insight_views')->fetchAll() as $view)$currentGradeViews[$view['user_id']][$view['generation_id']]=true;
-        $gradeCards=[];
-        foreach($db->query("SELECT id,user_id,payload FROM ai_logs WHERE feature='grade_insights' AND is_deleted=0 ORDER BY created_at DESC,id DESC")->fetchAll() as $record){
-            $log=json_decode($record['payload'],true);
-            if(!is_array($log)||!in_array($log['status']??'', ['Success','Fallback Used'],true))continue;
-            $cards=json_decode($log['response']??'',true);
-            if(!is_array($cards))continue;
-            foreach($cards as $index=>$card){
-                if(!is_array($card)||!is_array($card['analyses']??null))continue;
-                $control=$controls['grade:'.$record['id'].':'.$index]??[];
-                if(!empty($control['is_deleted']))continue;
-                $card['sourceType']='grade';$card['sourceId']=$record['id'].':'.$index;$card['hidden']=!empty($control['hidden']);
-                $card['id']=($log['generationId']??$log['id']).'-'.$index;
-                $card['generationId']=$log['generationId']??null;
-                $card['isCurrentStudentView']=!empty($currentGradeViews[$record['user_id']][$card['generationId']??'']);
-                $card['createdAt']=$log['timestamp']??null;
-                $card['reportCategory']=str_starts_with($log['prompt']??'', 'Subject Grades:')?'subject':'grade';
-                $card['reportSource']=$card['reportCategory']==='subject'?'subject-grades-view':'grades-page';
-                $card['sourceLabel']=$log['prompt']??'';
-                $sourceRecords=$log['evidenceSources'][0]['records']??[];
-                $card['subject']=implode(', ',array_unique(array_filter(array_column($sourceRecords,'title'))));
-                if($card['subject']===''&&preg_match('/^(?:Subject Grades:|Class Grades:)\s*(.+?)(?:\s*\(|$)/',$log['prompt']??'', $match))$card['subject']=$match[1];
-                $gradeCards[$record['user_id']][$card['id']]=$card;
-            }
-        }
-        foreach($users as $user){
-            $kind=strtolower($user['role']);
-            $result=aiAnalyticsState($db,$user['id'],$kind);
-            $q=$db->prepare('SELECT id,payload FROM ai_insight_cards WHERE user_id=? AND kind=? AND is_deleted=0 ORDER BY created_at DESC,id DESC');$q->execute([$user['id'],$kind]);
-            $cards=[];
-            foreach($q->fetchAll() as $stored){
-                $card=json_decode($stored['payload'],true);$control=$controls['dashboard:'.$stored['id']]??[];
-                if(!is_array($card)||!empty($control['is_deleted']))continue;
-                $card['sourceType']='dashboard';$card['sourceId']=$stored['id'];$card['hidden']=!empty($control['hidden']);$cards[]=$card;
-            }
-            // Dashboard cards are a different source from View Grades and GWA insights.
-            foreach($cards as &$dashboardCard){$dashboardCard['reportCategory']='analytics';$dashboardCard['reportSource']='dashboard';}
-            unset($dashboardCard);
-            $generationIds=array_filter(array_column($cards,'generationId'));
-            foreach($gradeCards[$user['id']]??[] as $card){
-                if(!empty($card['generationId'])&&in_array($card['generationId'],$generationIds,true))continue;
-                $cards[]=$card;
-            }
-            $owners[]=['id'=>$user['id'],'name'=>$user['full_name']?:trim($user['first_name'].' '.$user['last_name']),'role'=>$kind,'avatar'=>$user['avatar']??null,'cards'=>$cards,'lastAnalyzed'=>$result['state']['lastAnalyzed']??null];
-        }
-        echo json_encode(['success'=>true,'users'=>$owners]);
+        require_once __DIR__.'/../includes/insight_report.php';
+        echo json_encode(aiInsightReport($db));
     }elseif($action==='insight_timestamp' && in_array($method,['GET','POST'],true)){
         $owner=$input['userId']??$actor;
         if(!$admin&&$owner!==$actor)throw new RuntimeException('This insight belongs to another account.');

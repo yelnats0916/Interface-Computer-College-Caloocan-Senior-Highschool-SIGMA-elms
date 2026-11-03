@@ -5,6 +5,7 @@
     const offline = new Set();
     let logs = [], usageLogs = [], lastLogRead = 0, logReady = false, importing = null, logLoad = null, logRefreshing = false;
     let logStatus = 'loading', logError = '';
+    let usageReady = false, usageComplete = false, usageLoad = null, usageLoadRecent = false, usageRefreshing = false, usageError = '', usageOwner = '', lastUsageRead = 0;
     let retryNotBefore = 0;
     const importedLogs = new Set();
     const actor = () => {
@@ -17,6 +18,8 @@
         const response = await window.SigmaDatabase.fetch(api(name) + (get ? '?' + new URLSearchParams(input) : ''), {
             method: get ? 'GET' : 'POST', credentials: 'include',
             timeoutMs: 15000,
+            ...(name === 'ai_records' && ['logs', 'report', 'manage_insights', 'assessment_generations', 'state', 'latest_grade_insight'].includes(input.action) ? { foreground: true, autoReconnect: false } : {}),
+            ...(name === 'ai_records' && input.action === 'logs' && input.view === 'usage' ? {timeoutMs:8000,signal:AbortSignal.timeout(12000)} : {}),
             headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': actor() },
             ...(get ? {} : { body: JSON.stringify(input) })
         });
@@ -31,6 +34,8 @@
     }
     const key = (kind, id) => 'sigma-' + kind + '-analytics-v1:' + id;
     function remember(kind, id, result) {
+        const current = states.get(key(kind, id));
+        if (Number.isFinite(current?.revision) && Number.isFinite(result?.revision) && current.revision > result.revision) return current.state;
         let cached;
         try { cached = JSON.parse(localStorage.getItem(key(kind, id)) || '{}'); } catch { cached = {}; }
         if (cached.retryNotBefore > Date.now()) {
@@ -38,7 +43,8 @@
         }
         states.set(key(kind, id), result);
         // Compatibility cache only: generation always checks the database first.
-        localStorage.setItem(key(kind, id), JSON.stringify(result.state));
+        try { localStorage.setItem(key(kind, id), JSON.stringify(result.state)); }
+        catch (_) { /* Database history remains available in memory when the device cache is full. */ }
     }
     async function ensureState(kind, id, force = false) {
         if (!id) throw new Error('Sign in before loading insights.');
@@ -107,7 +113,54 @@
         remember(kind, id, result);
         return result.state;
     }
+    function resetUsageOwner() {
+        const currentOwner = actor();
+        if (usageOwner === currentOwner) return;
+        usageOwner = currentOwner; usageLogs = []; usageReady = false; usageComplete = false; usageError = ''; lastUsageRead = 0;
+        logs = []; logReady = false; logStatus = 'loading'; logError = '';
+        if (!usageOwner) return;
+        try {
+            const cached = JSON.parse(sessionStorage.getItem('sigma-ai-usage-v1:' + usageOwner) || 'null');
+            if (cached && Array.isArray(cached.logs) && Number.isFinite(cached.at) && Date.now() - cached.at < 86400000) {
+                usageLogs = cached.logs.filter(row => row && typeof row === 'object');
+                usageReady = true;
+            }
+        } catch (_) { /* A broken or full tab cache never blocks the server read. */ }
+    }
+    function reloadUsage(recentOnly = false) {
+        resetUsageOwner();
+        if (!usageOwner) return Promise.resolve();
+        if (usageLoad) {
+            if (!recentOnly && usageLoadRecent) return usageLoad.then(() => reloadUsage(false));
+            return usageLoad;
+        }
+        const loadRecent = recentOnly;
+        const owner = usageOwner;
+        usageRefreshing = true; usageError = '';
+        window.dispatchEvent(new Event('sigma:ai-logs-updated'));
+        usageLoadRecent = loadRecent;
+        usageLoad = request('ai_records', {action:'logs',view:'usage',...(loadRecent ? {range:'recent'} : {})}, true).then(result => {
+            if (owner !== actor()) return;
+            if (result.usageOnly !== true || !Array.isArray(result.logs)) throw new Error('Invalid AI usage response.');
+            usageLogs = result.logs; usageReady = true; usageComplete = !loadRecent; lastUsageRead = Date.now();
+            try {
+                const cutoff = Date.now() - 45 * 86400000;
+                const recent = result.logs.filter(row => Number.isFinite(Date.parse(row.timestamp)) && Date.parse(row.timestamp) >= cutoff).slice(0, 5000);
+                sessionStorage.setItem('sigma-ai-usage-v1:' + owner, JSON.stringify({at:lastUsageRead,logs:recent}));
+            } catch (_) { /* Keep usage available when tab storage is full or disabled. */ }
+        }).catch(error => {
+            if (owner === actor()) usageError = error.name === 'TimeoutError' || error.name === 'AbortError'
+                ? 'AI usage could not be loaded. Please try again.' : error.message;
+            throw error;
+        }).finally(() => {
+            usageLoad = null; usageLoadRecent = false; usageRefreshing = false;
+            window.dispatchEvent(new Event('sigma:ai-logs-updated'));
+        });
+        return usageLoad;
+    }
+    const reloadMetricUsage = () => reloadUsage(true);
     function reloadLogs() {
+        resetUsageOwner();
         if (logLoad) return logLoad;
         logLoad = (async () => {
             logRefreshing = true; logStatus = logReady ? 'ready' : 'loading'; logError = '';
@@ -118,6 +171,7 @@
                 if (!canRead && result.usageOnly !== true) throw new Error('Usage summary is temporarily unavailable.');
                 if (!Array.isArray(result.logs)) throw new Error('Invalid AI activity response.');
                 logs = result.logs; usageLogs = Array.isArray(result.usageLogs) ? result.usageLogs : result.logs; lastLogRead = Date.now(); logReady = true; logStatus = 'ready';
+                usageReady = true; usageComplete = true; usageError = ''; lastUsageRead = lastLogRead;
             } catch (error) {
                 logStatus = 'error'; logError = error.name === 'TimeoutError' || error.name === 'AbortError'
                     ? 'AI activity could not be loaded because the server is busy. Please retry shortly.' : error.message;
@@ -145,7 +199,10 @@
             }
             try { window.SigmaDatabase?.preserveLegacy('sigma-ai-recorded-logs', localStorage.getItem('sigma-ai-recorded-logs')); }
             catch (error) { console.warn('AI cache backup unavailable; loading server activity.', error); }
-            if (isAdmin) await reloadLogs();
+            if (isAdmin) {
+                await reloadMetricUsage();
+                if (auditLogViewActive()) await reloadLogs();
+            }
             window.dispatchEvent(new Event('sigma:refresh-analytics-cards'));
         })().catch(error => {
             retryNotBefore = Date.now() + 300000;
@@ -167,7 +224,21 @@
     }
     window.SigmaAiDatabase = {
         loadInsightReport: () => request('ai_records', { action: 'report' }, true),
-        ensureState, saveState, reloadLogs, initialize,
+        ensureState, saveState, reloadLogs, reloadUsage, reloadMetricUsage, initialize,
+        async refreshGeneratedState(kind, id) {
+            const result = await request('ai_records', { action:'state', kind, userId:id }, true);
+            if (String(id) !== actor()) return;
+            remember(kind, id, result);
+            offline.delete(key(kind,id));
+            window.dispatchEvent(new Event('sigma:refresh-analytics-cards'));
+            return result.state;
+        },
+        acceptGeneratedState(kind, id, result) {
+            if (String(id) !== actor() || !Array.isArray(result?.state?.cards) || !Number.isInteger(result.revision)) throw new Error('Invalid generated insight state.');
+            remember(kind, id, result);
+            offline.delete(key(kind, id));
+            window.dispatchEvent(new Event('sigma:refresh-analytics-cards'));
+        },
         isOffline: (kind, id = actor()) => offline.has(key(kind, id)),
         getStatus(kind, id = actor()) {
             const storageKey = key(kind, id);
@@ -180,13 +251,19 @@
             // handled explicitly by ensureState, never by substituting stale cards here.
             return memory || { cards: [] };
         },
-        logsReady: () => logReady,
+        logsReady: () => logReady || usageReady,
+        hasCompleteUsage: () => usageComplete,
+        getUsageStatus: () => { resetUsageOwner(); return {state:!actor()?'signed-out':usageReady?'ready':usageError?'error':'loading',error:usageError,refreshing:usageRefreshing}; },
         getLogStatus: () => ({ state: actor() ? logStatus : 'signed-out', error: logError, refreshing: logRefreshing }),
         getLogs: () => logReady && window.canViewAuditLog?.('ai') !== false ? logs.filter(log => !log.isDeleted) : [],
-        getUsageLogs: () => logReady ? usageLogs : [],
+        getUsageLogs: () => { resetUsageOwner(); return usageReady ? usageLogs : []; },
         async record(log) {
             await request('ai_records', { action: 'save_log', log });
-            if (location.pathname.toLowerCase().includes('admin')) await reloadLogs();
+            if (location.pathname.toLowerCase().includes('admin')) {
+                if (auditLogViewActive()) await reloadLogs();
+                else if (usageSettingsViewActive()) await reloadUsage();
+                else await reloadMetricUsage();
+            }
         },
         async change(table, id, action, confirmation = '') {
             await request('record_lifecycle', { table, id, action, confirmation });
@@ -214,19 +291,37 @@
         initialize().catch(console.error);
     }
     function refreshSharedUsage() {
-        if (document.visibilityState !== 'visible' || !actor() || !location.pathname.toLowerCase().includes('admin') || !adminLogViewActive() || Date.now()-lastLogRead<5000) return;
-        reloadLogs().catch(() => {});
+        if (document.visibilityState !== 'visible' || !actor() || !location.pathname.toLowerCase().includes('admin') || !adminLogViewActive() || Date.now()-lastUsageRead<5000) return;
+        (auditLogViewActive() ? reloadLogs() : usageSettingsViewActive() ? reloadUsage() : reloadMetricUsage()).catch(() => {});
     }
     window.addEventListener('focus', refreshSharedUsage);
     document.addEventListener('visibilitychange', refreshSharedUsage);
     setInterval(refreshSharedUsage, 30000);
     window.addEventListener('online', () => { retryNotBefore = 0; initialize(); });
-    window.addEventListener('hashchange', () => initialize());
+    function auditLogViewActive() {
+        const view = document.getElementById('audit-ai-view');
+        return /audit.*ai|ai.*logs/i.test(location.hash || '') || Boolean(view && !view.classList.contains('hidden') && view.style.display !== 'none');
+    }
+    function usageSettingsViewActive() {
+        const settings = document.getElementById('settings-ai-view');
+        const panel = document.getElementById('ai-usage-panel');
+        return Boolean(settings && !settings.classList.contains('hidden') && panel && !panel.hidden);
+    }
+    window.addEventListener('hashchange', () => {
+        if (auditLogViewActive() && actor()) reloadLogs().catch(() => {});
+        else initialize();
+    });
     window.addEventListener('sigma:database-session-ready', () => { retryNotBefore = 0; initialize(); });
+    function refreshManagedInsights() {
+        if (document.visibilityState !== 'visible' || !actor() || location.pathname.toLowerCase().includes('admin')) return;
+        retryNotBefore = 0;
+        initialize();
+    }
+    window.addEventListener('focus', refreshManagedInsights);
+    document.addEventListener('visibilitychange', refreshManagedInsights);
+    window.addEventListener('sigma-insight-management-update', refreshManagedInsights);
     window.addEventListener('storage', event => {
-        if (event.key === 'sigma-insight-management-update') {
-            states.clear(); retryNotBefore = 0; initialize();
-        }
+        if (event.key === 'sigma-insight-management-update') refreshManagedInsights();
     });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializePage); else initializePage();
     window.addEventListener('sigma:ai-database-error', event => {
@@ -236,6 +331,8 @@
     });
     setInterval(() => {
         if (document.visibilityState === 'visible' && actor() && !location.pathname.toLowerCase().includes('admin')) initialize();
-    }, 30000);
-    window.addEventListener('sigma:audit-permissions-changed', () => { if (actor()) reloadLogs().catch(() => {}); });
+    }, 15000);
+    window.addEventListener('sigma:audit-permissions-changed', () => {
+        if (actor()) (auditLogViewActive() ? reloadLogs() : usageSettingsViewActive() ? reloadUsage() : reloadMetricUsage()).catch(() => {});
+    });
 })();

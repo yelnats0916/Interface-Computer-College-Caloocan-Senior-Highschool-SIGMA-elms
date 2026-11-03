@@ -152,18 +152,30 @@
         renderGate();
     }
     document.addEventListener('DOMContentLoaded', renderGate);
-    function signOutToLogin() {
+    async function signOutToLogin({ broadcast = true } = {}) {
         if (signingOut) return;
         signingOut = true;
         verifiedToken = null;
         clearTimeout(reconnectTimer);
-        sessionStorage.setItem('sigma-skip-login-recovery', 'true');
-        // keepalive starts with the captured token; navigation never waits for it.
-        try { window.SigmaDatabase?.revokeSession()?.catch?.(() => {}); } catch (_) {}
+        // Leave the portal before clearing its identity or aborting its data reads.
+        // Their completion handlers can rebuild a busy classroom while navigation
+        // is starting. The login document performs cleanup before any recovery.
+        const destination = new URL('index.html', document.baseURI);
+        destination.searchParams.set('signed_out', '1');
+        if (!broadcast) destination.searchParams.set('broadcast', '0');
+        window.location.replace(destination.href);
+    }
+    function finishSignOut({ broadcast = true } = {}) {
+        const token = readJson(sessionStorage, 'sigma-grade-sync-session')?.token;
+        loginRecoveryAttempted = true;
+        try { sessionStorage.setItem('sigma-skip-login-recovery', 'true'); } catch (_) {}
+        // This runs in the login document. Session revocation never delays its UI
+        // and the database transport remains available for a subsequent sign-in.
+        try { window.SigmaDatabase?.revokeSession(token)?.catch?.(() => {}); } catch (_) {}
         clearIdentity();
-        sessionStorage.removeItem('sigma-login-explicit');
-        localStorage.removeItem('sigma-login-explicit');
-        window.location.replace(new URL('index.html', document.baseURI).href);
+        removeStored(sessionStorage, 'sigma-login-explicit');
+        removeStored(localStorage, 'sigma-login-explicit');
+        if (broadcast && token) rememberRevocation(token).catch(() => {});
     }
     document.addEventListener('click', event => {
         const link = event.target.closest?.('a.profile-logout-btn');
@@ -172,9 +184,12 @@
         event.stopImmediatePropagation();
         signOutToLogin();
     }, true);
+    function removeStored(storage, key) {
+        try { storage.removeItem(key); } catch (_) {}
+    }
     function clearIdentity() {
-        [SESSION_KEY, 'currentUser', 'sigma-grade-sync-session', 'sigma-login-challenge', 'sigma-login-handoff'].forEach(key => sessionStorage.removeItem(key));
-        SHARED_KEYS.forEach(key => localStorage.removeItem(key));
+        [SESSION_KEY, 'currentUser', 'sigma-grade-sync-session', 'sigma-login-challenge', 'sigma-login-handoff'].forEach(key => removeStored(sessionStorage, key));
+        SHARED_KEYS.forEach(key => removeStored(localStorage, key));
     }
     function portalForRole(role) {
         const value = String(role || '').replace(/[\s_-]+/g, '').toLowerCase();
@@ -183,13 +198,20 @@
         if (['student', 'learner'].includes(value)) return 'student.html';
         return null;
     }
+    function homeForRole(role) {
+        const portal = portalForRole(role);
+        if (!portal) return null;
+        return portal + (portal === 'admin.html' ? '#nav-dashboard' : portal === 'student.html' ? '#home' : '#dashboard');
+    }
     function isSessionVerified() {
         const session = readJson(sessionStorage, 'sigma-grade-sync-session');
         return !signingOut && Boolean(verifiedToken && session?.token === verifiedToken && getTabSessionUser());
     }
     window.SigmaSessionNavigation = Object.freeze({
         portalForRole,
+        homeForRole,
         isVerified: isSessionVerified,
+        isSigningOut: () => signingOut,
         recheck: () => verifyDatabaseSession({ background: true }),
         signOutToLogin,
         async ensureVerified() {
@@ -197,15 +219,74 @@
             return isSessionVerified();
         }
     });
+    window.addEventListener('sigma:server-session-ended', event => {
+        const token = readJson(sessionStorage, 'sigma-grade-sync-session')?.token;
+        if (!isLoginPage && token && token === event.detail?.token) signOutToLogin({ broadcast: false });
+    });
     // Recover into a fresh tab without putting bearer tokens in shared localStorage.
     let sessionChannel = null;
     let lastActiveAt = Date.now();
     let pendingRecovery = null;
+    // Persist only a one-way fingerprint, never a bearer token, in shared storage.
+    // Keep it longer than the server's 12-hour session lifetime so a suspended tab
+    // cannot recover a logged-out session while the server revocation is retrying.
+    const revocationPrefix = 'sigma-session-revoked:';
+    const revocationLifetime = 13 * 60 * 60 * 1000;
+    const revokedSessions = new Set();
+    const sessionFingerprints = new Map();
+    async function sessionFingerprint(token) {
+        if (sessionFingerprints.has(token)) return sessionFingerprints.get(token);
+        if (!token || !globalThis.crypto?.subtle) return null;
+        const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+        const fingerprint = Array.from(new Uint8Array(bytes), value => value.toString(16).padStart(2, '0')).join('');
+        sessionFingerprints.set(token, fingerprint);
+        return fingerprint;
+    }
+    function hasRevocation(fingerprint) {
+        if (revokedSessions.has(fingerprint)) return true;
+        try { return Number(localStorage.getItem(revocationPrefix + fingerprint)) > Date.now(); }
+        catch (_) { return false; }
+    }
+    async function isRevoked(token) {
+        const fingerprint = await sessionFingerprint(token);
+        return fingerprint && hasRevocation(fingerprint);
+    }
+    async function rememberRevocation(token) {
+        try {
+            const fingerprint = await sessionFingerprint(token);
+            if (!fingerprint) return;
+            revokedSessions.add(fingerprint);
+            try { localStorage.setItem(revocationPrefix + fingerprint, String(Date.now() + revocationLifetime)); } catch (_) {}
+            sessionChannel?.postMessage({ type: 'session-revoked', fingerprint });
+        } catch (_) { /* Server revocation still runs if shared browser storage is unavailable. */ }
+    }
+    async function receiveRevocation(fingerprint) {
+        if (!/^[a-f0-9]{64}$/.test(fingerprint || '')) return;
+        revokedSessions.add(fingerprint);
+        const token = readJson(sessionStorage, 'sigma-grade-sync-session')?.token;
+        if (token && await sessionFingerprint(token) === fingerprint
+            && readJson(sessionStorage, 'sigma-grade-sync-session')?.token === token) {
+            signOutToLogin({ broadcast: false });
+        }
+    }
+    // Remove expired markers without touching any school records or other caches.
+    try {
+        for (const key of Object.keys(localStorage)) {
+            if (key.startsWith(revocationPrefix) && Number(localStorage.getItem(key)) <= Date.now()) localStorage.removeItem(key);
+        }
+    } catch (_) {}
     try { sessionChannel = new BroadcastChannel('sigma-verified-tab-session-v1'); } catch (_) {}
+    window.addEventListener('storage', event => {
+        if (event.key?.startsWith(revocationPrefix) && Number(event.newValue) > Date.now()) {
+            receiveRevocation(event.key.slice(revocationPrefix.length)).catch(() => {});
+        }
+    });
     window.addEventListener('focus', () => { lastActiveAt = Date.now(); });
     sessionChannel?.addEventListener('message', event => {
         const message = event.data;
-        if (message?.type === 'request-session' && typeof message.nonce === 'string') {
+        if (message?.type === 'session-revoked') {
+            receiveRevocation(message.fingerprint).catch(() => {});
+        } else if (message?.type === 'request-session' && typeof message.nonce === 'string') {
             const user = getTabSessionUser();
             const session = readJson(sessionStorage, 'sigma-grade-sync-session');
             if (!signingOut && user && session?.token === verifiedToken) {
@@ -235,6 +316,7 @@
         });
         for (const candidate of recovery.candidates) {
             if (signingOut || isPublicHelpRoute()) return false;
+            if (await isRevoked(candidate.session.token)) continue;
             // Do not trust a browser user object as authentication or authorization.
             const response = await window.SigmaDatabase.fetch(window.SigmaDatabase.url('session'), {
                 cache: 'no-store', credentials: 'omit',
@@ -245,6 +327,7 @@
             if (!response.ok) throw new Error('Session verification unavailable.');
             const result = await response.json();
             if (!result.success || idOf(result.user) !== idOf(candidate.user)) continue;
+            if (await isRevoked(candidate.session.token)) continue;
             if (signingOut || isPublicHelpRoute() || (isLoginPage && readJson(sessionStorage, 'sigma-login-challenge'))) return false;
             const portal = portalForRole(result.user.role);
             if (!portal) continue;
@@ -253,7 +336,7 @@
             sessionStorage.setItem(SESSION_KEY, JSON.stringify(result.user));
             sessionStorage.setItem('currentUser', JSON.stringify(result.user));
             // Reload with identity available before role scripts initialize; preserve the URL/hash.
-            if (isLoginPage) window.location.replace(new URL(portal, document.baseURI).href);
+            if (isLoginPage) window.location.replace(new URL(homeForRole(result.user.role), document.baseURI).href);
             else window.location.reload();
             return true;
         }
@@ -272,6 +355,13 @@
                 return verification;
             }
             setGate('Checking your session...');
+            // Back/Forward and pasted protected links in a signed-out tab must
+            // not silently adopt a different session that is still open elsewhere.
+            if (sessionStorage.getItem('sigma-skip-login-recovery') === 'true') {
+                clearIdentity();
+                window.location.replace(new URL('index.html', document.baseURI).href);
+                return Promise.resolve();
+            }
             verification = recoverFromOpenTab().then(recovered => {
                 if (!recovered && !signingOut) {
                     clearIdentity();
@@ -289,6 +379,12 @@
         if (verifiedToken !== token) setGate('Checking your session...');
         verification = (async () => {
             try {
+                const revoked = await isRevoked(token);
+                if (signingOut || readJson(sessionStorage, 'sigma-grade-sync-session')?.token !== token) return;
+                if (revoked) {
+                    signOutToLogin({ broadcast: false });
+                    return;
+                }
                 const result = await window.SigmaDatabase.request('session', { authentication: true });
                 // A logout or new sign-in may have occurred while the server was responding.
                 if (readJson(sessionStorage, 'sigma-grade-sync-session')?.token !== token) return;
@@ -298,7 +394,7 @@
                 sessionStorage.setItem('currentUser', JSON.stringify(result.user));
                 if (isPublicHelpRoute()) return;
                 if (isLoginPage || (!location.pathname.endsWith('/' + portal) && !location.pathname.endsWith('/quiz-creator.html'))) {
-                    window.location.replace(new URL(portal, document.baseURI).href);
+                    window.location.replace(new URL(homeForRole(result.user.role), document.baseURI).href);
                     return;
                 }
                 syncTabIdentity();
@@ -308,11 +404,10 @@
                 window.dispatchEvent(new Event('sigma:database-session-ready'));
             } catch (error) {
                 if (readJson(sessionStorage, 'sigma-grade-sync-session')?.token !== token) return;
-                if ((error.status === 401 || error.status === 403) && error.authFailureConfirmed === true) {
+                if (([401,403].includes(error.status) && error.authFailureConfirmed === true) || (error.status === 423 && error.code === 'system_maintenance')) {
                     verifiedToken = null;
-                    setGate('Checking your session...');
-                    clearIdentity();
-                    if (!isLoginPage) window.location.replace(new URL('index.html', document.baseURI).href);
+                    if (isLoginPage) clearIdentity();
+                    else signOutToLogin({ broadcast: false });
                 } else {
                     if (verifiedToken === token) setGate(null);
                     else setGate('Checking your session...');
@@ -327,6 +422,15 @@
         })();
         return verification;
     }
+    // Complete explicit logout before session verification, tab recovery, or login
+    // page scripts can reuse the old identity. The query carries no credentials.
+    const landingUrl = new URL(document.baseURI);
+    if (isLoginPage && landingUrl.searchParams.get('signed_out') === '1') {
+        finishSignOut({ broadcast: landingUrl.searchParams.get('broadcast') !== '0' });
+        landingUrl.searchParams.delete('signed_out');
+        landingUrl.searchParams.delete('broadcast');
+        history.replaceState(null, '', landingUrl.href);
+    }
     // Consume the immediate post-login handoff once. It only suppresses the
     // redundant loading screen; the session request and API authorization still run.
     const handoff = readJson(sessionStorage, 'sigma-login-handoff');
@@ -338,6 +442,17 @@
         && String(handoff.userId) === String(arrivingUser.id || arrivingUser.uid)
         && handoffAge >= 0 && handoffAge < 30000
         && location.pathname.endsWith('/' + portalForRole(arrivingUser.role));
+    // A login starts a new navigation journey. Consume this handoff before
+    // role scripts can restore another session's saved section or topic.
+    // Ordinary reloads, focus checks and same-session links keep their route.
+    const freshLogin = !isLoginPage && arrivingUser && handoff?.token === arrivingToken
+        && String(handoff.userId) === String(arrivingUser.id || arrivingUser.uid)
+        && location.pathname.endsWith('/' + portalForRole(arrivingUser.role));
+    if (freshLogin) {
+        for (const key of ['sigma-admin-active-tab', 'sigma-student-nav-state', 'sigma-teacher-nav-state',
+            'sigma-last-active-classroom', 'sigmaPanelOpen', 'sigmaFirstVisit']) sessionStorage.removeItem(key);
+        history.replaceState(null, '', new URL(homeForRole(arrivingUser.role), document.baseURI).href);
+    }
     if (immediateLogin) verifiedToken = arrivingToken;
     const initialVerification = verifyDatabaseSession({ background: !!immediateLogin });
     if (isLoginPage) window.sigmaLoginSessionReady = initialVerification;

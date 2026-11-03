@@ -18,6 +18,24 @@
  */
 
 /* Content-sized mobile table pages; keep browser clearance outside the paper. */
+@media (max-width: 767px) {
+    /* The classroom menu is fixed; its space belongs inside the table scroller. */
+    html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) .gb-summary-workspace {
+        padding-bottom: calc(88px + max(env(safe-area-inset-bottom, 0px), 8px) + var(--classroom-viewport-bottom, 0px)) !important;
+        scroll-padding-bottom: calc(88px + max(env(safe-area-inset-bottom, 0px), 8px)) !important;
+        box-sizing: border-box !important;
+    }
+    html body .sigma-grades-page :is(#admin-gradebook-spreadsheet, #gradebook-spreadsheet, #gradebook-outer-spreadsheet) .gb-student-cell p.gradebook-student-name {
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        height: auto !important;
+        max-height: none !important;
+        line-height: 1.4 !important;
+    }
+}
+
 @media (max-width: 768px) {
     :is(body, #layout-wrapper, #main-content, #admin-main, #content-sections):has(:is(
         #section-grades:not(.hidden) #admin-grades-gradebook-view:not(.hidden),
@@ -5184,7 +5202,7 @@
         flex-shrink: 0 !important;
     }
 
-    /* 6. Author Role Subtitle & Badges (Badge panel continues horizontally on one line, never cuts off text) */
+    /* 6. Keep badges beside the role; let long labels wrap inside each badge. */
     .sigma-card-author-text-col .sigma-card-author-subrow {
         display: flex !important;
         align-items: center !important;
@@ -5194,7 +5212,7 @@
         width: 100% !important;
         max-width: 100% !important;
         margin-top: 1px !important;
-        overflow-x: auto !important;
+        overflow-x: visible !important;
         overflow-y: visible !important;
         scrollbar-width: none !important;
         -ms-overflow-style: none !important;
@@ -5215,9 +5233,10 @@
         flex-shrink: 0 !important;
         white-space: nowrap !important;
         margin-top: 0 !important;
+        align-self: flex-start !important;
     }
 
-    /* Audience & Scope Badges - Badge panel continues horizontally on one line, never gets cut when overlapping */
+    /* Preserve badge spacing and alignment while fitting labels to the available width. */
     .sigma-card-author-text-col .sigma-card-section-badge,
     .sigma-card-author-text-col .sigma-card-audience-badge {
         font-size: 10px !important;
@@ -5225,8 +5244,8 @@
         padding: 2px 7.5px !important;
         line-height: 1.25 !important;
         width: max-content !important;
-        max-width: none !important;
-        flex-shrink: 0 !important;
+        max-width: 100% !important;
+        flex-shrink: 1 !important;
         border-radius: 9px !important;
         white-space: nowrap !important;
         word-break: keep-all !important;
@@ -5248,12 +5267,14 @@
 
     .sigma-card-author-text-col .sigma-card-section-badge .sigma-card-badge-label-text,
     .sigma-card-author-text-col .sigma-card-audience-badge .sigma-card-badge-label-text,
+    .sigma-card-author-text-col .sigma-card-audience-badge > span,
     .sigma-card-author-text-col .sigma-badge-sec-name,
     .sigma-card-author-text-col .sigma-badge-bullet,
     .sigma-card-author-text-col .sigma-badge-subj-name {
-        white-space: nowrap !important;
-        word-break: keep-all !important;
-        overflow-wrap: normal !important;
+        min-width: 0 !important;
+        white-space: normal !important;
+        word-break: normal !important;
+        overflow-wrap: anywhere !important;
         overflow: visible !important;
         text-overflow: clip !important;
         display: inline !important;
@@ -8805,8 +8826,10 @@
         font-size: 10.5px !important;
         line-height: 1.4 !important;
         min-height: 70px !important;
-        max-height: 90px !important;
+        max-height: 160px !important;
         resize: none !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
     }
     #ai-gen-topic[readonly],
     #ai-gen-topic.is-locked {
@@ -9696,13 +9719,14 @@
     padding: 0 4px !important;
 }
 
-#sigma-ask-actions,
+#sigma-universal-ask-overlay #sigma-ask-cancel-btn.hidden,
 .sigma-dialog-actions.one-button .sigma-dialog-btn-cancel,
 .sigma-dialog-actions.one-button #sigma-dialog-cancel,
 .sigma-dialog-actions.one-button #sigma-ask-cancel-btn {
     display: none !important;
 }
 
+#sigma-ask-actions,
 .sigma-dialog-actions,
 #sy-confirm-overlay .grid,
 #profile-confirm-overlay .grid,
@@ -10287,25 +10311,6 @@
         padding-bottom: 0 !important;
         width: 100% !important;
         box-sizing: border-box !important;
-    }
-
-    /* 4. Scaled-Down Profile Avatar Circle */
-    #user-profile-picture-trigger {
-        width: clamp(80px, 20vw, 90px) !important;
-        height: clamp(80px, 20vw, 90px) !important;
-        min-width: clamp(80px, 20vw, 90px) !important;
-        min-height: clamp(80px, 20vw, 90px) !important;
-        margin-bottom: -36px !important;
-        border-width: 3.5px !important;
-        border-color: #ffffff !important;
-        box-shadow: 0 0 0 3px #ffffff, 0 4px 14px rgba(0, 0, 0, 0.14) !important;
-        border-radius: 9999px !important;
-        flex-shrink: 0 !important;
-        z-index: 10 !important;
-    }
-
-    #user-profile-picture-trigger #user-avatar-placeholder {
-        font-size: clamp(30px, 7.5vw, 36px) !important;
     }
 
     /* 5. Scaled-Down Typography & Meta Info */
@@ -11270,4 +11275,297 @@ button.search-filter-item.active * {
  html body #section-topic-content .lesson-material-main-card h2{
   font-size:16px!important;line-height:1.35!important;
  }
+}
+
+/* Keep every material tab label and active underline above the home indicator. */
+@media (max-width: 767px) {
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) {
+        height: calc(76px + max(env(safe-area-inset-bottom, 0px), 8px)) !important;
+        min-height: calc(76px + max(env(safe-area-inset-bottom, 0px), 8px)) !important;
+        overflow: visible !important;
+    }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(nav, div) {
+        height: 76px !important;
+        min-height: 76px !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        padding: 0 !important;
+    }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn, .canonical-back-btn) {
+        height: 76px !important;
+        min-width: 0 !important;
+        flex: 1 1 0 !important;
+        padding: 10px 2px 6px !important;
+        white-space: normal !important;
+    }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn, .canonical-back-btn) > span {
+        display: block !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 24px !important;
+        height: auto !important;
+        max-width: 100% !important;
+        white-space: normal !important;
+        overflow-wrap: normal !important;
+        line-height: 12px !important;
+        font-size: 10px !important;
+    }
+    html body #section-topic-content .canonical-tab-btn .grading-scale-label-break { display: block !important; }
+    html body #section-topic-content { padding-bottom: calc(96px + max(env(safe-area-inset-bottom, 0px), 8px) + var(--classroom-viewport-bottom, 0px)) !important; }
+}
+
+/* Preserve the saved rubric summary directly beneath grading assistance on narrow screens. */
+@media(max-width:767px){
+ .assessment-material-detail-view .sigma-rubric-summary{display:block!important;order:5!important;width:100%!important;max-width:100%!important;box-sizing:border-box;padding:18px 14px!important;margin:0!important;border-radius:0!important}
+ .assessment-material-detail-view #sigma-ai-feedback-panel{order:6!important}
+}
+
+/* Keep the rubric summary and SIGMA feedback as separate padded mobile cards. */
+@media(max-width:767px){
+ html body #section-topic-content #topic-content-main .assessment-material-detail-view > .sigma-rubric-summary{
+  width:calc(100% - 28px)!important;max-width:calc(100% - 28px)!important;
+  margin:0 14px 20px!important;padding:18px 16px!important;border-radius:20px!important;
+  border:1px solid #e2e8f0!important;box-sizing:border-box!important;
+ }
+}
+
+/* Match the grading assistance card to the padded rubric and feedback cards. */
+@media(max-width:767px){
+ html body #section-topic-content #topic-content-main .assessment-material-detail-view > #teacher-ai-assistance-panel{
+  width:calc(100% - 28px)!important;max-width:calc(100% - 28px)!important;
+  margin:0 14px 20px!important;padding:18px 16px!important;border-radius:20px!important;
+  border:1px solid #e2e8f0!important;box-sizing:border-box!important;
+ }
+ html body #teacher-ai-assistance-panel .ai-header-title-area{align-items:center!important}
+ html body #teacher-ai-assistance-panel .ai-header-title-area h3{
+  font-size:16px!important;line-height:1.4!important;white-space:normal!important;
+  overflow:visible!important;text-overflow:clip!important;overflow-wrap:break-word;
+ }
+ html body #teacher-ai-assistance-panel .ai-panel-header-grid{
+  grid-template-columns:minmax(0,1fr)!important;grid-template-areas:"title" "badge" "btn"!important;gap:12px!important;
+ }
+ html body #teacher-ai-assistance-panel #ai-review-action-btn{
+  width:100%!important;min-height:44px!important;justify-content:center!important;font-size:12px!important;
+ }
+ html body #teacher-ai-assistance-panel :is(h5,p){overflow-wrap:break-word}
+ html body #teacher-ai-assistance-panel :is(.line-clamp-2,.line-clamp-5){
+  -webkit-line-clamp:unset!important;display:block!important;overflow:visible!important;
+ }
+}
+
+/* Material navigation uses single-line labels and color-only selection on phones. */
+@media(max-width:767px){
+ html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]){--canonical-tab-border-width:0px;height:calc(60px + max(env(safe-area-inset-bottom,0px),8px))!important;min-height:calc(60px + max(env(safe-area-inset-bottom,0px),8px))!important}
+ html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(nav,div){height:60px!important;min-height:60px!important}
+ html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn,.canonical-back-btn){height:60px!important;min-height:60px!important;padding:10px 0 6px!important;gap:4px!important;box-shadow:none!important;text-decoration:none!important}
+ html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn,.canonical-back-btn)>span{white-space:nowrap!important;min-height:12px!important;height:12px!important;line-height:12px!important;font-size:10px!important;word-break:normal!important;overflow-wrap:normal!important}
+ html body #section-topic-content .canonical-tab-btn .grading-scale-label-break{display:none!important}
+ html body #section-topic-content{padding-bottom:calc(80px + max(env(safe-area-inset-bottom,0px),8px) + var(--classroom-viewport-bottom,0px))!important}
+}
+@media(max-width:359px){html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn,.canonical-back-btn)>span{font-size:9px!important}}
+
+@media(max-width:767px){
+ html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"])>div:not(:has(>.canonical-back-btn))>nav{flex:1 1 100%!important;width:100%!important}
+ html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) [data-canonical-tab="grading-scale"]>span{height:12px!important;min-height:12px!important;white-space:nowrap!important;font-size:10px!important}
+ html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) [data-canonical-tab="grading-scale"] .grading-scale-label-break{display:none!important}
+}
+@media(max-width:359px){html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) [data-canonical-tab="grading-scale"]>span{font-size:9px!important}}
+/* Mobile quiz titles, prompts and answer cards must wrap inside the viewport. */
+@media (max-width: 639px) {
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) {
+        box-sizing: border-box !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+    }
+
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-modal-shell,
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-modal-panel {
+        box-sizing: border-box !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        min-width: 0 !important;
+    }
+
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-modal-panel > .flex-1 {
+        overflow-x: hidden !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-sticky-header h1 {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        overflow-wrap: anywhere !important;
+        text-overflow: clip !important;
+    }
+
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-numbered-prompt {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-numbered-prompt h3 {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        word-break: normal !important;
+    }
+
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) .grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) :is(.grid > *, [id*="enum-row-"], [draggable], .sigma-quiz-matching-rows, .sigma-quiz-matching-bank) {
+        box-sizing: border-box !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        overflow-wrap: anywhere !important;
+    }
+
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) :is(.grid > * span:not(:first-child), [id*="enum-row-"] span, [draggable]) {
+        min-width: 0 !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        word-break: normal !important;
+    }
+
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) :is(input, textarea, select) {
+        box-sizing: border-box !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+}
+
+/* Keep quiz headers and action footers fixed while long mobile reviews scroll. */
+@media (max-width: 639px) {
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-modal-shell > .sigma-modal-panel {
+        height: 100dvh !important;
+        min-height: 100dvh !important;
+        max-height: 100dvh !important;
+        display: grid !important;
+        grid-template-rows: auto minmax(0, 1fr) auto !important;
+        overflow: hidden !important;
+    }
+
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-modal-panel > .flex-1 {
+        min-height: 0 !important;
+        max-height: 100% !important;
+        flex: 0 1 auto !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+        justify-content: flex-start !important;
+    }
+
+    body #universal-quiz-preview-modal #uqp-scroll {
+        min-height: 0 !important;
+        max-height: 100% !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+    }
+}
+
+/* Stack mobile quiz mode/timer badges below the title. */
+@media (max-width: 639px) {
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-sticky-header > .border-b:first-child:is(.flex),
+    body #sigma-quiz-form-modal .sigma-quiz-sticky-header > .border-b:first-child > div:first-child:is(.flex) {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+    }
+
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-sticky-header > .border-b:first-child:is(.flex) > div:first-child,
+    body #sigma-quiz-form-modal .sigma-quiz-sticky-header > .border-b:first-child > div:first-child:is(.flex) > div:first-child {
+        width: 100% !important;
+        flex: 0 1 auto !important;
+    }
+
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-sticky-header > .border-b:first-child:is(.flex) > div:nth-child(2),
+    body #sigma-quiz-form-modal .sigma-quiz-sticky-header > .border-b:first-child > div:first-child:is(.flex) > div:nth-child(2) {
+        width: fit-content !important;
+        align-self: flex-start !important;
+        margin-left: 36px !important;
+    }
+
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-sticky-header > .border-b:first-child:is(.flex) > div:first-child,
+    body #sigma-quiz-form-modal .sigma-quiz-sticky-header > .border-b:first-child > div:first-child:is(.flex) > div:first-child {
+        display: flex !important;
+        flex: 0 1 auto !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: flex-start !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 0 !important;
+    }
+
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-sticky-header > .border-b:first-child:is(.flex) > div:first-child > :is(button, .quiz-preview-mobile-back-btn),
+    body #sigma-quiz-form-modal .sigma-quiz-sticky-header > .border-b:first-child > div:first-child:is(.flex) > div:first-child > :is(button, .quiz-preview-mobile-back-btn) {
+        flex: 0 0 28px !important;
+        width: 28px !important;
+        min-width: 28px !important;
+        margin-top: 1px !important;
+    }
+
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-sticky-header > .border-b:first-child:is(.flex) > div:first-child h1,
+    body #sigma-quiz-form-modal .sigma-quiz-sticky-header > .border-b:first-child > div:first-child:is(.flex) > div:first-child h1 {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        overflow-wrap: anywhere !important;
+        text-overflow: clip !important;
+    }
+}
+
+/* Keep the Important star visible beside the author name on narrow announcement cards. */
+@media (max-width: 767px) {
+    .sigma-announcement-card .sigma-card-author-fullname,
+    .announcement-card .sigma-card-author-fullname {
+        max-width: calc(100% - 82px) !important;
+        min-width: 0 !important;
+        overflow: visible !important;
+    }
+
+    .sigma-announcement-card .sigma-card-author-fullname > span:first-child,
+    .announcement-card .sigma-card-author-fullname > span:first-child {
+        min-width: 0 !important;
+        flex: 0 1 auto !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    .sigma-announcement-card .sigma-card-author-fullname > .sigma-badge-important,
+    .announcement-card .sigma-card-author-fullname > .sigma-badge-important {
+        display: inline-flex !important;
+        flex: 0 0 18px !important;
+        width: 18px !important;
+        min-width: 18px !important;
+        height: 18px !important;
+        min-height: 18px !important;
+        padding: 0 !important;
+        margin-left: 2px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-sizing: border-box !important;
+        border-radius: 50% !important;
+    }
+
+    .sigma-announcement-card .sigma-card-author-fullname > .sigma-badge-important i,
+    .announcement-card .sigma-card-author-fullname > .sigma-badge-important i {
+        font-size: 8px !important;
+        line-height: 1 !important;
+    }
 }

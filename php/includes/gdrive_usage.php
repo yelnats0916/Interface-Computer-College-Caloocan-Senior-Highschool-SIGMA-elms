@@ -9,13 +9,19 @@ function collectElmsDriveUsage(string $folderId, callable $request): array {
     $folders = [$folderId]; $visited = []; $files = []; $bytes = 0; $unknown = 0; $requests = 0;
     $deadline = microtime(true) + 45;
     while ($folders) {
-        $folder = array_pop($folders);
-        if (isset($visited[$folder])) continue;
-        $visited[$folder] = true;
+        // One Drive listing can include multiple parents. A school-year hierarchy
+        // otherwise requires a separate network round trip for every empty folder.
+        $batch=[];
+        while($folders&&count($batch)<20){
+            $folder=array_pop($folders);
+            if(isset($visited[$folder]))continue;
+            $visited[$folder]=true;$batch[]="'".$folder."' in parents";
+        }
+        if(!$batch)continue;
         $page = null;
         do {
             if (++$requests > 1000 || microtime(true) > $deadline) throw new RuntimeException('The folder is too large to scan in one request. Usage is unavailable; no partial total is shown.');
-            $params = ['q' => "'" . $folder . "' in parents and trashed = false", 'fields' => 'nextPageToken,incompleteSearch,files(id,name,mimeType,size)', 'pageSize' => 1000, 'supportsAllDrives' => 'true', 'includeItemsFromAllDrives' => 'true'];
+            $params = ['q' => '(' . implode(' or ', $batch) . ') and trashed = false', 'fields' => 'nextPageToken,incompleteSearch,files(id,name,mimeType,size)', 'pageSize' => 1000, 'supportsAllDrives' => 'true', 'includeItemsFromAllDrives' => 'true'];
             if ($page) $params['pageToken'] = $page;
             $result = $request('https://www.googleapis.com/drive/v3/files?' . http_build_query($params));
             if (!empty($result['incompleteSearch']) || !isset($result['files']) || !is_array($result['files'])) throw new RuntimeException('Google Drive returned an incomplete inventory.');

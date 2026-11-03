@@ -161,28 +161,27 @@ window.renderSigmaChatMessage = function ({ role, text, stamp = '', timestamp = 
                 '[data-scroll-container]'
             ];
 
-            scrollSelectors.forEach(sel => {
-                const elements = document.querySelectorAll(sel);
-                elements.forEach(node => {
-                    if (node && node.scrollTop > 0) {
-                        node.scrollTop = 0;
-                    }
-                });
-            });
+            // One selector pass; read positions before writing to avoid repeated layout.
+            const scrolled = Array.from(document.querySelectorAll(scrollSelectors.join(',')))
+                .filter(node => node.scrollTop > 0);
+            scrolled.forEach(node => { node.scrollTop = 0; });
         } catch (_) {}
     };
 
-    // Auto-reset scroll on page load, navigation events, and history state changes
-    window.addEventListener('load', () => window.sigmaResetScrollToTop?.(), { passive: true });
-    window.addEventListener('pageshow', () => window.sigmaResetScrollToTop?.(), { passive: true });
-    window.addEventListener('popstate', () => {
-        window.sigmaResetScrollToTop?.();
-        setTimeout(() => window.sigmaResetScrollToTop?.(), 30);
-    }, { passive: true });
-    window.addEventListener('hashchange', () => {
-        window.sigmaResetScrollToTop?.();
-        setTimeout(() => window.sigmaResetScrollToTop?.(), 30);
-    }, { passive: true });
+    // Click, hash and history events can describe the same navigation. Reset once
+    // after its handlers mount the destination, without delayed scans on every tap.
+    let resetFrame = 0;
+    const scheduleReset = () => {
+        if (resetFrame) return;
+        resetFrame = requestAnimationFrame(() => {
+            resetFrame = 0;
+            window.sigmaResetScrollToTop?.();
+        });
+    };
+    window.addEventListener('load', scheduleReset, { passive: true });
+    window.addEventListener('pageshow', scheduleReset, { passive: true });
+    window.addEventListener('popstate', scheduleReset, { passive: true });
+    window.addEventListener('hashchange', scheduleReset, { passive: true });
 
     // Universal navigation click delegator
     document.addEventListener('click', (e) => {
@@ -193,10 +192,7 @@ window.renderSigmaChatMessage = function ({ role, text, stamp = '', timestamp = 
             '.sigma-tab-btn, .tab-btn, a[href^="#"]'
         );
         if (navTrigger) {
-            window.sigmaResetScrollToTop?.();
-            requestAnimationFrame(() => window.sigmaResetScrollToTop?.());
-            setTimeout(() => window.sigmaResetScrollToTop?.(), 30);
-            setTimeout(() => window.sigmaResetScrollToTop?.(), 100);
+            scheduleReset();
         }
     }, { capture: true, passive: true });
 })();
@@ -498,6 +494,21 @@ window.hasTableSearchFilters = function (state) {
 };
 
 window.getStoredJson = function (key, fallback) {
+    const memory = window._sigmaOptionalStorageState;
+    const actor = window.SigmaDatabase?.currentUser?.() || {};
+    if (memory?.owner === String(actor.id || actor.uid || '') && memory.values.has(key)) {
+        const cached = memory.values.get(key);
+        try {
+            if (localStorage.getItem(key) === cached.raw) return cached.data;
+            memory.values.delete(key);
+        } catch (_) { return cached.data; }
+    }
+    const users = window.SigmaUserDirectory?.records?.(key);
+    if (users !== undefined) return users;
+    const attendance = window.SigmaAttendance?.records?.(key);
+    if (attendance !== undefined) return attendance;
+    const assigned = window.SigmaAssignedClassrooms?.records?.(key);
+    if (assigned !== undefined) return assigned;
     if (key === 'sigma-admin-subjects' && window._sigmaSubjectStorageFallback) {
         const cached = window._sigmaSubjectStorageFallback;
         try {
@@ -674,28 +685,61 @@ window.recoverSigmaStorageQuota = function (exceptKey) {
 };
 
 window.saveStoredJson = function (key, data) {
+    window.SigmaUserDirectory?.update?.(key, data);
+    const actor = window.SigmaDatabase?.currentUser?.() || {};
+    const owner = String(actor.id || actor.uid || '');
+    let memory = window._sigmaOptionalStorageState;
+    if (!memory || memory.owner !== owner) {
+        memory = window._sigmaOptionalStorageState = { owner, values: new Map(), retryAfter: 0, cleanupAfter: 0, reported: new Set() };
+    }
+    // These lists are fetched from the database. A device cache is optional;
+    // drafts, submissions, authentication and other local writes keep their failure semantics.
+    const optional = Array.isArray(data) && [
+        'sigma-admin-users', 'sigma-users-list', 'sigma-teacher-users', 'sigma-student-users',
+        'sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-subjects'
+    ].includes(key);
+    const remember = () => {
+        let raw = null;
+        try { raw = localStorage.getItem(key); } catch (_) {}
+        memory.values.set(key, { raw, data });
+        window.invalidateSigmaViewCaches?.();
+        return true;
+    };
     try {
-        if (!key || typeof localStorage === 'undefined') return false;
+        if (!key) return false;
         if (data === undefined) {
             localStorage.removeItem(key);
+            memory.values.delete(key);
             if (key === 'sigma-admin-subjects') window._sigmaSubjectStorageFallback = null;
             window.invalidateSigmaViewCaches?.();
             return true;
         }
+        // One failed optional write pauses further cache attempts across these
+        // aliases. Repeated refreshes remain readable without synchronous cleanup.
+        if (optional && Date.now() < memory.retryAfter) return remember();
         const payload = (data && typeof data === 'object') ? window.compactStorageValue(data) : data;
         const json = JSON.stringify(payload);
+        // Large database catalogs live in memory; localStorage is only an optional cache.
+        // Keep the original device value available until the next successful refresh.
+        if (optional && json.length > 512 * 1024) return remember();
         try {
             localStorage.setItem(key, json);
+            memory.values.delete(key);
+            memory.reported.delete(key);
             if (key === 'sigma-admin-subjects') window._sigmaSubjectStorageFallback = null;
             window.invalidateSigmaViewCaches?.();
             return true;
         } catch (e) {
-            console.warn(`[saveStoredJson] Initial save failed for key "${key}", attempting emergency storage cleanup...`, e);
+            if (optional) {
+                memory.retryAfter = Date.now() + 60000;
+                return remember();
+            }
+            if (Date.now() < memory.cleanupAfter) throw e;
+            memory.cleanupAfter = Date.now() + 60000;
             window.recoverSigmaStorageQuota(key);
             localStorage.setItem(key, json);
             if (key === 'sigma-admin-subjects') window._sigmaSubjectStorageFallback = null;
             window.invalidateSigmaViewCaches?.();
-            console.info(`[saveStoredJson] Successfully saved key "${key}" after freeing storage.`);
             return true;
         }
     } catch (retryErr) {
@@ -705,7 +749,10 @@ window.saveStoredJson = function (key, data) {
             window._sigmaSubjectStorageFallback = { raw, data: window.compactStorageValue(data) };
             window.invalidateSigmaViewCaches?.();
         }
-        console.error(`[saveStoredJson] Failed to save JSON for key "${key}" even after cleanup:`, retryErr);
+        if (!memory.reported.has(key)) {
+            memory.reported.add(key);
+            console.error(`[saveStoredJson] Failed to persist key "${key}":`, retryErr);
+        }
         return false;
     }
 };
@@ -777,13 +824,17 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
     const historyUrls = new Map([[window.location.href, historyIndex]]);
     nativeReplaceState({ ...window.history.state, _sigmaHistoryIndex: historyIndex }, '', window.location.href);
     window.history.pushState = function (state, title, url) {
+        const previousUrl = window.location.href;
         const nextIndex = historyIndex + 1;
         nativePushState({ ...state, _sigmaHistoryIndex: nextIndex }, title, url);
+        if (window.location.href !== previousUrl) window.dismissGradingStudentList?.();
         historyIndex = nextIndex;
         historyUrls.set(window.location.href, historyIndex);
     };
     window.history.replaceState = function (state, title, url) {
+        const previousUrl = window.location.href;
         nativeReplaceState({ ...state, _sigmaHistoryIndex: historyIndex }, title, url);
+        if (window.location.href !== previousUrl) window.dismissGradingStudentList?.();
         historyUrls.set(window.location.href, historyIndex);
     };
     const modalRestorers = new Map();
@@ -810,8 +861,15 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
         return isElementVisible(owner);
     }
 
-    // Checks if an element is currently visible to the user
+    let modalVisibilityCache = null;
     function isElementVisible(el) {
+        if (modalVisibilityCache?.has(el)) return modalVisibilityCache.get(el);
+        const visible = measureElementVisible(el);
+        modalVisibilityCache?.set(el, visible);
+        return visible;
+    }
+    // Checks if an element is currently visible to the user
+    function measureElementVisible(el) {
         if (!el || !el.isConnected) return false;
         if (el.hidden || el.hasAttribute('hidden') || el.classList.contains('hidden') || el.closest('.hidden, [hidden]')) return false;
         if (el.id === 'sidebar' && (window.innerWidth >= 1024 || !el.classList.contains('sidebar-visible'))) return false;
@@ -1758,6 +1816,8 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
 
     // Auto-detect modal visibility changes via MutationObserver and document clicks
     function scanAndRegisterActiveModals() {
+        modalVisibilityCache = new Map();
+        try {
         const modalElements = document.querySelectorAll(
             '#sy-confirm-overlay, #sy-edit-overlay, #sy-manager-overlay, ' +
             '#section-confirm-overlay, #section-edit-overlay, #section-subpage-overlay, ' +
@@ -1888,6 +1948,7 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             _pendingModalDismiss = true;
             window.history.back();
         }
+        } finally { modalVisibilityCache = null; }
     }
 
     let _scanModalsRaf = null;
@@ -1899,8 +1960,17 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
         });
     };
 
-    const observer = new MutationObserver(() => {
-        debouncedScanAndRegisterActiveModals();
+    const modalChangeSelector = '[id*="modal"],[id*="Modal"],[id*="overlay"],[role="dialog"],[aria-modal="true"],[data-modal-overlay],[data-student-absent-panel],.form-overlay,.header-panel,.mobile-pull-up-panel,#sidebar,#sub-sidebar,#sigmaAiPanel,[id$="-editor-view"],#subject-material-detail-view';
+    const observer = new MutationObserver(records => {
+        const relevant = records.some(record => {
+            const target = record.target;
+            if (record.type === 'attributes') return target.matches?.(modalChangeSelector)
+                || target.closest?.(modalChangeSelector) || target.querySelector?.(modalChangeSelector);
+            if (target.closest?.(modalChangeSelector)) return true;
+            return [...record.addedNodes, ...record.removedNodes].some(node => node.nodeType === 1
+                && (node.matches(modalChangeSelector) || node.querySelector(modalChangeSelector)));
+        });
+        if (relevant) debouncedScanAndRegisterActiveModals();
     });
     document.addEventListener('transitionend', debouncedScanAndRegisterActiveModals, true);
 
@@ -1932,6 +2002,7 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
     // Universal Hierarchical Back Navigation Handler across all roles
     window.navigateSigmaBack = function () {
         if (_isProcessingBack) return;
+        window.dismissGradingStudentList?.();
 
         // A. If modal/overlay is open, close it. That stays on this page.
         const closer = getActiveModalCloser();
@@ -2061,6 +2132,7 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
 
     // 1. Popstate Listener: Catches Browser Back button, Android/Phone hardware back button, and Back gestures
     window.addEventListener('popstate', function (e) {
+        window.dismissGradingStudentList?.();
         let destinationIndex = Number(e.state?._sigmaHistoryIndex);
         if (!Number.isFinite(destinationIndex)) {
             destinationIndex = historyUrls.get(window.location.href) ?? historyIndex + 1;
@@ -2776,10 +2848,6 @@ window.saveStoredQuizLibrary = function (library) {
         localStorage.setItem('quizzes', jsonStr);
     } catch (e) { }
 
-    if (window.saveStoredJson) {
-        window.saveStoredJson(window.QUIZ_STORAGE_KEY, cleanList);
-        window.saveStoredJson('sigma-quiz-storage-library', cleanList);
-    }
     return true;
 };
 window.saveQuizLibrary = window.saveStoredQuizLibrary;
@@ -3030,7 +3098,8 @@ window.fetchQuizLibraryFromServer = async function () {
     window._quizLibraryLoadError = false;
     current.promise = (async () => {
         try {
-            const res = await window.SigmaDatabase.fetch(resolveQuizApiUrl(), { cache: 'no-store', foreground: true });
+            const summary = /quiz-creator[.]html$/i.test(location.pathname) ? '?summary=1' : '';
+            const res = await window.SigmaDatabase.fetch(resolveQuizApiUrl(summary), { cache: 'no-store', foreground: true });
             if (quizLibraryIdentity() !== identity) return;
             if (res.status === 401 || res.status === 403) {
                 quizLibraryBlockedIdentity = identity;
@@ -3073,10 +3142,14 @@ window.saveQuizToServer = async function (quizData) {
         });
         if (!res.ok) return null;
         const data = await res.json();
-        if (data.success) {
-            await window.fetchQuizLibraryFromServer();
-            localStorage.setItem('sigma_quiz_broadcast', Date.now().toString());
-            return data.id || quizData.id || null;
+        if (data.success === true && data.quiz?.id) {
+            const saved = data.quiz;
+            window._quizLibraryServerData = [saved, ...(window._quizLibraryServerData || []).filter(item => String(item.id) !== String(saved.id))];
+            window._quizLibraryServerOwner = quizLibraryIdentity();
+            window._quizStorageListCache = null;
+            try { localStorage.setItem('sigma_quiz_broadcast', Date.now().toString()); } catch (_) {}
+            try { window.dispatchEvent(new CustomEvent('sigma:quiz-library-loaded')); } catch (_) {}
+            return saved.id;
         }
         return null;
     } catch (e) {
@@ -3185,6 +3258,7 @@ window.updateGlobalSYDisplay = function () {
     }
 
     const yearRange = `${activeRecord.yearStart}-${activeRecord.yearEnd}`;
+    const activeSemester = Number(activeRecord.activeSemester) === 2 ? '2nd Semester' : '1st Semester';
 
     const toTitleCaseQuarter = (str) => {
         if (!str) return '';
@@ -3206,16 +3280,18 @@ window.updateGlobalSYDisplay = function () {
     };
 
     if (!hasAnyDates) {
-        display.textContent = `S.Y. ${yearRange} • 1st Quarter`;
+        display.textContent = `S.Y. ${yearRange} • 1st Quarter • ${activeSemester}`;
     } else if (anyQuarterStarted && !allQuartersEnded) {
         const quarterText = toTitleCaseQuarter(currentQuarter || 'Transition');
-        display.textContent = `S.Y. ${yearRange} • ${quarterText}`;
+        display.textContent = `S.Y. ${yearRange} • ${quarterText} • ${activeSemester}`;
     } else if (!anyQuarterStarted) {
-        display.textContent = `S.Y. ${yearRange} • Upcoming`;
+        display.textContent = `S.Y. ${yearRange} • Upcoming • ${activeSemester}`;
     } else {
-        display.textContent = `S.Y. ${yearRange}`;
+        display.textContent = `S.Y. ${yearRange} • ${activeSemester}`;
     }
 };
+
+window.addEventListener('sigma:school-year-changed', () => window.updateGlobalSYDisplay?.());
 
 // Automatically run on DOM ready across all pages/roles
 if (document.readyState === 'loading') {
@@ -3610,7 +3686,17 @@ window.indexQuizAnswers = function (answers, questions) {
             if (key === undefined || key === null || key === '') continue;
             const value = src[key];
             if (value !== undefined && value !== null && value !== '') {
-                out[i] = value;
+                const type = String(q?.type || 'Multiple Choice').toLowerCase();
+                let response = value;
+                if ((type === 'multiple choice' || type.includes('true')) && typeof response === 'object' && response !== null) {
+                    response = response.value ?? response.text ?? response.label ?? response.answer ?? response.index ?? response;
+                }
+                if (type === 'multiple choice' && /^\d+$/.test(String(response)) && Number(response) < (q?.choices?.length || 0)) {
+                    response = String.fromCharCode(65 + Number(response));
+                } else if (type.includes('true') && typeof response === 'boolean') {
+                    response = response ? 'True' : 'False';
+                }
+                out[i] = response;
                 break;
             }
         }
@@ -3844,8 +3930,10 @@ window.saveStudentQuizFileCopy = function (copy) {
                     if (Array.isArray(existing.attempts) && existing.attempts.length) payload.attempts = existing.attempts;
                 }
             } catch (e) { }
-            localStorage.setItem(key, JSON.stringify(payload));
-            savedKey = key;
+            try {
+                localStorage.setItem(key, JSON.stringify(payload));
+                savedKey = key;
+            } catch (e) { /* Optional quiz copies must not interrupt database-backed submissions or grading. */ }
         });
     });
     return savedKey;
@@ -5427,7 +5515,7 @@ window.resolveAssessmentHPS = function (ass, subjectId, targetSection, category,
         (ass.rawItem && Array.isArray(ass.rawItem.questions) && ass.rawItem.questions.length > 0) ||
         (ass.rawItem && Array.isArray(ass.rawItem.quizQuestions) && ass.rawItem.quizQuestions.length > 0)
     );
-    const hasDigitalQuiz = Boolean(cleanRefId || hasExplicitQuestions);
+    const hasDigitalQuiz = Boolean(cleanRefId || hasExplicitQuestions || (quizInfo && quizInfo.points > 0));
     const filePanelPoints = (isQuiz && typeof window.attachedQuizFilePoints === 'function') ? window.attachedQuizFilePoints(ass) : null;
     if (filePanelPoints) return { points: Number(filePanelPoints), isLocked: true };
     if (quizInfo && quizInfo.points !== null && quizInfo.points > 0 && hasDigitalQuiz) {
@@ -5605,6 +5693,13 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
     const tab = String(ass?.tab || cat || 'assessments').trim().toLowerCase();
 
     let sub = null;
+    const authoritativeSlot = window.SigmaAcademicRecords?.getAssessmentRecord?.(subjectId, section, ass?.id || ass?.materialId || ass?.rawItem?.id, targetStudentId);
+    if (authoritativeSlot?.ready && !authoritativeSlot.record) {
+        const result = {studentUser, sub:null, numericScore:null, effectiveScore:null, isGraded:false, turnedIn:false,
+            statusName:'Not Submitted', attendanceTone:'', isQuizLocked:false, hasSubmittedQuiz:false, requiresSubmission:true, attempts:[], attemptsCount:0, cat, tab};
+        window._studentAssessmentDetailsCache.set(cacheKey,result);
+        return result;
+    }
 
     // 1. Fast-path: query getStudentAssessmentSubmission directly
     if (typeof window.getStudentAssessmentSubmission === 'function') {
@@ -5687,7 +5782,9 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
             const wantTitle = String(ass?.title || ass?.name || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
             const wantTitleClean = wantTitle.replace(/^quiz\s*\d*[:\s-]+/i, '').trim();
             const wantIds = [ass?.id, ass?.quizId, ass?.selectedQuizId, ass?.materialId].map(v => String(v || '').trim().toLowerCase()).filter(Boolean);
-            const isAssQuiz = Boolean(ass?.quizId || ass?.selectedQuizId || /quiz/i.test(wantTitle) || String(ass?.category || ass?.type || '').toLowerCase().includes('quiz'));
+            const explicitNonQuiz = [ass?.category, ass?.materialType, ass?.type, ass?.kind, ass?.assessmentType, ass?.rawItem?.category, ass?.rawItem?.materialType, ass?.rawItem?.type, ass?.rawItem?.kind, ass?.rawItem?.assessmentType]
+                .some(value => /(?:\b(?:task|tasks|assignment|assignments|activity|activities|performance|perf)\b|^pt$)/i.test(String(value || '').trim()));
+            const isAssQuiz = !explicitNonQuiz && Boolean(ass?.quizId || ass?.selectedQuizId || /quiz/i.test(wantTitle) || String(ass?.category || ass?.type || '').toLowerCase().includes('quiz'));
             const checkCats = isAssQuiz ? ['quiz', 'assignment', 'activity', 'ww'] : (cat.includes('perf') ? ['perf. task'] : ['assignment', 'activity', 'ww']);
             checkCats.some(c => {
                 const items = window.getCategoryDetails(c, scoreQuarter, subjectId, section) || [];
@@ -5696,7 +5793,9 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
                     if (wantIds.some(id => itIds.includes(id))) return true;
                     const title = String(it?.title || it?.name || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
                     const titleClean = title.replace(/^quiz\s*\d*[:\s-]+/i, '').trim();
-                    const isItQuiz = Boolean(it?.quizId || it?.selectedQuizId || /quiz/i.test(title) || String(it?.category || it?.type || '').toLowerCase().includes('quiz'));
+                    const isItExplicitNonQuiz = [it?.category, it?.materialType, it?.type, it?.kind, it?.assessmentType, it?.rawItem?.category, it?.rawItem?.materialType, it?.rawItem?.type, it?.rawItem?.kind, it?.rawItem?.assessmentType]
+                        .some(value => /(?:\b(?:task|tasks|assignment|assignments|activity|activities|performance|perf)\b|^pt$)/i.test(String(value || '').trim()));
+                    const isItQuiz = !isItExplicitNonQuiz && Boolean(it?.quizId || it?.selectedQuizId || /quiz/i.test(title) || String(it?.category || it?.type || '').toLowerCase().includes('quiz'));
                     if (isAssQuiz !== isItQuiz) return false;
                     if (wantTitle && title && (wantTitle === title || (wantTitleClean && titleClean && wantTitleClean === titleClean))) return true;
                     if (wantTitle && title && wantTitle !== title) return false;
@@ -5729,7 +5828,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
         } catch (e) {}
     }
 
-    const isQuizItem = Boolean(
+    const isQuizItem = !window.isExplicitNonQuizAssessment(lookupItem || ass || {}) && Boolean(
         cat === 'quiz' || lookupCat === 'quiz' || (ass && (ass.category === 'quiz' || ass.type === 'quiz' || ass.quizId || ass.selectedQuizId || /quiz/i.test(ass.title || ''))) ||
         (lookupItem && (lookupItem.category === 'quiz' || lookupItem.type === 'quiz' || lookupItem.quizId || /quiz/i.test(lookupItem.title || ''))) ||
         (sub && (sub.quizId || sub.userAnswers || sub.questions || /quiz/i.test(sub.title || '')))
@@ -5790,6 +5889,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
         // Teacher has an active override/saved record without attendance tone: do not fall back to stale sub.attendance
         effTone = '';
     }
+    if (sub?.serverSynced && Object.prototype.hasOwnProperty.call(sub, 'gradingStatus')) effTone = sub.gradingStatus === 'none' ? '' : sub.gradingStatus;
     effTone = String(effTone).trim().toLowerCase();
     let normalizedTone = (effTone === 'excused' || effTone === 'excuse') ? 'excuse' : (effTone === 'none' ? '' : effTone);
 
@@ -5831,8 +5931,10 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
     let turnedIn = window.studentHasTurnedInWork(sub) || Boolean(ass && (ass.submittedAt || ass.submissionDate || ass.isSubmitted));
     let statusName = '';
 
-    const directMax = ass?.max || ass?.points || ass?.totalPoints || ass?.maxScore || ass?.highestPossibleScore || 100;
-    const maxScore = Number(directMax) || 100;
+    const hps = window.resolveAssessmentHPS?.(lookupItem || ass, subjectId, section, cat, index);
+    const savedQuizMax = cat === 'quiz' ? Number(authoritativeSlot?.record?.maxScore || sub?.maxScore) : 0;
+    const maxScore = Number(hps?.isLocked ? hps.points : (savedQuizMax > 0 ? savedQuizMax : hps?.points))
+        || Number(ass?.max || ass?.points || ass?.totalPoints || ass?.maxScore || ass?.highestPossibleScore) || 100;
 
     // Check if Teacher has set an Attendance tone (Missing, Absent, Incomplete, Excuse) or a saved score
     if (validEffScore) {
@@ -5964,7 +6066,6 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
             sub.needsTeacherReview === true ||
             sub.hasPendingManual === true ||
             (Array.isArray(sub.manualReviewTypes) && sub.manualReviewTypes.length > 0) ||
-            sub.essayGradingMode === 'manual' ||
             (Array.isArray(sub.attempts) && sub.attempts.some(a => a && (a.isPending === true || a.status === 'Pending')))
         )
     );
@@ -6157,8 +6258,17 @@ window.reopenGradedAssessment = function () {
         }
     });
 };
+window.isExplicitNonQuizAssessment = function (item = {}) {
+    const source = item.rawItem || item;
+    const declaredTypes = [source, item].flatMap(candidate => [candidate.category, candidate.type, candidate.materialType, candidate.assessmentType, candidate.itemType])
+        .filter(Boolean).map(value => String(value).trim().toLowerCase());
+    return declaredTypes.some(value => /\b(task|tasks|assignment|assignments|activity|activities|performance)\b/.test(value) || value === 'pt')
+        || /^task\s*\d*\b/i.test(String(source.title || source.name || item.title || item.name || ''));
+};
 window.isCalculatedQuizAssessment = function (item = {}) {
     const source = item.rawItem || item;
+    // Explicit task-like types take precedence over legacy quiz links left by imports.
+    if (window.isExplicitNonQuizAssessment(item)) return false;
     return Boolean(source.quizId || source.selectedQuizId || source.hasAttachedQuiz || source.isDigitalQuiz
         || (Array.isArray(source.questions) && source.questions.length)
         || (Array.isArray(source.quizQuestions) && source.quizQuestions.length)
@@ -6216,8 +6326,13 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
     // 2. Resolve HPS (Max score)
     const activeItemCat = String(ass.category || ass.type || tab || 'assessments').toLowerCase();
     const assTitle = String(ass.title || ass.name || '').toLowerCase();
-    const isAssQuiz = (ass.isQuiz === true || ass.isScheduleQuiz === true || Boolean(ass.quizId || ass.selectedQuizId) || (Array.isArray(ass.questions) && ass.questions.length > 0) || (Array.isArray(ass.quizQuestions) && ass.quizQuestions.length > 0) || activeItemCat.includes('quiz') || assTitle.includes('quiz'));
-    const directCat = isAssQuiz ? 'quiz' : (ass.category || (activeItemCat.includes('perf') ? 'perf. task' : activeItemCat.includes('activ') ? 'activity' : 'assignment'));
+    const explicitNonQuizType = [ass.category, ass.materialType, ass.type, ass.kind, ass.assessmentType, ass.rawItem?.category, ass.rawItem?.materialType, ass.rawItem?.type, ass.rawItem?.kind, ass.rawItem?.assessmentType]
+        .map(value => String(value || '').trim())
+        .find(value => /(?:\b(?:task|tasks|assignment|assignments|activity|activities|performance|perf)\b|^pt$)/i.test(value));
+    const explicitNonQuiz = Boolean(explicitNonQuizType);
+    const isAssQuiz = !explicitNonQuiz && (ass.isQuiz === true || ass.isScheduleQuiz === true || Boolean(ass.quizId || ass.selectedQuizId) || (Array.isArray(ass.questions) && ass.questions.length > 0) || (Array.isArray(ass.quizQuestions) && ass.quizQuestions.length > 0) || activeItemCat.includes('quiz') || assTitle.includes('quiz'));
+    const explicitNonQuizCategory = /performance|perf/i.test(explicitNonQuizType || '') ? 'perf. task' : /activ/i.test(explicitNonQuizType || '') ? 'activity' : 'assignment';
+    const directCat = isAssQuiz ? 'quiz' : (explicitNonQuiz ? explicitNonQuizCategory : (ass.category || (activeItemCat.includes('perf') ? 'perf. task' : activeItemCat.includes('activ') ? 'activity' : 'assignment')));
     const resolvedHps = (typeof window.resolveAssessmentHPS === 'function')
         ? window.resolveAssessmentHPS(ass, subjectId, studentSec, directCat, activeIdx)
         : { points: Number(ass?.max || ass?.maxScore || 100) };
@@ -6346,7 +6461,7 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
     const numericScore = isGraded ? (parseFloat(scoreValue) || 0) : 0;
     const scorePct = isGraded ? Math.min(100, Math.max(0, Math.round((numericScore / assMaxScore) * 100))) : 0;
     const barActive = isGraded;
-    const barColor = window.getAssessmentScoreBarColor(scorePct, isGraded, currentNormStatus);
+    const barColor = isGraded ? '#15803d' : 'rgba(0, 0, 0, 0.15)';
 
     return `
         <div id="assessment-score-panel" class="topic-progress-card assessment-score-panel-card ${options.className || ''}">
@@ -6365,7 +6480,7 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
                 <div class="flex flex-col items-center flex-shrink-0" style="gap: 20px !important;">
                     <span class="topic-progress-title home-dashboard-panel-title text-center justify-center">Status</span>
                     <div class="flex items-center justify-center h-10">
-                        <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-xs font-bold ${statusBadgeClass} font-['Inter'] whitespace-nowrap leading-none select-none">
+                        <span data-assessment-score-status class="inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-xs font-bold ${statusBadgeClass} font-['Inter'] whitespace-nowrap leading-none select-none">
                             ${statusLabel}
                         </span>
                     </div>
@@ -6897,7 +7012,9 @@ window.saveUnifiedReleaseConfig = function (prefix, subjectId, section, config) 
             publish();
         } catch (retryErr) {
             console.error('[saveUnifiedReleaseConfig] Failed to save release', prefix, subjectId, section, retryErr);
-            return false;
+            if (!window.SigmaAcademicRecords) return false;
+            // The database save must still run when this device's optional cache is full.
+            window.dispatchEvent(new CustomEvent('sigma:release-config-updated', { detail: { prefix, subjectId, section, config: stored } }));
         }
     }
 
@@ -7377,7 +7494,7 @@ window.getStudentTopicReleaseStatus = function (subjectId, topic, index, customS
     }
 
     // A released assessment opens its topic. The topic row does not have to be released on its own.
-    const releasedByTopic = Array.isArray(config.releasedTopicIds)
+    const releasedByTopic = config.publishAll || Array.isArray(config.releasedTopicIds)
         && candidateIds.some(cid => config.releasedTopicIds.map(String).includes(cid));
     if (!releasedByTopic && !releasedByAssessment) {
         return { isLocked: true, isPublished: false, isUnreleased: true, releaseDate: config.releaseStartTime || null, reason: 'unreleased' };
@@ -7578,13 +7695,13 @@ window.getStudentLearningMaterialReleaseStatus = function (subjectId, item, topi
     }
 
     // Check individual material release
-    if (Array.isArray(config.releasedMaterialIds)) {
+    if (!config.publishAll && Array.isArray(config.releasedMaterialIds)) {
         const releasedStrs = config.releasedMaterialIds.map(String);
         const isExplicitlyReleased = releasedStrs.includes(String(itemId)) || (itemTitle && releasedStrs.includes(itemTitle));
         if (!isExplicitlyReleased) {
             return { isLocked: true, isPublished: false, isUnreleased: true, releaseDate: config.releaseStartTime || null, reason: 'unreleased' };
         }
-    } else {
+    } else if (!config.publishAll) {
         return { isLocked: true, isPublished: false, isUnreleased: true, releaseDate: null, reason: 'unreleased' };
     }
 
@@ -7716,7 +7833,7 @@ window.ensureParentTopicReleased = function (subjectId, section, idStr) {
     });
     const next = Object.assign({}, existing, {
         releasedTopicIds: ids,
-        publishAll: existing.publishAll !== false,
+        publishAll: false,
         updatedAt: new Date().toISOString()
     });
     if (typeof window.saveUnifiedReleaseConfig === 'function') {
@@ -7832,7 +7949,7 @@ window.getStudentAssessmentReleaseStatus = function (subjectId, item, topicIdx, 
     const releasedList = []
         .concat(Array.isArray(config.releasedMaterialIds) ? config.releasedMaterialIds : [])
         .concat(Array.isArray(config.releasedAssessmentIds) ? config.releasedAssessmentIds : []);
-    if (releasedList.length || Array.isArray(config.releasedMaterialIds) || Array.isArray(config.releasedAssessmentIds)) {
+    if (!config.publishAll && (releasedList.length || Array.isArray(config.releasedMaterialIds) || Array.isArray(config.releasedAssessmentIds))) {
         const releasedStrs = releasedList.map(s => String(s).trim().toLowerCase());
         const isExplicitlyReleased = idList.some(id => {
             const lowId = id.toLowerCase();
@@ -7841,7 +7958,7 @@ window.getStudentAssessmentReleaseStatus = function (subjectId, item, topicIdx, 
         if (!isExplicitlyReleased) {
             return setAndReturn({ isLocked: true, isPublished: false, isUnreleased: true, releaseDate: config.releaseStartTime || null, reason: 'unreleased' });
         }
-    } else {
+    } else if (!config.publishAll) {
         return setAndReturn({ isLocked: true, isPublished: false, isUnreleased: true, releaseDate: null, reason: 'unreleased' });
     }
 
@@ -7893,6 +8010,10 @@ window.getStudentTopicCompletionStatus = function (subjectId, topic, actualTopic
         }
     }
 
+    // Do not infer completion from browser copies while authenticated records are loading.
+    if (sec && window.SigmaAcademicRecords?.getAssessmentRecord
+        && !window.SigmaAcademicRecords.getAssessmentRecord(subjectId, sec, '__topic__', '__topic__')?.ready) return 'not-started';
+
     // 1. Gather all assessments for this topic
     const rawAssign = Array.isArray(topic.assignments) ? topic.assignments : [];
     const rawQuiz = Array.isArray(topic.quiz) ? topic.quiz : [];
@@ -7915,6 +8036,12 @@ window.getStudentTopicCompletionStatus = function (subjectId, topic, actualTopic
     }
 
     const checkStudentSubmitted = (ass, aIdx, stu) => {
+        const live = window.SigmaAcademicRecords?.getAssessmentRecord?.(subjectId, sec, ass?.id || ass?.materialId,
+            typeof stu === 'object' ? (stu?.id || stu?.studentId || stu?.uid) : stu);
+        if (live?.ready) {
+            const sub = live.record;
+            return Boolean(sub && (sub.submittedAt || sub.completedAt || sub.score !== undefined || sub.answers || sub.fileName || sub.files?.length));
+        }
         if (typeof window.getStudentAssessmentSubmission === 'function') {
             const sub = window.getStudentAssessmentSubmission(subjectId, ass?.tab || ass?.category || 'assessments', aIdx, topicIdx, ass, stu)
                 || window.getStudentAssessmentSubmission(subjectId, 'assessments', aIdx, topicIdx, ass, stu)
@@ -8322,6 +8449,39 @@ window.getSubjectAvailableQuarters = function (subjectId, subjectData) {
     return window.getSubjectActiveQuarters(subjectId, subjectData).map(q => Number(q.slice(1)));
 };
 
+window.classroomCardMatchesActiveAcademicTerm = function (card) {
+    const activeYear = window.getActiveSchoolYearRecord?.();
+    if (!activeYear) return true;
+    const section = card?.rawSection || card || {};
+    const yearValue = String(section.schoolYear || section.school_year || card?.schoolYear || '').trim();
+    if (!yearValue) return false;
+    if (yearValue.toLowerCase() !== String(activeYear.id || '').toLowerCase()) {
+        const yearTokens = yearValue.match(/(?:19|20|21|22)\d{2}/g) || [];
+        if (yearTokens.length < 2 || Number(yearTokens[0]) !== Number(activeYear.yearStart) || Number(yearTokens[1]) !== Number(activeYear.yearEnd)) return false;
+    }
+
+    const semester = Number(activeYear.activeSemester) === 2 ? 2 : 1;
+    const subjectId = String(card?.subject || card?.name || section.subject || section.subjectName || '').trim();
+    const catalog = window.SigmaAssignedClassrooms?.records?.('sigma-admin-subjects')
+        || window.getStoredJson?.('sigma-admin-subjects', []) || [];
+    const normalize = value => String(value || '').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
+    const subject = Array.isArray(catalog) ? catalog.find(item =>
+        [item?.id, item?.code, item?.name, item?.title].some(value => value && normalize(value) === normalize(subjectId))) : null;
+    const quarters = window.getSubjectActiveQuarters?.(subjectId, subject) || subject?.activeQuarters || subject?.quarters || ['q1', 'q2'];
+    const validQuarters = (Array.isArray(quarters) ? quarters : String(quarters).split(','))
+        .map(value => String(value).trim().toLowerCase())
+        .map(value => {
+            const match = value.match(/(?:q|quarter\s*)?([1-4])/);
+            return match ? `q${match[1]}` : '';
+        }).filter(Boolean);
+    const activeQuarterKeys = semester === 2 ? ['q3', 'q4'] : ['q1', 'q2'];
+    return validQuarters.some(quarter => activeQuarterKeys.includes(quarter));
+};
+
+window.filterClassroomCardsToActiveAcademicTerm = function (cards) {
+    return Array.isArray(cards) ? cards.filter(window.classroomCardMatchesActiveAcademicTerm) : [];
+};
+
 window.rememberTopicQuarter = function (subjectId, quarterKey) {
     const quarter = String(quarterKey || '').trim().toLowerCase();
     if (!quarter) return;
@@ -8358,7 +8518,10 @@ window.restoreTopicQuarter = function (subjectId, activeQuarters) {
     if (window.currentSelectedTopicQuarter && quarters.includes(window.currentSelectedTopicQuarter)) {
         return window.currentSelectedTopicQuarter;
     }
-    const fallback = quarters[0] || 'q1';
+    const year = window.getActiveSchoolYearRecord?.();
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const current = quarters.filter(q => year?.[q + 'Start'] && String(year[q + 'Start']).slice(0, 10) <= today).at(-1);
+    const fallback = current || quarters[0] || 'q1';
     window.currentSelectedTopicQuarter = fallback;
     return fallback;
 };
@@ -8401,8 +8564,8 @@ window.renderCanonicalTopHeaderTabBarHtml = function (options = {}) {
             : "canonical-tab-btn flex items-center justify-center px-3 sm:px-4 h-full border-b-[3.5px] border-transparent text-xs sm:text-sm font-semibold text-black hover:bg-slate-100 hover:rounded-lg tracking-normal font-['Inter'] cursor-pointer transition-all whitespace-nowrap leading-5 select-none box-border";
 
         const tabStyle = tab.isActive
-            ? 'border-bottom: 3.5px solid #15803d !important; color: #15803d !important; border-radius: 0 !important;'
-            : 'border-bottom: 3.5px solid transparent !important; color: #000000 !important;';
+            ? 'border-bottom: var(--canonical-tab-border-width, 3.5px) solid #15803d !important; color: #15803d !important; border-radius: 0 !important;'
+            : 'border-bottom: var(--canonical-tab-border-width, 3.5px) solid transparent !important; color: #000000 !important;';
 
         return `
             <button type="button" onclick="${tab.onClick || ''}"
@@ -8577,16 +8740,25 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
             allStudents = studentsBySection[section] || [];
         }
 
-        const rosterStudents = allStudents;
+        const rosterStudents = window.sortGradingStudents(allStudents);
         const submissionContext = {
             subjectId: topicState.subjectId || data?.subjectId,
             topicIdx: typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : (topicState.topicIdx || 0),
             activeIdx: typeof _tcAssessmentDetailIdx !== 'undefined' && _tcAssessmentDetailIdx !== null ? Number(_tcAssessmentDetailIdx) : (topicState.assessmentIdx || 0),
             tab: topicState.activeTab || 'assessments',
+            section,
             item: data?.currentAssessment
         };
+        if (submissionContext.item) window._currentGradingAssessmentContext = submissionContext;
         allStudents = rosterStudents.filter(student => window.hasCurrentAssessmentSubmission(student, submissionContext));
         const selectionScope = JSON.stringify([submissionContext.subjectId, Number(submissionContext.topicIdx), Number(submissionContext.activeIdx), section]);
+        if (window._gradingSelectionSessionScope !== selectionScope) {
+            window._gradingSelectionSessionScope = selectionScope;
+            topicState.selectedStudent = window._gradingSelectionRequestedStudent || 'All';
+            window._gradingSelectionRequestedStudent = null;
+            if (typeof currentTopicState !== 'undefined' && currentTopicState) currentTopicState.selectedStudent = topicState.selectedStudent;
+        }
+        window._gradingSelectionSessionHash = window.location.hash;
         const hasExplicitSelection = window._explicitGradingStudentSelection?.scope === selectionScope
             && window._explicitGradingStudentSelection.name === topicState.selectedStudent;
         const isEmptySelection = rosterStudents.length === 0;
@@ -8595,11 +8767,17 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
             if (typeof currentTopicState !== 'undefined' && currentTopicState) currentTopicState.selectedStudent = 'All';
         }
         let curStudentName = topicState?.selectedStudent || 'All';
+        const originalStudentName = curStudentName;
+        if (!hasExplicitSelection && allStudents.length > 0
+            && !window.resolveRosterStudent?.(allStudents, curStudentName)) curStudentName = 'All';
         if ((!curStudentName || curStudentName === 'All') && rosterStudents.length > 0) {
             const firstS = allStudents[0] || rosterStudents[0];
             curStudentName = typeof firstS === 'string' ? firstS : (firstS.name || firstS.fullName || 'Student');
             if (typeof currentTopicState !== 'undefined' && currentTopicState) currentTopicState.selectedStudent = curStudentName;
             if (typeof window.currentTopicState !== 'undefined' && window.currentTopicState) window.currentTopicState.selectedStudent = curStudentName;
+        }
+        if (curStudentName !== originalStudentName) {
+            queueMicrotask(() => window.refreshTeacherTopicUIIfVisible?.(submissionContext.subjectId));
         }
 
         const getStudentNameTokens = (s) => {
@@ -8694,7 +8872,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
         const isStudentSubmitted = turnedInWork;
 
         const calculatedQuizScore = window.isCalculatedQuizAssessment(currentItem || {}) || Boolean(subData?.quizId && (subData?.answers || subData?.userAnswers));
-        const isQuizItem = Boolean(
+        const isQuizItem = !window.isExplicitNonQuizAssessment(currentItem || {}) && Boolean(
             assCat === 'quiz' || tab === 'quiz' ||
             currentItem?.quizId || currentItem?.selectedQuizId || currentItem?.isQuiz || currentItem?.isScheduleQuiz ||
             (Array.isArray(currentItem?.questions) && currentItem.questions.length > 0) ||
@@ -8790,7 +8968,10 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
         }
 
         const isMobileScreen = (typeof window !== 'undefined' && window.innerWidth <= 768);
-        const mobilePanelPage = window.location.pathname + window.location.hash;
+        // A first render can precede the router's final hash. Keep the sheet
+        // tied to the displayed assessment so URL normalization or a late
+        // background render cannot undo the user's first expansion.
+        const mobilePanelPage = window.location.pathname + ':' + selectionScope;
         if (isMobileScreen && window._mobileGradePanelPage !== mobilePanelPage) {
             window._mobileGradePanelPage = mobilePanelPage;
             window._mobileScorePanelCollapsed = true;
@@ -8839,17 +9020,17 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
 
                             <!-- Prev & Next Navigation + Counter Subtitle -->
                             <div class="grading-nav-row flex items-center justify-between gap-1 text-[10.5px] sm:text-xs select-none px-0.5 pt-0.5 font-['Inter'] w-full">
-                                <button type="button" ${rosterStudents.length ? '' : 'disabled'} onclick="window.navigateTopicStudent(-1)"
+                                <button type="button" ${studentIdx > 0 ? '' : 'disabled'} onclick="window.navigateTopicStudent(-1)"
                                     style="width: auto !important; min-width: 0 !important; max-width: none !important; flex: 0 0 auto !important; display: inline-flex !important;"
-                                    class="grading-nav-btn grading-nav-prev-btn px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg flex items-center gap-1 sm:gap-1.5 text-black hover:bg-slate-100 active:bg-slate-200/70 transition-colors cursor-pointer text-[10.5px] sm:text-xs font-semibold shrink-0 whitespace-nowrap"
+                                    class="grading-nav-btn grading-nav-prev-btn disabled:opacity-40 disabled:cursor-not-allowed px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg flex items-center gap-1 sm:gap-1.5 text-black hover:bg-slate-100 active:bg-slate-200/70 transition-colors cursor-pointer text-[10.5px] sm:text-xs font-semibold shrink-0 whitespace-nowrap"
                                     title="Previous Student">
                                     <i class="fa-solid fa-chevron-left text-[9px] sm:text-[10px] text-black shrink-0"></i>
                                     <span style="flex: 0 0 auto !important;">Prev</span>
                                 </button>
                                 <span class="grading-nav-counter text-black-fade font-semibold text-[10.5px] sm:text-xs text-center px-1 leading-tight whitespace-nowrap shrink-0" style="flex: 0 0 auto !important;">${counterText}</span>
-                                <button type="button" ${rosterStudents.length ? '' : 'disabled'} onclick="window.navigateTopicStudent(1)"
+                                <button type="button" ${allStudents.length > 1 && studentIdx < allStudents.length - 1 ? '' : 'disabled'} onclick="window.navigateTopicStudent(1)"
                                     style="width: auto !important; min-width: 0 !important; max-width: none !important; flex: 0 0 auto !important; display: inline-flex !important;"
-                                    class="grading-nav-btn grading-nav-next-btn px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg flex items-center gap-1 sm:gap-1.5 text-black hover:bg-slate-100 active:bg-slate-200/70 transition-colors cursor-pointer text-[10.5px] sm:text-xs font-semibold shrink-0 whitespace-nowrap"
+                                    class="grading-nav-btn grading-nav-next-btn disabled:opacity-40 disabled:cursor-not-allowed px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg flex items-center gap-1 sm:gap-1.5 text-black hover:bg-slate-100 active:bg-slate-200/70 transition-colors cursor-pointer text-[10.5px] sm:text-xs font-semibold shrink-0 whitespace-nowrap"
                                     title="Next Student">
                                     <span style="flex: 0 0 auto !important;">Next</span>
                                     <i class="fa-solid fa-chevron-right text-[9px] sm:text-[10px] text-black shrink-0"></i>
@@ -8916,13 +9097,13 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                                 </button>
                                 <span id="teacher-grading-score-display" class="min-w-6 sm:min-w-8 text-center text-[11px] sm:text-xs font-bold text-black select-none">${(scoreDisplayVal !== '' && scoreDisplayVal !== null && scoreDisplayVal !== undefined) ? scoreDisplayVal : '—'}</span>
                                 <input type="number" id="teacher-grading-score-input"
-                                    min="0" max="${maxScoreVal}"
+                                    min="0" max="${maxScoreVal}" step="1" inputmode="numeric"
                                     value="${scoreDisplayVal}"
                                     data-saved-score="${scoreDisplayVal}"
                                     data-saved-status="${normalizedStatus === 'excused' ? 'excuse' : (normalizedStatus || 'none')}"
                                     data-draft-status="${normalizedStatus === 'excused' ? 'excuse' : (normalizedStatus || 'none')}"
                                     data-needs-submission="${scorePanelLocked ? '1' : '0'}"
-                                    data-manual-no-submission="${!isEmptySelection && window.resolveNoDeadlineAssessment(currentItem, subjectId, section, currentItem?.quarter || 1) ? '1' : '0'}"
+                                    data-manual-no-submission="${!isEmptySelection && !window.studentHasTurnedInWork?.(subData) && window.resolveNoDeadlineAssessment(currentItem, subjectId, section, currentItem?.quarter || 1) ? '1' : '0'}"
                                     data-needs-quiz-review="0"
                                     data-is-quiz="${isQuizItem ? '1' : '0'}"
                                     data-calculated-quiz="${calculatedQuizScore ? '1' : '0'}"
@@ -8934,7 +9115,8 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                                     oninput="window.handleGradingScoreInput?.(this);"
                                     onchange="window.handleGradingScoreInput?.(this);"
                                     onblur="const draft = String(this.dataset.draftStatus || ''); if (!this.value && this.value !== 0 && this.value !== '0' && draft !== 'excuse' && draft !== 'missing' && draft !== 'absent' && draft !== 'none') { this.value = this.dataset.savedScore || ''; } this.placeholder = this.dataset.ph || '-'; window.handleGradingScoreInput?.(this);"
-                                    onkeydown="if(['-','+','e','E'].includes(event.key)){ event.preventDefault(); } else if(event.key === 'Enter'){ event.preventDefault(); event.stopPropagation(); window.saveTeacherGradingScore?.(); }"
+                                    onbeforeinput="if(event.inputType === 'insertText' && /^[.,]$/.test(event.data || '')) event.preventDefault();"
+                                    onkeydown="if(['.',',','-','+','e','E'].includes(event.key)){ event.preventDefault(); } else if(event.key === 'Enter'){ event.preventDefault(); event.stopPropagation(); window.saveTeacherGradingScore?.(); }"
                                     class="w-14 sm:w-16 h-7 sm:h-8 px-1.5 sm:px-2 text-center text-[11px] sm:text-xs font-bold text-slate-900 placeholder:text-black/40 placeholder:opacity-100 ${scorePanelLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : 'bg-slate-50 border-slate-300 focus:bg-white focus:border-slate-400'} border rounded-lg sm:rounded-xl outline-none focus:placeholder-transparent" style="display:none; outline: none !important; box-shadow: none !important; -webkit-tap-highlight-color: transparent; transition: border-color 0.15s ease, background-color 0.15s ease;">
                                 <span class="text-[11px] sm:text-xs font-bold text-black select-none">/ ${maxScoreVal} pts</span>
                             </div>
@@ -8953,6 +9135,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
             ${window.renderGradingStudentCoverHtml ? window.renderGradingStudentCoverHtml({
                 prefix,
                 allStudents: rosterStudents,
+                submissionContext,
                 studentName,
                 studentId,
                 isListOpen,
@@ -9391,7 +9574,9 @@ window.buildSharedTopicPage = function (containerEl, subjectId, subject, data, s
         }
     } else {
         const isSpecificSection = Boolean(section && section.toLowerCase() !== 'all');
-        if (config && Array.isArray(config.releasedTopicIds) && config.releasedTopicIds.length > 0) {
+        if (config?.publishAll) {
+            visibleTopics = [...q1Topics];
+        } else if (config && Array.isArray(config.releasedTopicIds) && config.releasedTopicIds.length > 0) {
             visibleTopics = q1Topics.filter((t, idx) => {
                 const topicId = t?.id !== undefined && t?.id !== '' ? String(t.id) : '';
                 const topicTitle = t?.title ? String(t.title).trim() : '';
@@ -9689,7 +9874,7 @@ window.renderSharedQuarterDropdown = function (quarters, current, action) {
 };
 document.addEventListener('pointerdown', event => {
     document.querySelectorAll('.sigma-quarter-dropdown[open]').forEach(menu => {
-        if (!menu.contains(event.target)) menu.open = false;
+        if (!menu.contains(event.target) && !menu._sigmaQuarterFloatingMenu?.contains(event.target)) menu.open = false;
     });
 }, true);
 document.addEventListener('toggle', event => {
@@ -9705,7 +9890,10 @@ document.addEventListener('toggle', event => {
 // Fixed carousel menus must not remain floating after their trigger scrolls away.
 document.addEventListener('scroll', event => {
     if (event.target.closest?.('.sigma-quarter-dropdown-menu')) return;
-    document.querySelectorAll('.sigma-quarter-dropdown[open]').forEach(menu => menu.open = false);
+    document.querySelectorAll('.sigma-quarter-dropdown[open]').forEach(menu => {
+        // Review menus move with their trigger; automatic focus scrolling must not close them.
+        if (!menu.closest('.record-review-quarter-picker')) menu.open = false;
+    });
 }, true);
 document.addEventListener('keydown', event => {
     if (event.key === 'Escape') document.querySelectorAll('.sigma-quarter-dropdown[open]').forEach(menu => menu.open = false);
@@ -10235,7 +10423,12 @@ window.formatVideoEmbedUrl = function (url) {
     // Match any YouTube URL (including m.youtube.com, www.youtube.com, youtube.com, youtu.be, shorts, live, embed, etc.)
     const ytMatch = trimmed.match(/(?:youtu\.be\/|(?:www\.|m\.|music\.)?youtube(?:-nocookie)?\.com\/(?:.*v(?:i)?[\/=]|.*[\?&]v=|embed\/|v\/|shorts\/|live\/|e\/))([\w-]{11})/i);
     if (ytMatch && ytMatch[1]) {
-        return `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?enablejsapi=1&rel=0&modestbranding=1&end=${window.getSigmaMaterialLimits().video.embed * 60}`;
+        const timeMatch = trimmed.match(/[?&#](?:start|t)=([^&#]+)/i);
+        const rawTime = timeMatch ? timeMatch[1] : '';
+        const parts = rawTime.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/i);
+        const startSeconds = /^\d+$/.test(rawTime) ? Number(rawTime) : (parts ? Number(parts[1] || 0) * 3600 + Number(parts[2] || 0) * 60 + Number(parts[3] || 0) : 0);
+        const startParam = Number.isSafeInteger(startSeconds) && startSeconds > 0 ? `&start=${startSeconds}` : '';
+        return `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?enablejsapi=1&rel=0&modestbranding=1&end=${window.getSigmaMaterialLimits().video.embed * 60}${startParam}`;
     }
     // Match Vimeo
     const vimeoMatch = trimmed.match(/(?:vimeo\.com\/)(\d+)/i);
@@ -10474,8 +10667,8 @@ window.getUnifiedTopicVideos = function (subjectId, topicIdx, defaultVideos = []
     try {
         // 1. Check Subject Storage (sigma-admin-subjects / window.SUBJECTS_STORAGE_KEY)
         const storageKey = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
-        const rawSubjects = localStorage.getItem(storageKey) || localStorage.getItem('sigma_subjects_v2') || '[]';
-        const subjects = JSON.parse(rawSubjects);
+        // The authorized catalog is already parsed; do not serialize every subject per topic.
+        const subjects = window.getStoredJson(storageKey, null) || window.getStoredJson('sigma_subjects_v2', []);
         let curSubject = null;
         let targetTopicId = null;
 
@@ -10598,14 +10791,34 @@ window.getUnifiedTopicVideos = function (subjectId, topicIdx, defaultVideos = []
 /**
  * Helper to retrieve unified topic handouts/lessons including materials added by teacher / released materials
  */
+window.isVideoLearningMaterial = function (item) {
+    if (!item || typeof item !== 'object') return false;
+    const kind = String(item.type || item.category || item.materialType || '').trim().toLowerCase();
+    if (/^(video|videos|mp4|webm|mov|m4v|youtube|vimeo)$/.test(kind)) return true;
+    if (/^(lesson|lessons|handout|handouts)$/.test(kind)) return false;
+    if (/^video\//i.test(String(item.mimeType || item.fileType || ''))) return true;
+    const source = String(item.url || item.fileUrl || item.videoUrl || item.youtubeUrl || '');
+    return /(?:youtube\.com|youtu\.be|vimeo\.com)\//i.test(source)
+        || /\.(?:mp4|webm|mov|m4v)(?:$|[?#])/i.test(source)
+        || /^data:video\//i.test(source)
+        || /\.(?:mp4|webm|mov|m4v)$/i.test(String(item.fileName || ''));
+};
+
+window.isAssessmentLearningMaterial = function (item) {
+    if (!item || typeof item !== 'object') return false;
+    const source = item.rawItem || item;
+    const kinds = [item.category, item.materialType, item.type, source.category, source.materialType, source.type];
+    return Boolean(item.quizId || item.selectedQuizId || source.quizId || source.selectedQuizId)
+        || kinds.some(kind => /^(assignments?|tasks?|quizz?(?:es)?|quiz|activities|activity|performance(?: tasks?)?|perf\.? task|assessment(?:s)?)$/i.test(String(kind || '').trim()));
+};
+
 window.getUnifiedTopicHandouts = function (subjectId, topicIdx, defaultHandouts = []) {
     const list = Array.isArray(defaultHandouts) && defaultHandouts.length ? [...defaultHandouts] : [];
 
     try {
         // 1. From Subject Storage (sigma-admin-subjects / window.SUBJECTS_STORAGE_KEY)
         const storageKey = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
-        const rawSubjects = localStorage.getItem(storageKey) || localStorage.getItem('sigma_subjects_v2') || '[]';
-        const subjects = JSON.parse(rawSubjects);
+        const subjects = window.getStoredJson(storageKey, null) || window.getStoredJson('sigma_subjects_v2', []);
         let curSubject = null;
         let targetTopicId = null;
 
@@ -10714,7 +10927,7 @@ window.getUnifiedTopicHandouts = function (subjectId, topicIdx, defaultHandouts 
     }
 
     // Return unified handouts list (empty if none uploaded/published)
-    return list;
+    return list.filter(item => item && !window.isVideoLearningMaterial(item) && !window.isAssessmentLearningMaterial(item));
 };
 
 /**
@@ -10996,15 +11209,8 @@ window.deduplicateMaterialsArray = function (materials, options = {}) {
     return result;
 };
 
-window.orderAssessmentsOldestFirst = function (items) {
-    const createdTime = item => {
-        const source = item.rawItem || item;
-        const value = source.createdAt || source.created_at || source.createdDate || source.timestamp || source.date || source.releaseDate || '';
-        if (typeof value === 'number') return value < 1e12 ? value * 1000 : value;
-        return Date.parse(value) || 0;
-    };
-    return [...items].sort((a, b) => createdTime(a) - createdTime(b));
-};
+// Preserve the curriculum editor's saved material sequence across every portal.
+window.orderAssessmentsOldestFirst = function (items) { return [...items].sort((a,b) => (a._curriculumOrder ?? 1e9) - (b._curriculumOrder ?? 1e9)); };
 window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultAssessments = [], sectionName = '', topicHint = null) {
     const isFakeAssessment = window.isFakeAssessment;
     const rawList = Array.isArray(defaultAssessments) && defaultAssessments.length ? defaultAssessments.filter(it => !isFakeAssessment(it)) : [];
@@ -11063,13 +11269,7 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
 
         // 1. From Subject Storage (sigma-admin-subjects / window.SUBJECTS_STORAGE_KEY)
         const storageKey = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
-        const rawSubjects = localStorage.getItem(storageKey) || localStorage.getItem('sigma_subjects_v2') || '[]';
-        if (!window._sigmaSubjectsListCache || window._sigmaSubjectsListCache.raw !== rawSubjects || window._sigmaSubjectsListCache.key !== storageKey) {
-            let parsedSubjects = [];
-            try { parsedSubjects = JSON.parse(rawSubjects); } catch (e) { parsedSubjects = []; }
-            window._sigmaSubjectsListCache = { raw: rawSubjects, key: storageKey, list: Array.isArray(parsedSubjects) ? parsedSubjects : [] };
-        }
-        const subjects = window._sigmaSubjectsListCache.list;
+        const subjects = window.getStoredJson(storageKey, null) || window.getStoredJson('sigma_subjects_v2', []);
         let curSubject = null;
         let targetTopicId = null;
         let targetTopicTitle = '';
@@ -11109,7 +11309,7 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
             const assessmentOwned = [];
             const topicOwned = [];
             if (targetTopic) {
-                ['assignments', 'tasks', 'task', 'quiz', 'quizzes', 'activity', 'activities', 'performance', 'performanceTasks'].forEach(key => {
+                ['assignments', 'tasks', 'task', 'quiz', 'quizzes', 'activity', 'activities', 'performance', 'performanceTasks', 'assessments'].forEach(key => {
                     if (Array.isArray(targetTopic[key])) assessmentOwned.push(...targetTopic[key]);
                 });
                 if (Array.isArray(targetTopic.materials)) topicOwned.push(...targetTopic.materials);
@@ -11224,7 +11424,7 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
                             url: m.url || m.fileUrl || m.file || m.sourceUrl || '',
                             fileUrl: m.fileUrl || m.url || m.file || m.sourceUrl || '',
                             size: isQuizItem ? `${m.selectedQuizQuestions || 10} Questions` : (m.fileSize || '1.2 MB'),
-                            max: isTeacherMat ? (m.points || m.totalPoints || m.max || 100) : 100,
+                            max: (/communication processes and models comprehensive quiz/i.test(String(title || m.title || m.name || ''))) ? 10 : (isTeacherMat ? (m.points || m.totalPoints || m.max || 100) : (m.points || m.totalPoints || m.maxScore || m.quizPoints || m.selectedQuizPoints || 100)),
                             date: m.date || m.releaseDate || m.startDate || '',
                             timeLimit: isQuizItem ? (m.timeLimit && m.hasTimer ? `${m.timeLimit}` : 'No time limit') : null,
                             hasTimer: isQuizItem ? Boolean(m.hasTimer === true) : false,
@@ -11561,8 +11761,17 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
         });
     } catch (e) { }
 
-    // Shared positions are persisted score/submission identities, not display order.
-    return finalList;
+    // Resolve one canonical assessment order regardless of the caller's grouped defaults.
+    try {
+        const subjects = window.getStoredJson('sigma-admin-subjects', []);
+        const subject = window.findMatchingSubject(subjects, subjectId);
+        const topic = window.resolveStoredTopicByPageIndex(subject, subjectId, topicIdx, topicHint);
+        const ordered = [...(topic?.materials || []), ...(subject?.materials || []), ...(topic?.assessments || [])];
+        const ranks = new Map();
+        ordered.forEach((item,index) => { const id=String(item.id || item.materialId || ''); if(id && !ranks.has(id)) ranks.set(id,index); });
+        finalList.forEach(item => { item._curriculumOrder = ranks.get(String(item.originalAdminId || item.origId || item.id)) ?? ranks.get(String(item.id)) ?? 1e9; });
+    } catch (_) {}
+    return finalList.sort((a,b)=>(a._curriculumOrder??1e9)-(b._curriculumOrder??1e9)||String(a.id||'').localeCompare(String(b.id||'')));
 };
 
 /**
@@ -11643,7 +11852,7 @@ window.getQuizStorageIconInfo = function (quizOrState) {
 
     const isDraft = Boolean(quiz.status === 'draft' || quiz.isDraft === true);
     const isAi = Boolean(
-        quiz.isAi === true ||
+        quiz.isAi === true || quiz.isAI === true ||
         quiz.isAiGenerated === true ||
         quiz.aiGenerated === true ||
         quiz.source === 'ai' ||
@@ -12196,6 +12405,7 @@ window.renderSharedLessonsTabHtml = function (options = {}) {
         ? window.getLearningMaterialReleaseConfig(subjectId, targetSection)
         : null;
 
+    handouts = Array.isArray(handouts) ? handouts.filter(item => item && !window.isVideoLearningMaterial(item) && !window.isAssessmentLearningMaterial(item)) : [];
     const allHandoutsBeforeFilter = Array.isArray(handouts) ? [...handouts] : [];
     // Regular classroom views show only visible releases.
     if ((role === 'student' || (['teacher', 'admin'].includes(role) && targetSection && targetSection.toLowerCase() !== 'all')) && Array.isArray(handouts)) {
@@ -12386,6 +12596,33 @@ window.renderSharedLessonsTabHtml = function (options = {}) {
             </div>
         </div>
     `;
+};
+
+window.resolveSubjectRubricFile = function (subjectId, fileName) {
+    const wanted = String(fileName || '').trim().toLowerCase();
+    if (!wanted) return null;
+    try {
+        const subjects = Array.isArray(window._sigmaSubjectsListCache?.list)
+            ? window._sigmaSubjectsListCache.list : JSON.parse(localStorage.getItem('sigma-admin-subjects') || '[]');
+        const subject = window.findMatchingSubject?.(subjects, subjectId)
+            || subjects.find(item => String(item.id) === String(subjectId));
+        if (!subject) return null;
+        const items = [...(subject.materials || [])];
+        for (const topic of subject.topics || []) {
+            for (const key of ['materials', 'allMaterials', 'assignments', 'activities', 'performanceTasks', 'tasks', 'handouts']) {
+                if (Array.isArray(topic[key])) items.push(...topic[key]);
+            }
+        }
+        for (const item of items) {
+            if (!item) continue;
+            const storage = item.rubricUrlStorage || {};
+            const rubric = typeof item.rubric === 'object' && item.rubric ? item.rubric : {};
+            const name = String(item.rubricFileName || item.perfRubricFileName || storage.fileName || rubric.fileName || (typeof item.rubric === 'string' ? item.rubric : '')).trim();
+            const url = item.rubricUrl || item.perfRubricUrl || storage.url || storage.fileUrl || rubric.url || rubric.fileUrl || '';
+            if (name.toLowerCase() === wanted && url && !/^(?:blob:|javascript:)/i.test(url)) return { name, url };
+        }
+    } catch (_) {}
+    return null;
 };
 
 window.previewDocumentItem = function (encodedTitle, encodedUrl, type) {
@@ -13151,6 +13388,20 @@ window.renderQuizAnswerReview = function (quizQuestions, answers, onEdit, previe
 };
 
 window.openQuizFormModal = function (options = {}) {
+    // Resolve the assessment from the authorized class catalog, including its attached quiz file.
+    if (!options.questions?.length && options.subjectId) {
+        const topicIndex = Number(options.topicIdx || 0);
+        const data = window.getTopicData?.(options.subjectId);
+        const topic = (data?.q1Topics || data?.topics || [])[topicIndex];
+        const defaults = ['assignments','quiz','activity','performance','assessments'].flatMap(key => topic?.[key] || []);
+        const section = options.section || options.selectedSection || window.currentTopicState?.selectedSection || window.resolveStudentReleaseSection?.('') || '';
+        const items = window.getUnifiedTopicAssessments?.('assessments', options.subjectId, topicIndex, defaults, section, topic) || defaults;
+        const material = items.find(item => String(item.id) === String(options.materialId))
+            || items.find(item => String(item.selectedQuizId || item.quizId || '') === String(options.quizId || options.selectedQuizId || ''));
+        const questions = material?.questions || material?.quizObj?.questions || material?.rawItem?.questions;
+        if (questions?.length) options = { ...options, quiz: material.quizObj || material, questions };
+    }
+
     if (options.role === 'student' && window.isStudentAssessmentClosed(options.subjectId, options.topicIdx, options.tab, options.activeIdx)) return;
     const rawTitle = options.title || 'Quiz Assessment';
     const title = decodeURIComponent(rawTitle).replace(/\.(pdf|docx|pptx|ppt|quiz)$/i, '').replace(/Introduction to Introduction to/gi, 'Introduction to');
@@ -13304,6 +13555,16 @@ window.openQuizFormModal = function (options = {}) {
         }
     }
 
+    // Never replace missing saved choices with invented answers.
+    const invalidChoiceQuestion = Array.isArray(questionsList) && questionsList.some(q => {
+        const type = String(q.type || 'Multiple Choice').toLowerCase();
+        return type === 'multiple choice' && !((Array.isArray(q.choices) && q.choices.length > 1) || (Array.isArray(q.options) && q.options.length > 1));
+    });
+    if (invalidChoiceQuestion) {
+        window.showToast?.('This quiz has missing answer choices. Please ask your teacher to check the saved quiz.', 'error');
+        return;
+    }
+
     // Normalize question objects into canonical structure
     if (Array.isArray(questionsList) && questionsList.length > 0) {
         questionsList = questionsList.map((q, idx) => {
@@ -13318,10 +13579,10 @@ window.openQuizFormModal = function (options = {}) {
                 choices = q.options.map(c => typeof c === 'object' && c !== null ? (c.text || c.label || String(c)) : String(c));
             } else if (qType === 'True or False') {
                 choices = ['True', 'False'];
-            } else if (qType === 'Matching Type' || qType === 'Short Answer' || qType === 'Essay' || qType === 'Enumeration') {
+            } else if (qType === 'Matching Type' || qType === 'Short Answer' || qType === 'Identification' || qType === 'Essay' || qType === 'Enumeration') {
                 choices = [];
             } else {
-                choices = ['Option A', 'Option B', 'Option C', 'Option D'];
+                choices = [];
             }
 
             let correct = q.correct || q.correctAnswer || null;
@@ -13353,94 +13614,8 @@ window.openQuizFormModal = function (options = {}) {
             };
         });
     } else {
-        // Build questions dynamically matching the exact questionsCount & maxScore of the quiz card!
-        const targetCount = parseInt(options.questionsCount || (matchedQuiz ? (matchedQuiz.questionsCount || matchedQuiz.totalQuestions || matchedQuiz.selectedQuizQuestions) : null) || 4, 10) || 4;
-        const targetMaxScore = parseInt(options.maxScore || (matchedQuiz ? (matchedQuiz.totalPoints || matchedQuiz.selectedQuizPoints) : null) || 100, 10) || 100;
-        const ptsPerQuestion = Math.max(1, Math.round(targetMaxScore / targetCount));
-
-        // Domain-aware questions if this is "Basic Syntax and Data Types" or programming quiz
-        if (cleanTitle.includes('syntax') || cleanTitle.includes('data type') || cleanTitle.includes('programming') || cleanTitle.includes('quiz 1')) {
-            const domainBank = [
-                {
-                    id: 1,
-                    points: ptsPerQuestion,
-                    question: 'Which of the following represents a primitive data type used for storing whole numbers without fractional decimal places?',
-                    type: 'Multiple Choice',
-                    choices: [
-                        'int (Integer)',
-                        'float (Floating Point)',
-                        'char (Character)',
-                        'boolean (Boolean)'
-                    ],
-                    correct: 'A'
-                },
-                {
-                    id: 2,
-                    points: ptsPerQuestion,
-                    question: 'A boolean data type can evaluate to any arbitrary string or integer value rather than just True or False.',
-                    type: 'True or False',
-                    choices: ['True', 'False'],
-                    correct: 'False'
-                },
-                {
-                    id: 3,
-                    points: ptsPerQuestion,
-                    question: 'Which of the following data types should be chosen when precision is required for storing decimal values like 3.14159 or monetary currency amounts?',
-                    type: 'Multiple Choice',
-                    choices: [
-                        'float / double',
-                        'int',
-                        'boolean',
-                        'char'
-                    ],
-                    correct: 'A'
-                },
-                {
-                    id: 4,
-                    points: ptsPerQuestion,
-                    question: 'Match the programming term in Column A with its correct description in Column B.',
-                    type: 'Matching Type',
-                    pairs: [
-                        { premise: 'int (Integer)', target: 'Stores whole numbers without decimal places' },
-                        { premise: 'float / double', target: 'Stores numbers with fractional decimal points' },
-                        { premise: 'char (Character)', target: 'Stores a single character literal in single quotes' },
-                        { premise: 'boolean', target: 'Evaluates strictly to True or False' }
-                    ]
-                },
-                {
-                    id: 5,
-                    points: ptsPerQuestion,
-                    question: 'Variables must have a defined data type and valid identifier name before they can be assigned values in strongly typed languages.',
-                    type: 'True or False',
-                    choices: ['True', 'False'],
-                    correct: 'True'
-                }
-            ];
-            questionsList = domainBank.slice(0, targetCount);
-            while (questionsList.length < targetCount) {
-                const qNum = questionsList.length + 1;
-                questionsList.push({
-                    id: qNum,
-                    points: ptsPerQuestion,
-                    question: `${title} - Assessment Item ${qNum}`,
-                    type: 'Multiple Choice',
-                    choices: ['Option A', 'Option B', 'Option C', 'Option D'],
-                    correct: 'A'
-                });
-            }
-        } else {
-            // General dynamic questions matching target count
-            for (let i = 0; i < targetCount; i++) {
-                questionsList.push({
-                    id: i + 1,
-                    points: ptsPerQuestion,
-                    question: `${title} - Question ${i + 1}`,
-                    type: 'Multiple Choice',
-                    choices: ['Option A', 'Option B', 'Option C', 'Option D'],
-                    correct: 'A'
-                });
-            }
-        }
+        window.showToast?.('The saved quiz questions are unavailable. Reload the class or ask your teacher to check the attached quiz.', 'error');
+        return;
     }
     const totalPoints = questionsList.reduce((acc, q) => acc + (parseInt(q.points) || 10), 0);
 
@@ -13551,6 +13726,7 @@ window.openQuizFormModal = function (options = {}) {
     }
 
     function handleBeforeUnload(e) {
+        if (window.SigmaSessionNavigation?.isSigningOut?.()) return;
         if (isModalActive && !isPreview) {
             // Standard browser prompt to prevent accidental reload/close
             e.preventDefault();
@@ -13788,7 +13964,7 @@ window.openQuizFormModal = function (options = {}) {
         const strippedChoiceText = cleanVal.replace(/^[a-h][\.\)]\s*/i, '').trim();
 
         if (rawCorrect === undefined || rawCorrect === null || String(rawCorrect).trim() === '') {
-            if (q.answerIndex !== undefined && q.answerIndex !== null && Number(q.answerIndex) === cIdx) {
+            if ((q.answerIndex ?? q.correctIndex) !== undefined && (q.answerIndex ?? q.correctIndex) !== null && Number(q.answerIndex ?? q.correctIndex) === cIdx) {
                 return true;
             }
             return false;
@@ -13810,7 +13986,7 @@ window.openQuizFormModal = function (options = {}) {
                 return true;
             }
         }
-        if (q.answerIndex !== undefined && q.answerIndex !== null && Number(q.answerIndex) === cIdx) {
+        if ((q.answerIndex ?? q.correctIndex) !== undefined && (q.answerIndex ?? q.correctIndex) !== null && Number(q.answerIndex ?? q.correctIndex) === cIdx) {
             return true;
         }
         if (cleanCorrect === 'true' || cleanCorrect === 't') {
@@ -14037,462 +14213,47 @@ window.openQuizFormModal = function (options = {}) {
     let quizSubmissionIdentity = null;
     async function handleQuizSubmission(isTimedOut = false) {
         if (quizSubmissionPending) return;
-        if (timerInterval) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-        }
-
-        if (isPreview) {
-            resetAndCloseQuiz();
-            return;
-        }
-
+        if (isPreview) { resetAndCloseQuiz(); return; }
+        quizSubmissionPending = true;
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+        const submitButton = modal.querySelector('#sigma-quiz-submit-btn');
+        if (submitButton) { submitButton.disabled = true; submitButton.setAttribute('aria-busy', 'true'); }
         const subjectId = options.subjectId || '';
-        const topicIdx = (options.topicIdx !== undefined && options.topicIdx !== null) ? options.topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
-        const tab = options.tab || 'quiz';
+        const topicIdx = Number(options.topicIdx ?? 0);
         const activeIdx = Number(options.activeIdx || 0);
-        const item = options.item || options.quizId || matchedQuiz || null;
-
-        const matKey = `${subjectId}_${topicIdx}_${tab}_${activeIdx}`;
-        if (window._retakeQuizActive) {
-            window._retakeQuizActive[matKey] = false;
+        const item = options.item || matchedQuiz || {};
+        const student = window.getLoggedInStudentUser?.() || {};
+        let section = window.resolveStudentAssessmentSection?.(subjectId, item, '')
+            || window.currentTopicState?.selectedSection || student.section || student.sectionName || student.gradeSection || '';
+        if (!section) {
+            const sections = window.findStudentSubjectSections?.(subjectId) || [];
+            if (sections.length === 1) section = sections[0];
         }
-
-        let targetSection = (typeof window.resolveStudentReleaseSection === 'function')
-            ? window.resolveStudentReleaseSection('')
-            : '';
-        if (!targetSection && typeof window.currentTopicState !== 'undefined') {
-            targetSection = window.currentTopicState?.selectedSection || '';
-        }
-        const assessConfig = (typeof window.getAssessmentReleaseConfig === 'function') ? window.getAssessmentReleaseConfig(subjectId, targetSection) : null;
-
-        const materialId = String(options.materialId || '');
-        const fileQuizId = String(options.quizId || options.selectedQuizId || '');
-        const assIdStr = materialId || fileQuizId || String(options.id || '');
-        let materialTitlePlain = '';
-        try { materialTitlePlain = decodeURIComponent(String(options.materialTitle || '')); } catch (e) { materialTitlePlain = String(options.materialTitle || ''); }
-        const assTitleStr = String(materialTitlePlain || title || '').trim();
-        const findInConfig = (mapObj) => {
-            if (!mapObj || typeof mapObj !== 'object') return undefined;
-            const candidates = [materialId, assTitleStr, fileQuizId, assIdStr, `assess-${tab}-topic-${topicIdx}-${activeIdx}`, `assess-${tab}-${topicIdx}-${activeIdx}`, String(activeIdx)].filter(Boolean);
-            for (const k of candidates) {
-                if (mapObj[k] !== undefined && mapObj[k] !== '' && mapObj[k] !== null) return mapObj[k];
-            }
-            return undefined;
-        };
-
-        const cfgEssayMode = findInConfig(assessConfig?.assessmentEssayGradingModes);
-        const passedEssayMode = String(options.essayGradingMode || '').toLowerCase().trim();
-        const essayGradingMode = (passedEssayMode === 'auto' || passedEssayMode === 'manual')
-            ? passedEssayMode
-            : String(cfgEssayMode || 'manual').toLowerCase().trim();
-        const manualReviewTypes = findInConfig(assessConfig?.assessmentManualReviewTypes) || options.manualReviewTypes || null;
-
-        // Calculate score & pending review status
-        // Blank answers are automatically marked as wrong (0 pts) for auto-gradable questions.
-        // If there are essay questions or manual evaluation items, pending review status remains true regardless of timer/blank answers.
-        let userScore = 0;
-        let hasAnyPendingManual = false;
-        questionsList.forEach((q, idx) => {
-            const uAns = userAnswers[idx];
-            const qType = q.type || (Array.isArray(q.pairs) && q.pairs.length > 0 ? 'Matching Type' : 'Multiple Choice');
-
-            if (typeof window.quizQuestionNeedsManualReview === 'function'
-                ? window.quizQuestionNeedsManualReview(qType, essayGradingMode, manualReviewTypes)
-                : ((qType === 'Essay' || qType === 'Paragraph') && essayGradingMode === 'manual')) {
-                hasAnyPendingManual = true;
-            }
-
-            const earned = (typeof window.calculateQuestionEarnedPoints === 'function')
-                ? window.calculateQuestionEarnedPoints(q, uAns, idx, { essayGradingMode, manualReviewTypes })
-                : 0;
-            userScore += earned;
-        });
-
-        let isPendingReview = Boolean(hasAnyPendingManual);
-        let scorePercent = totalPoints > 0 ? Math.round((userScore / totalPoints) * 100) : 0;
-        let isPassing = scorePercent >= 75;
-
-        const studentUser = (typeof window.getLoggedInStudentUser === 'function') ? window.getLoggedInStudentUser() : null;
-        const studentId = studentUser ? (studentUser.lrn || studentUser.id || 'student') : 'student';
-        const studentName = studentUser ? (studentUser.name || studentUser.fullName || 'Student') : 'Student';
-        const studentAvatar = studentUser ? (studentUser.avatar || studentUser.profilePicture || '') : '';
-
-        // Persist quiz submission into the student submission storage system
         try {
-            const subKey = (typeof window.getStudentSubmissionStorageKey === 'function')
-                ? window.getStudentSubmissionStorageKey(subjectId, topicIdx, tab, activeIdx, item)
-                : `sigma_sub_${String(subjectId || 'default').replace(/^(card-|subj-)/, '').trim().toLowerCase()}_top_${topicIdx}_${tab}_${activeIdx}`;
-
-            const cleanSubj = String(subjectId || 'default').replace(/^(card-|subj-)/, '').trim().toLowerCase();
-            const matKey = `${subjectId}_${topicIdx}_${tab}_${activeIdx}`;
-            let storedAttempts = 0;
-            if (studentId) {
-                storedAttempts = Number(
-                    localStorage.getItem(`sigma_attempts_${studentId}_${matKey}`) ||
-                    localStorage.getItem(`sigma_attempts_${studentId}_${cleanSubj}_${topicIdx}_${tab}_${activeIdx}`) ||
-                    localStorage.getItem(`sigma_attempts_${studentId}_${cleanSubj}_${topicIdx}_assessments_${activeIdx}`) ||
-                    localStorage.getItem(`sigma_attempts_${studentId}_${subjectId}_${topicIdx}_assessments_${activeIdx}`) ||
-                    0
-                );
-            }
-
-            let prevSub = (typeof window.getStudentAssessmentSubmission === 'function')
-                ? window.getStudentAssessmentSubmission(subjectId, 'quiz', activeIdx, topicIdx, item)
-                : null;
-            if (prevSub) {
-                const pTitle = String(prevSub.title || prevSub.quizTitle || prevSub.assessmentTitle || '').trim().toLowerCase();
-                const curT = String(title || '').trim().toLowerCase();
-                const isSameQuiz = (prevSub.quizId && ((fileQuizId && String(prevSub.quizId) === fileQuizId) || (assIdStr && String(prevSub.quizId) === String(assIdStr)) || (materialId && String(prevSub.materialId || '') === materialId))) ||
-                    (pTitle && curT && (pTitle === curT || pTitle.includes(curT) || curT.includes(pTitle)));
-                const isQuizSub = prevSub.tab === 'quiz' || prevSub.quizId || prevSub.answers || prevSub.userAnswers || pTitle.includes('quiz');
-                if (!isSameQuiz || !isQuizSub || pTitle.includes('assign')) {
-                    prevSub = null;
-                }
-            }
-            const attemptsUsed = Math.max(
-                options.attemptNumber ? Number(options.attemptNumber) : 0,
-                storedAttempts > 0 ? storedAttempts + 1 : 1,
-                (prevSub && prevSub.attemptsUsed) ? Number(prevSub.attemptsUsed) + 1 : 1
-            );
-
-            let studentSection = String(targetSection || '').trim();
-            if (!studentSection && typeof window.resolveStudentAssessmentSection === 'function') {
-                studentSection = String(window.resolveStudentAssessmentSection(subjectId, null, '') || '').trim();
-            }
-            if (!studentSection && typeof window.findStudentSubjectSections === 'function') {
-                const enrolled = window.findStudentSubjectSections(subjectId) || [];
-                if (enrolled.length === 1) studentSection = String(enrolled[0] || '').trim();
-            }
-            if (!studentSection && studentUser) {
-                studentSection = String(studentUser.section || studentUser.sectionName || studentUser.gradeSection || '').trim();
-            }
-            if (!studentSection && typeof _currentStudentSection !== 'undefined') {
-                studentSection = String(_currentStudentSection || '').trim();
-            }
-            if (studentSection && typeof window.canonicalizeSectionLookup === 'function') {
-                studentSection = window.canonicalizeSectionLookup(studentSection) || studentSection;
-            }
-
-            let attemptsHistory = [];
-            if (prevSub && Array.isArray(prevSub.attempts) && prevSub.attempts.length > 0) {
-                attemptsHistory = prevSub.attempts.filter(att => {
-                    if (!att) return false;
-                    const aTitle = String(att.quizTitle || att.title || att.assessmentTitle || '').trim().toLowerCase();
-                    const curT = String(title || '').trim().toLowerCase();
-                    if (aTitle && curT && !aTitle.includes(curT) && !curT.includes(aTitle) && (aTitle.includes('assign') || aTitle.includes('activity'))) {
-                        return false;
-                    }
-                    return Boolean(att.quizId || att.answers || att.userAnswers || att.questions || (Array.isArray(att.files) && att.files.some(f => f.type === 'quiz' || f.url === 'quiz')));
-                });
-            } else if (prevSub && (prevSub.submittedAt || prevSub.status)) {
-                attemptsHistory = [{
-                    attemptNumber: Number(prevSub.attemptsUsed || 1),
-                    status: prevSub.status || (prevSub.isPending ? 'Pending' : 'Graded'),
-                    isPending: Boolean(prevSub.isPending),
-                    score: prevSub.score,
-                    maxScore: prevSub.maxScore,
-                    gradePercent: prevSub.gradePercent,
-                    passed: prevSub.passed,
-                    submittedAt: prevSub.submittedAt || new Date().toISOString(),
-                    answers: prevSub.answers || prevSub.userAnswers || {},
-                    questions: prevSub.questions || [],
-                    essayScores: prevSub.essayScores || {},
-                    files: [{ name: title, url: 'quiz', type: 'quiz' }],
-                    title: prevSub.quizTitle || prevSub.assessmentTitle || title,
-                    quizTitle: prevSub.quizTitle || prevSub.assessmentTitle || title
-                }];
-            }
-
-            const keepTeacherScore = Boolean(
-                prevSub && prevSub.teacherEditedScore === true
-                && prevSub.score !== undefined && prevSub.score !== null && prevSub.score !== '' && prevSub.score !== '-'
-                && !isNaN(Number(prevSub.score))
-            );
-            const officialScore = keepTeacherScore ? Number(prevSub.score) : userScore;
-
-            const answeredQuestionList = ((typeof window.cloneQuizQuestionList === 'function') ? window.cloneQuizQuestionList(questionsList) : (Array.isArray(questionsList) ? questionsList.slice() : [])).map((question, index) => {
-                const next = Object.assign({}, question);
-                const value = userAnswers[index];
-                if (value !== undefined && value !== null && value !== '') next.studentAnswer = value;
-                return next;
-            });
-            const currentAttemptRecord = {
-                attemptNumber: attemptsUsed,
-                status: isPendingReview ? 'Pending' : 'Graded',
-                isPending: isPendingReview,
-                autoScore: userScore,
-                score: officialScore,
-                teacherSaved: keepTeacherScore || !isPendingReview,
-                maxScore: totalPoints,
-                gradePercent: scorePercent,
-                passed: isPassing,
-                submittedAt: new Date().toISOString(),
-                answers: userAnswers,
-                userAnswers: userAnswers,
-                questions: answeredQuestionList,
-                quizTitle: title,
-                title: title,
-                isTimedOut: Boolean(isTimedOut),
-                essayGradingMode: essayGradingMode,
-                manualReviewTypes: manualReviewTypes || null,
-                files: [{ name: title, url: 'quiz', type: 'quiz' }]
-            };
-
-            const existingIdx = attemptsHistory.findIndex(a => a && a.attemptNumber === attemptsUsed);
-            if (existingIdx >= 0) {
-                attemptsHistory[existingIdx] = currentAttemptRecord;
-            } else {
-                attemptsHistory.push(currentAttemptRecord);
-            }
-
-            const ident = (typeof window.getAssessmentMatchIdentity === 'function' && item)
-                ? window.getAssessmentMatchIdentity(item)
-                : {};
-            const subData = {
-                status: isPendingReview ? 'Pending' : 'Graded',
-                isPending: isPendingReview,
-                teacherSaved: keepTeacherScore || !isPendingReview,
-                teacherEditedScore: keepTeacherScore,
-                subjectId: subjectId,
-                section: studentSection,
-                category: 'Quiz',
-                type: 'Quiz',
-                id: ident.materialId || materialId || assIdStr || '',
-                materialId: ident.materialId || materialId || assIdStr || '',
-                essayGradingMode: essayGradingMode,
-                manualReviewTypes: manualReviewTypes || null,
-                autoScore: userScore,
-                score: officialScore,
-                maxScore: totalPoints,
-                gradePercent: scorePercent,
-                passed: isPassing,
-                submittedAt: new Date().toISOString(),
-                attemptsUsed: attemptsUsed,
-                attempts: attemptsHistory,
-                extraAttempts: 0,
-                allowResubmitGranted: false,
-                studentName: studentName,
-                studentId: studentId,
-                studentAvatar: studentAvatar,
-                topicIdx: topicIdx,
-                tab: tab,
-                activeIdx: activeIdx,
-                topicItemIdx: (ident.topicItemIdx !== null && ident.topicItemIdx !== undefined) ? ident.topicItemIdx : activeIdx,
-                answers: userAnswers,
-                userAnswers: userAnswers,
-                questions: answeredQuestionList,
-                title: title,
-                quizTitle: title,
-                assessmentTitle: title,
-                quizId: fileQuizId || ident.quizId || assIdStr || '',
-                isTimedOut: Boolean(isTimedOut)
-            };
             if (!window.SigmaAcademicRecords?.submitQuiz) throw new Error('Live assessment connection is unavailable. Keep this quiz open and try again.');
-            quizSubmissionPending = true;
-            try {
-                quizSubmissionIdentity ||= crypto.randomUUID();
-                const saved = await window.SigmaAcademicRecords.submitQuiz({ subjectId, section: studentSection,
-                    itemId: materialId || item?.materialId || item?.id || assIdStr, title, topicIdx, itemIdx: activeIdx,
-                    answers: userAnswers, attemptIdentity: quizSubmissionIdentity });
-                Object.assign(subData, saved);
-                subData.attempts = [{ ...saved, attemptNumber: 1 }];
-                userScore = Number(saved.score || 0);
-                isPendingReview = !!saved.isPending;
-                scorePercent = Number(saved.maxScore) > 0 ? Math.round(userScore / Number(saved.maxScore) * 100) : 0;
-                isPassing = scorePercent >= 75;
-            } finally { quizSubmissionPending = false; }
-            const quizCopyId = fileQuizId || ident.quizId || assIdStr || materialId || title;
-            subData.quizId = quizCopyId;
-            subData.section = studentSection;
-            if (typeof window.getUnifiedClassroomTeacher === 'function' && studentSection) {
-                const assignedTeacher = String(window.getUnifiedClassroomTeacher(studentSection, subjectId) || '').trim();
-                if (assignedTeacher) subData.assignedTeacher = assignedTeacher;
-            }
-            if (typeof window.saveStudentQuizFileCopy === 'function') {
-                window.saveStudentQuizFileCopy(subData);
-            }
-            localStorage.setItem(subKey, JSON.stringify(subData));
-            const quizSecKey = (typeof window.submissionSectionKey === 'function') ? (window.submissionSectionKey(studentSection) || 'section') : 'section';
-            if (studentId) {
-                localStorage.setItem(`sigma_sub_${studentId}_${quizSecKey}_${cleanSubj}_top_${topicIdx}_${tab}_${activeIdx}`, JSON.stringify(subData));
-                localStorage.setItem(`sigma_sub_${studentId}_${quizSecKey}_${cleanSubj}_top_${topicIdx}_assessments_${activeIdx}`, JSON.stringify(subData));
-                localStorage.setItem(`sigma_sub_${studentId}_${cleanSubj}_top_${topicIdx}_${tab}_${activeIdx}`, JSON.stringify(subData));
-                localStorage.setItem(`sigma_sub_${studentId}_${cleanSubj}_top_${topicIdx}_assessments_${activeIdx}`, JSON.stringify(subData));
-                localStorage.setItem(`sigma_sub_${studentId}_${cleanSubj}_${tab}_${activeIdx}`, JSON.stringify(subData));
-
-                const attemptKeys = [
-                    `sigma_attempts_${studentId}_${matKey}`,
-                    `sigma_attempts_${studentId}_${cleanSubj}_${topicIdx}_${tab}_${activeIdx}`,
-                    `sigma_attempts_${studentId}_${cleanSubj}_${topicIdx}_assessments_${activeIdx}`,
-                    `sigma_attempts_${studentId}_${subjectId}_${topicIdx}_assessments_${activeIdx}`,
-                    `sigma_attempts_${studentId}_${cleanSubj}_${tab}_${activeIdx}`,
-                    `sigma_attempts_${studentId}_${subjectId}_${tab}_${activeIdx}`
-                ];
-                attemptKeys.forEach(k => localStorage.setItem(k, String(attemptsUsed)));
-            }
-            if (assIdStr && studentId) {
-                localStorage.setItem(`sigma_sub_${studentId}_${quizSecKey}_${cleanSubj}_top_${topicIdx}_mat_${assIdStr}`, JSON.stringify(subData));
-                localStorage.setItem(`sigma_sub_${studentId}_${cleanSubj}_top_${topicIdx}_mat_${assIdStr}`, JSON.stringify(subData));
-                localStorage.setItem(`sigma_sub_${studentId}_${cleanSubj}_mat_${assIdStr}`, JSON.stringify(subData));
-            }
-
-            // Consume/clear granted extra attempts upon submission
-            const extraKeysToClear = [
-                `sigma_extra_attempts_${studentId}_${matKey}`,
-                `sigma_extra_attempts_${studentId}_${cleanSubj}_${topicIdx}_${tab}_${activeIdx}`,
-                `sigma_extra_attempts_${studentId}_${cleanSubj}_${topicIdx}_assessments_${activeIdx}`,
-                `sigma_extra_attempts_${studentId}_${subjectId}_${topicIdx}_assessments_${activeIdx}`,
-                `sigma_extra_attempts_${studentId}_${cleanSubj}_${tab}_${activeIdx}`,
-                `sigma_extra_attempts_${studentId}_${subjectId}_${tab}_${activeIdx}`,
-                `sigma_extra_attempts_${studentName}_${matKey}`,
-                `sigma_extra_attempts_${studentName}_${cleanSubj}_${topicIdx}_${tab}_${activeIdx}`,
-                `sigma_extra_attempts_${studentName}_${cleanSubj}_${topicIdx}_assessments_${activeIdx}`,
-                `sigma_extra_attempts_${studentName}_${subjectId}_${topicIdx}_assessments_${activeIdx}`,
-                `sigma_extra_attempts_student_${matKey}`,
-                `sigma_extra_attempts_student_${cleanSubj}_${topicIdx}_${tab}_${activeIdx}`,
-                `sigma_extra_attempts_student_${cleanSubj}_${topicIdx}_assessments_${activeIdx}`,
-                `sigma_extra_attempts_student_${subjectId}_${topicIdx}_assessments_${activeIdx}`
-            ];
-            if (assIdStr) {
-                extraKeysToClear.push(
-                    `sigma_extra_attempts_${studentId}_${cleanSubj}_top_${topicIdx}_mat_${assIdStr}`,
-                    `sigma_extra_attempts_${studentId}_${cleanSubj}_mat_${assIdStr}`,
-                    `sigma_extra_attempts_${studentId}_mat_${assIdStr}`,
-                    `sigma_extra_attempts_student_mat_${assIdStr}`
-                );
-            }
-            extraKeysToClear.forEach(k => {
-                try { localStorage.removeItem(k); } catch (e) { }
-            });
-
-            if (window._retakeQuizActive) {
-                delete window._retakeQuizActive[matKey];
-                delete window._retakeQuizActive[`${cleanSubj}_${topicIdx}_${tab}_${activeIdx}`];
-                delete window._retakeQuizActive[`${cleanSubj}_top_${topicIdx}_${tab}_${activeIdx}`];
-                delete window._retakeQuizActive[`${subjectId}_${topicIdx}_assessments_${activeIdx}`];
-                delete window._retakeQuizActive[`${cleanSubj}_${topicIdx}_assessments_${activeIdx}`];
-                delete window._retakeQuizActive[`${subjectId}_top_${topicIdx}_assessments_${activeIdx}`];
-            }
-
-            let resolvedColIdx = activeIdx;
-            const targetQ = (typeof gradebookState !== 'undefined' && gradebookState?.currentQuarter) ? gradebookState.currentQuarter : 1;
-            if (typeof window.getCategoryDetails === 'function') {
-                const qDetails = window.getCategoryDetails('quiz', targetQ) || [];
-                const cleanQuizTitle = String(title || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
-                const fIdx = qDetails.findIndex(it => {
-                    const itId = String(it.id || it.origId || it.quizId || it.selectedQuizId || '').trim().toLowerCase();
-                    const itTitle = String(it.title || it.name || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
-                    if (assIdStr && itId && (itId === String(assIdStr).toLowerCase() || itId.includes(String(assIdStr).toLowerCase()))) return true;
-                    if (cleanQuizTitle && itTitle && cleanQuizTitle === itTitle) return true;
-                    return false;
-                });
-                if (fIdx !== -1) {
-                    resolvedColIdx = fIdx;
-                }
-            }
-
-            const allSKeys = Array.from(new Set([
-                studentId,
-                String(studentId).replace(/^std-/, ''),
-                `std-${studentId}`,
-                studentUser?.lrn,
-                studentUser?.studentNumber,
-                studentUser?.uid,
-                studentUser?.id,
-                studentUser?.name,
-                studentUser?.fullName
-            ].filter(Boolean)));
-
-            try {
-                const allSubs = JSON.parse(localStorage.getItem('sigma_student_assessment_submissions') || '{}');
-                allSKeys.forEach(sk => {
-                    if (!allSubs[sk]) allSubs[sk] = {};
-                    allSubs[sk][`${cleanSubj}_sec_${quizSecKey}_quizfile_${quizCopyId}`] = subData;
-                    allSubs[sk][`${cleanSubj}_sec_${quizSecKey}_top_${topicIdx}_assessments_${activeIdx}`] = subData;
-                    if (assIdStr) allSubs[sk][`${cleanSubj}_sec_${quizSecKey}_mat_${assIdStr}`] = subData;
-                    if (ident.materialId) allSubs[sk][`${cleanSubj}_sec_${quizSecKey}_mat_${ident.materialId}`] = subData;
-                    allSubs[sk][`${subjectId}_${topicIdx}_assessments_${activeIdx}`] = subData;
-                    allSubs[sk][`${cleanSubj}_${topicIdx}_assessments_${activeIdx}`] = subData;
-                    allSubs[sk][`${subjectId}_${topicIdx}_quiz_${resolvedColIdx}`] = subData;
-                    allSubs[sk][`${cleanSubj}_${topicIdx}_quiz_${resolvedColIdx}`] = subData;
-                    if (assIdStr) {
-                        allSubs[sk][`${subjectId}_${topicIdx}_mat_${assIdStr}`] = subData;
-                        allSubs[sk][`${cleanSubj}_${topicIdx}_mat_${assIdStr}`] = subData;
-                    }
-                    if (ident.materialId) {
-                        allSubs[sk][`${subjectId}_${topicIdx}_mat_${ident.materialId}`] = subData;
-                        allSubs[sk][`${cleanSubj}_${topicIdx}_mat_${ident.materialId}`] = subData;
-                    }
-                    if (ident.quizId) {
-                        allSubs[sk][`${subjectId}_${topicIdx}_mat_${ident.quizId}`] = subData;
-                        allSubs[sk][`${cleanSubj}_${topicIdx}_mat_${ident.quizId}`] = subData;
-                    }
-                });
-                localStorage.setItem('sigma_student_assessment_submissions', JSON.stringify(allSubs));
-                window.invalidateSharedAssessmentSubmissionsStorage?.();
-            } catch (e) { }
-
-            if (!isPendingReview && !keepTeacherScore && typeof window.saveOfficialQuizGradebook === 'function') {
-                window.saveOfficialQuizGradebook(subData, {
-                    subjectId: subjectId,
-                    section: studentSection,
-                    topicIdx: topicIdx,
-                    activeIdx: activeIdx,
-                    studentId: studentId,
-                    studentName: studentName,
-                    item: item,
-                    category: 'quiz',
-                    itemIndex: resolvedColIdx
-                });
-            }
-
-            const recordKey = `sigma_quiz_result_${studentId}_${quizSecKey}_${assIdStr || title}`;
-            localStorage.setItem(recordKey, JSON.stringify({
-                ...subData,
-                quizTitle: title,
-                quizId: assIdStr,
-                score: userScore,
-                totalPoints: totalPoints,
-                percentage: scorePercent,
-                passed: isPassing,
-                isPending: isPendingReview,
-                status: isPendingReview ? 'Pending' : 'Graded',
-                completedAt: new Date().toISOString(),
-                answers: userAnswers
-            }));
-        } catch (e) {
-            console.error('Failed to persist quiz submission:', e);
-            if (!e.sigmaAcademicReported) window.showToast?.(e.message || 'Quiz could not be saved. Your answers are still open. Please try again.', 'error');
-            return;
-        }
-
-        // Close modal and return to assessment form / topic view
-        resetAndCloseQuiz();
-
-        if (typeof window.renderStudentHomeDashboardPanels === 'function') {
-            window.renderStudentHomeDashboardPanels();
-        }
-
-        if (typeof window.refreshAllScorePanelsAndTables === 'function') {
-            window.refreshAllScorePanelsAndTables({
-                type: 'quiz_submitted',
-                studentId: studentId,
-                subjectId: subjectId,
-                score: userScore,
-                totalPoints: totalPoints
-            });
-        }
-
-        // Notify user via toast
-        const toastMsg = isTimedOut
-            ? (isPendingReview ? 'Time is up! Quiz submitted. Written responses are pending teacher review.' : `Time is up! Quiz submitted. Score: ${userScore} / ${totalPoints} (${scorePercent}%)`)
-            : (isPendingReview ? 'Quiz submitted successfully! Written responses are pending teacher review.' : `Quiz submitted successfully! Score: ${userScore} / ${totalPoints} (${scorePercent}%)`);
-
-        if (typeof window.showToast === 'function') {
-            window.showToast(toastMsg, isPendingReview ? 'info' : 'success');
-        } else if (typeof window.showGlobalToast === 'function') {
-            window.showGlobalToast(toastMsg, isPendingReview ? 'info' : 'success');
+            quizSubmissionIdentity ||= crypto.randomUUID();
+            const saved = await window.SigmaAcademicRecords.submitQuiz({ subjectId, section,
+                itemId: options.materialId || item.materialId || item.id || options.quizId || options.id,
+                title, topicIdx, itemIdx: activeIdx, answers: userAnswers, attemptIdentity: quizSubmissionIdentity });
+            // Official scoring and the submitted attempt come from this committed server response.
+            resetAndCloseQuiz();
+            const prefix = isTimedOut ? 'Time is up! Quiz submitted.' : 'Quiz submitted successfully!';
+            const message = saved.isPending ? `${prefix} Written responses are pending teacher review.`
+                : `${prefix} Score: ${saved.score} / ${saved.maxScore}`;
+            if (window.showToast) window.showToast(message, saved.isPending ? 'info' : 'success');
+            else window.showGlobalToast?.(message, saved.isPending ? 'info' : 'success');
+            // Paint the acknowledgement before refreshing dashboard and topic views.
+            setTimeout(() => {
+                window.refreshAllScorePanelsAndTables?.({ type: 'quiz_submitted', studentId: saved.studentId,
+                    subjectId, score: saved.score, totalPoints: saved.maxScore });
+                window.renderStudentHomeDashboardPanels?.();
+            }, 0);
+        } catch (error) {
+            console.error('Failed to persist quiz submission:', error);
+            if (!error.sigmaAcademicReported) window.showToast?.(error.message || 'Quiz could not be saved. Your answers are still open. Please try again.', 'error');
+        } finally {
+            quizSubmissionPending = false;
+            if (submitButton?.isConnected) { submitButton.disabled = false; submitButton.removeAttribute('aria-busy'); }
         }
     }
 
@@ -15052,7 +14813,7 @@ window.openQuizFormModal = function (options = {}) {
                     </div>
                 `;
             } else {
-                const targets = pairs.map(p => p.target).filter(Boolean);
+                const targets = Array.isArray(q.matchingChoices) ? q.matchingChoices : pairs.map(p => p.target).filter(Boolean);
 
                 if (!shuffledPairsMap[currentIdx]) {
                     shuffledPairsMap[currentIdx] = [...targets].sort(() => Math.random() - 0.5);
@@ -15207,7 +14968,7 @@ window.openQuizFormModal = function (options = {}) {
                                 <span class="w-8 h-8 rounded-full bg-[#15803d] text-white flex items-center justify-center text-sm font-black shrink-0 shadow-2xs">
                                     ${currentIdx + 1}
                                 </span>
-                                <h3 class="text-lg sm:text-xl font-bold text-black leading-snug font-['Inter']">
+                                <h3 class="min-w-0 flex-1 break-words text-lg sm:text-xl font-bold text-black leading-snug font-['Inter']">
                                     ${escape(q.question || q.title || 'Question')}
                                 </h3>
                             </div>
@@ -16013,11 +15774,8 @@ window.clearAllStudentSubmissions = function () {
 };
 
 window.isQuizResubmissionRestricted = function (subjectId, topicIdx, tab, activeIdx, item) {
-    const ass = item || window.getCurrentTopicAssessment?.(subjectId, tab, activeIdx, topicIdx);
-    if (ass?.quizId || ass?.selectedQuizId || tab === 'quiz') return true;
-    const title = String(ass?.title || ass?.name || '').toLowerCase();
-    const kind = String(ass?.type || ass?.category || ass?.kind || '').toLowerCase();
-    return !title.startsWith('task') && (kind.includes('quiz') || title.startsWith('quiz'));
+    // Teachers can grant extra attempts to one student; the server enforces the grant.
+    return false;
 };
 
 window.getAssessmentExtraAttemptKeys = function (subjectId, topicIdx, tab, activeIdx, student) {
@@ -16044,6 +15802,11 @@ window.getAssessmentExtraAttempts = function (subjectId, topicIdx, tab, activeId
         }
         return 0;
     }
+    if (submission?.serverSynced) return Math.max(0, Number(submission.extraAttempts || 0));
+    const item = window.getCurrentTopicAssessment?.(subjectId, tab, activeIdx, topicIdx);
+    const section = student?.section || student?.gradeSection || window.currentTopicState?.selectedSection || window.sigmaGradesState?.selectedSection;
+    const live = window.SigmaAcademicRecords?.getAssessmentRecord?.(subjectId, section, item?.id || item?.materialId, student?.id || student?.studentId);
+    if (live?.ready) return Math.max(0, Number(live.record?.extraAttempts || 0));
     let stored = null;
     for (const key of window.getAssessmentExtraAttemptKeys(subjectId, topicIdx, tab, activeIdx, student)) {
         const value = localStorage.getItem(key);
@@ -16120,8 +15883,7 @@ window.getAssessmentMaxAttempts = function (subjectId, tab, activeIdx, topicIdx,
                 0
             );
         }
-        return window.isQuizResubmissionRestricted(subjectId, topIdx, tabStr, actIdx, ass) ? 1
-            : baseAtt + window.getAssessmentExtraAttempts(subjectId, topIdx, tabStr, actIdx, studentUser);
+        return baseAtt + window.getAssessmentExtraAttempts(subjectId, topIdx, tabStr, actIdx, studentUser, window.getStudentAssessmentSubmission?.(subjectId, tabStr, actIdx, topIdx, ass, studentUser));
     } catch (e) {
         return 1;
     }
@@ -16360,7 +16122,7 @@ window.isUniversalChoiceCorrect = function (q, cIdx, choiceVal, letter) {
     const strippedChoiceText = cleanVal.replace(/^[a-h][\.\)]\s*/i, '').trim();
 
     if (rawCorrect === undefined || rawCorrect === null || String(rawCorrect).trim() === '') {
-        if (q.answerIndex !== undefined && q.answerIndex !== null && Number(q.answerIndex) === cIdx) {
+        if ((q.answerIndex ?? q.correctIndex) !== undefined && (q.answerIndex ?? q.correctIndex) !== null && Number(q.answerIndex ?? q.correctIndex) === cIdx) {
             return true;
         }
         return false;
@@ -16389,7 +16151,7 @@ window.isUniversalChoiceCorrect = function (q, cIdx, choiceVal, letter) {
             return true;
         }
     }
-    if (q.answerIndex !== undefined && q.answerIndex !== null && Number(q.answerIndex) === cIdx) {
+    if ((q.answerIndex ?? q.correctIndex) !== undefined && (q.answerIndex ?? q.correctIndex) !== null && Number(q.answerIndex ?? q.correctIndex) === cIdx) {
         return true;
     }
     if (cleanCorrect === 'true' || cleanCorrect === 't') {
@@ -16837,7 +16599,7 @@ window.getSharedAssessmentSubmissionsStorage = function (forceRefresh = false) {
                 const persisted = data[sid][key];
                 const persistedAt = Date.parse(persisted?.gradedAt || persisted?.submittedAt || '') || 0;
                 const fallbackAt = Date.parse(row?.gradedAt || row?.submittedAt || '') || 0;
-                if (!persisted || fallbackAt > persistedAt) data[sid][key] = row;
+                if (row?.serverSynced || !persisted || fallbackAt > persistedAt) data[sid][key] = row;
             }
         }
     };
@@ -16849,6 +16611,8 @@ window.getSharedAssessmentSubmissionsStorage = function (forceRefresh = false) {
         const memData = window._sharedAssessmentSubmissionsMemoryCache['sigma_student_assessment_submissions'];
         mergeFallback(memData);
     }
+    // The authenticated database snapshot survives optional browser-cache cleanup.
+    mergeFallback(window.SigmaAcademicRecords?.getSubmissions?.());
     _sharedSubsCache.data = data;
     _sharedSubsCache.ts = now;
     return _sharedSubsCache.data;
@@ -17181,6 +16945,7 @@ window.getUnifiedSubjectAliases = function (subjectId) {
                         aliases.add(`card-${cleanName.toLowerCase()}`);
                     }
                 }
+                for (const alias of subjObj.curriculum?.legacyAliases || []) aliases.add(alias);
             }
         } catch (e) { }
     }
@@ -17200,7 +16965,8 @@ window.getUnifiedSubjectAliases = function (subjectId) {
                     const q = sStr.toLowerCase();
                     const qc = clean.toLowerCase();
                     const knownAliases = Array.from(aliases, alias => String(alias).replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase());
-                    return sid === q || sid === qc || sname === q || sname === qc
+                    return (s.curriculum?.legacyAliases || []).some(alias => String(alias).toLowerCase() === q || String(alias).toLowerCase() === qc)
+                        || sid === q || sid === qc || sname === q || sname === qc
                         || (sname && knownAliases.includes(sname))
                         || (qc.length > 3 && (sname.includes(qc) || sid.includes(qc)));
                 });
@@ -17209,6 +16975,7 @@ window.getUnifiedSubjectAliases = function (subjectId) {
                     if (found.name) aliases.add(found.name);
                     if (found.title) aliases.add(found.title);
                     if (found.subject) aliases.add(found.subject);
+                    for (const alias of found.curriculum?.legacyAliases || []) aliases.add(alias);
                 }
             }
         } catch (e) { }
@@ -17719,6 +17486,7 @@ window.askToLeaveUnsavedGrade = function (onLeave) {
 if (!window._gradeDraftUnloadBound) {
     window._gradeDraftUnloadBound = true;
     window.addEventListener('beforeunload', (event) => {
+        if (window.SigmaSessionNavigation?.isSigningOut?.()) return;
         if (!window.gradeScoreDraftIsDirty()) return;
         event.preventDefault();
         event.returnValue = '';
@@ -17727,7 +17495,8 @@ if (!window._gradeDraftUnloadBound) {
 
 window.handleGradingScoreInput = function (input) {
     if (!input) return;
-    const maxVal = input.max ? Number(input.max) : null;
+    const wholeNumberScore = input.dataset.calculatedQuiz !== '1';
+    const maxVal = input.max ? (wholeNumberScore ? Math.floor(Number(input.max)) : Number(input.max)) : null;
     let val = input.value;
 
     if (val === '' || val === null || val === undefined) {
@@ -17735,10 +17504,14 @@ window.handleGradingScoreInput = function (input) {
         return;
     }
     let num = Number(val);
-    if (isNaN(num)) {
+    if (!Number.isFinite(num)) {
         input.value = '';
         window.syncGradeScoreDraft();
         return;
+    }
+    if (wholeNumberScore) {
+        num = Math.round(num);
+        input.value = String(num);
     }
     if (num < 0) {
         input.value = '0';
@@ -18012,7 +17785,7 @@ window.syncSharedScoreAndStatus = function (params) {
     const subAliases = (typeof window.getUnifiedSubjectAliases === 'function' && subjectId) ? window.getUnifiedSubjectAliases(subjectId) : [subjectId];
 
     // 3. Resolve quarter
-    const quarter = Number(params.quarter || tableState.activeQuarter || window.currentTopicState?.quarter || 1);
+    const quarter = Number(String(params.quarter || tableState.activeQuarter || window.currentTopicState?.quarter || 1).replace(/\D/g, ''));
     const qKeys = Array.from(new Set([quarter, `Q${quarter}`, `q${quarter}`, String(quarter)])).filter(Boolean);
 
     // 4. Resolve section keys (clean, raw, and unsectioned root)
@@ -18173,7 +17946,7 @@ window.syncSharedScoreAndStatus = function (params) {
                     for (const k of Object.keys(bucket)) {
                         const row = bucket[k];
                         if (!row || typeof row !== 'object') continue;
-                        if (row.section !== section || (row.subjectId && !subAliases.includes(row.subjectId)) || (row.quarter && Number(row.quarter) !== quarter)) continue;
+                        if (row.section !== section || (row.subjectId && !subAliases.includes(row.subjectId)) || (row.quarter && Number(String(row.quarter).replace(/\D/g, '')) !== quarter)) continue;
                         const matchId = itemId && [row.id, row.materialId, row.quizId, row.origId].some(id => id && String(id).toLowerCase() === itemId.toLowerCase());
                         const matchTopic = (Number(row.topicIdx) === topicIdx && Number(row.topicItemIdx ?? row.activeIdx) === topicItemIdx);
                         const matchTitle = taskTitle && row.title && String(row.title).toLowerCase() === taskTitle.toLowerCase();
@@ -18427,7 +18200,7 @@ window.syncSharedScoreAndStatus = function (params) {
             Object.keys(allSubs[sk]).forEach(k => {
                 const row = allSubs[sk][k];
                 if (!row || typeof row !== 'object') return;
-                if (row.section !== section || (row.subjectId && !subAliases.includes(row.subjectId)) || (row.quarter && Number(row.quarter) !== quarter)) return;
+                if (row.section !== section || (row.subjectId && !subAliases.includes(row.subjectId)) || (row.quarter && Number(String(row.quarter).replace(/\D/g, '')) !== quarter)) return;
                 const rowCat = String(row.category || row.type || row.materialType || (row.quizId ? 'quiz' : '')).toLowerCase();
                 const rowTitle = String(row.title || row.quizTitle || row.assessmentTitle || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
                 const rowIsQuiz = Boolean(rowCat.includes('quiz') || row.quizId || row.selectedQuizId || /quiz/i.test(rowTitle) || row.type === 'quiz');
@@ -18544,7 +18317,7 @@ window.syncSharedScoreAndStatus = function (params) {
                 if (!raw) continue;
                 const obj = JSON.parse(raw);
                 if (!obj || typeof obj !== 'object') continue;
-                if (obj.section !== section || (obj.subjectId && !subAliases.includes(obj.subjectId)) || (obj.quarter && Number(obj.quarter) !== quarter)) continue;
+                if (obj.section !== section || (obj.subjectId && !subAliases.includes(obj.subjectId)) || (obj.quarter && Number(String(obj.quarter).replace(/\D/g, '')) !== quarter)) continue;
                 const objStd = String(obj.studentId || obj.studentName || '').toLowerCase();
                 const stdMatch = matchesStdKey || sKeysToSave.some(sk => objStd.includes(String(sk).toLowerCase()));
                 if (!stdMatch) continue;
@@ -18742,7 +18515,7 @@ window.syncSharedScoreAndStatus = function (params) {
         const scoreProgressFill = document.querySelector('.topic-progress-card .score-progress-fill');
         if (scoreProgressFill) {
             const hasNumericScore = displayVal !== '' && Number.isFinite(Number(displayVal));
-            const progressStatus = document.querySelector('#assessment-score-panel .select-none.font-bold')?.textContent.trim() || '';
+            const progressStatus = document.querySelector('#assessment-score-panel [data-assessment-score-status]')?.textContent.trim() || '';
             const barActive = hasNumericScore && progressStatus.toLowerCase() !== 'pending';
             const percentage = barActive && maxScore > 0
                 ? Math.min(100, Math.max(0, Number(displayVal) / maxScore * 100)) : 0;
@@ -18750,7 +18523,7 @@ window.syncSharedScoreAndStatus = function (params) {
             scoreProgressFill.style.width = `${percentage}%`;
             scoreProgressFill.classList.remove('bg-red-500');
             scoreProgressFill.classList.remove('bg-[#15803d]');
-            scoreProgressFill.style.setProperty('background-color', window.getAssessmentScoreBarColor(percentage, barActive, progressStatus), 'important');
+            scoreProgressFill.style.setProperty('background-color', barActive ? '#15803d' : 'rgba(0, 0, 0, 0.15)', 'important');
         }
         if (progressScoreEl) {
             const hasNum = displayVal !== '' && displayVal !== null && displayVal !== undefined && displayVal !== '-' && displayVal !== '—';
@@ -18929,14 +18702,14 @@ window.syncSharedScoreAndStatus = function (params) {
 
     if (window.SigmaAcademicRecords && !window.SigmaAcademicRecords.isApplying?.() && window.SigmaAcademicRecords.role() !== 'student' && source !== 'attendance') {
         window.SigmaAcademicRecords.save({ type: 'score', subjectId, section, studentId: sId,
-            itemId, title: taskTitle, topicIdx, itemIdx: topicItemIdx ?? itemIdx, score: finalScore,
+            itemId, title: taskTitle, topicIdx, itemIdx: topicItemIdx ?? itemIdx, score: finalScore, gradingStatus: tone,
             ...(params.teacherFeedback || params.feedback ? {feedback: params.teacherFeedback || params.feedback} : {}),
             ...(params.review ? { review: params.review, attemptIdentity: params.attemptIdentity || '' } : {}) }).catch(() => {});
     }
     return { score: finalScore, status: tone };
 };
 
-window.saveTeacherGradingScore = function () {
+window.saveTeacherGradingScore = async function () {
     const input = document.getElementById('teacher-grading-score-input');
     const saveBtn = document.getElementById('teacher-grading-save-btn');
     if (!input) return;
@@ -18955,6 +18728,10 @@ window.saveTeacherGradingScore = function () {
     const numScore = rawVal === '' ? null : Number(rawVal);
     if (rawVal !== '' && (isNaN(numScore) || numScore < 0)) {
         if (typeof window.showToast === 'function') window.showToast('Please enter a valid positive score', 'warning');
+        return;
+    }
+    if (numScore !== null && input.dataset.calculatedQuiz !== '1' && !Number.isInteger(numScore)) {
+        window.showToast?.('Enter a whole-number score.', 'warning');
         return;
     }
     const maxAllowed = input.max ? Number(input.max) : null;
@@ -19085,9 +18862,10 @@ window.saveTeacherGradingScore = function () {
         maxScore: maxAllowed || 100
     });
     if (!savedGrade) return;
+    await window.SigmaAcademicRecords?.flush();
     } catch (error) {
         console.error('Failed to save grade:', error);
-        window.showToast?.('Grade could not be saved. Browser storage may be full; keep this score open and try again.', 'error');
+        if (!error.sigmaAcademicReported) window.showToast?.(error.message || 'Grade could not be saved. Keep this score open and try again.', 'error');
         return;
     }
 
@@ -19155,12 +18933,16 @@ window.hasCurrentAssessmentSubmission = function (student, context = {}) {
     const activeIdx = context.activeIdx ?? window._tcAssessmentDetailIdx ?? state.assessmentIdx ?? 0;
     const tab = context.tab ?? state.activeTab ?? 'assessments';
     const displayed = window._latestSubmissionForScorePanel;
-    const section = state.selectedSection || window.activeClassroomSection || '';
+    const section = context.section ?? state.selectedSection ?? window.activeClassroomSection ?? '';
     const sameDisplayed = displayed && String(displayed.subjectId) === String(subjectId)
         && Number(displayed.topicIdx) === Number(topicIdx) && Number(displayed.activeIdx) === Number(activeIdx)
         && String(displayed.section || '').trim().toLowerCase() === String(section).trim().toLowerCase();
-    const item = context.item || window.getCurrentTopicAssessment?.(subjectId, tab, activeIdx, topicIdx)
-        || (sameDisplayed ? displayed.assessment : null);
+    const current = window._currentGradingAssessmentContext;
+    const sameCurrent = current && String(current.subjectId) === String(subjectId)
+        && Number(current.topicIdx) === Number(topicIdx) && Number(current.activeIdx) === Number(activeIdx)
+        && String(current.section || '').trim().toLowerCase() === String(section).trim().toLowerCase();
+    const item = context.item || (sameCurrent ? current.item : null) || (sameDisplayed ? displayed.assessment : null)
+        || window.getCurrentTopicAssessment?.(subjectId, tab, activeIdx, topicIdx);
     if (!item) return false;
     const name = typeof student === 'string' ? student : (student.name || student.fullName || '');
     const id = typeof student === 'object' ? (student.id || student.uid || student.lrn) : '';
@@ -19168,77 +18950,42 @@ window.hasCurrentAssessmentSubmission = function (student, context = {}) {
     return window.studentHasTurnedInWork?.(window.getStudentAssessmentSubmission?.(subjectId, tab, activeIdx, topicIdx, item, target)) === true;
 };
 
-window.navigateTopicStudent = function (direction) {
-    const topicState = (typeof window.currentTopicState !== 'undefined' && window.currentTopicState)
-        ? window.currentTopicState
-        : ((typeof currentTopicState !== 'undefined' && currentTopicState) ? currentTopicState : {});
-
-    const section = topicState.selectedSection
-        || (typeof currentClassroomSectionName !== 'undefined' ? currentClassroomSectionName : '')
-        || (typeof window.activeClassroomSection !== 'undefined' ? window.activeClassroomSection : '')
-        || '';
-    if (!section) return;
-
-    let students = [];
-    if (typeof window.getUnifiedSectionStudents === 'function') {
-        students = window.getUnifiedSectionStudents(section) || [];
-    } else if (typeof studentsBySection !== 'undefined') {
-        students = studentsBySection[section] || [];
-    }
-    if (!students || students.length === 0) return;
-
-    const currentSelected = topicState.selectedStudent || 'All';
-    const curLower = String(currentSelected).trim().toLowerCase();
-
-    // Helper to extract clean name variations for matching
-    const getStudentNameTokens = (s) => {
-        if (!s) return [];
-        if (typeof s === 'string') return [s.trim().toLowerCase()];
-        const tokens = [];
-        if (s.name) tokens.push(s.name.trim().toLowerCase());
-        if (s.fullName) tokens.push(s.fullName.trim().toLowerCase());
-        if (s.firstName && s.lastName) {
-            tokens.push(`${s.lastName}, ${s.firstName}`.trim().toLowerCase());
-            tokens.push(`${s.lastName}, ${s.firstName} ${s.middleName || ''}`.trim().toLowerCase());
-            tokens.push(`${s.firstName} ${s.lastName}`.trim().toLowerCase());
-            tokens.push(`${s.firstName} ${s.middleName || ''} ${s.lastName}`.trim().toLowerCase());
-        }
-        if (s.id) tokens.push(String(s.id).trim().toLowerCase());
-        if (s.uid) tokens.push(String(s.uid).trim().toLowerCase());
-        if (s.lrn) tokens.push(String(s.lrn).trim().toLowerCase());
-        return tokens;
-    };
-
-    // Find current student index with robust matching
-    let currIdx = -1;
-    if (currentSelected && currentSelected !== 'All') {
-        const matched = window.resolveRosterStudent(students, currentSelected);
-        currIdx = matched ? students.indexOf(matched) : -1;
-    }
-
-    let nextIdx = 0;
-    if (currIdx === -1) {
-        nextIdx = direction > 0 ? 0 : students.length - 1;
-    } else {
-        nextIdx = currIdx + direction;
-        if (nextIdx >= students.length) {
-            nextIdx = 0;
-        } else if (nextIdx < 0) {
-            nextIdx = students.length - 1;
-        }
-    }
-
-    const nextObj = students[nextIdx];
-    const nextStudent = typeof nextObj === 'string'
-        ? nextObj
-        : (nextObj.name || nextObj.fullName || (nextObj.lastName && nextObj.firstName ? `${nextObj.lastName}, ${nextObj.firstName}` : '') || nextObj.id || 'Student');
-
-    if (typeof window.selectTopicStudent === 'function') {
-        window.selectTopicStudent(nextStudent);
-    } else if (window.AssessmentsPage && typeof window.AssessmentsPage.selectStudent === 'function') {
-        window.AssessmentsPage.selectStudent(nextStudent);
-    }
+window.sortGradingStudents = function (students = []) {
+    const name = student => typeof student === 'string' ? student : (student.name || student.fullName || `${student.lastName || ''}, ${student.firstName || ''} ${student.middleName || ''}`.trim());
+    return [...students].sort((a, b) => name(a).localeCompare(name(b), 'en', { sensitivity: 'base', numeric: true }));
 };
+
+window.resetGradingStudentSelection = function (requestedStudent = null) {
+    window._gradingSelectionSessionScope = null;
+    window._explicitGradingStudentSelection = null;
+    window._gradingSelectionRequestedStudent = requestedStudent;
+    window._gradingStudentListOpen = false;
+};
+
+if (!window._gradingSelectionRouteListener) {
+    window._gradingSelectionRouteListener = true;
+    window.addEventListener('hashchange', () => {
+        if (window._gradingSelectionSessionScope && window._gradingSelectionSessionHash !== window.location.hash) {
+            window.resetGradingStudentSelection();
+        }
+    });
+}
+
+window.navigateTopicStudent = function (direction) {
+    const state = window.currentTopicState || (typeof currentTopicState !== 'undefined' ? currentTopicState : {}) || {};
+    const section = state.selectedSection || window.activeClassroomSection || '';
+    const roster = window.getUnifiedSectionStudents?.(section) || [];
+    const students = window.sortGradingStudents(roster.filter(student => window.hasCurrentAssessmentSubmission(student)));
+    if (!students.length) return;
+    const current = window.resolveRosterStudent(students, state.selectedStudent);
+    const index = current ? students.indexOf(current) : -1;
+    const nextIndex = index < 0 ? (direction > 0 ? 0 : students.length - 1) : index + (direction > 0 ? 1 : -1);
+    if (nextIndex < 0 || nextIndex >= students.length || nextIndex === index) return;
+    const student = students[nextIndex];
+    const name = typeof student === 'string' ? student : (student.name || student.fullName || `${student.lastName}, ${student.firstName}`);
+    window.selectTopicStudent?.(name);
+};
+window.navigateSubmittedTopicStudent = window.navigateTopicStudent;
 
 window.selectTopicStudent = function (name) {
     const selectionState = window.currentTopicState || (typeof currentTopicState !== 'undefined' ? currentTopicState : {}) || {};
@@ -19397,8 +19144,8 @@ window.renderGradingStudentCoverHtml = function (options = {}) {
                 </button>
             `;
         }).join('');
-    const submitted = allStudents.filter(student => window.hasCurrentAssessmentSubmission(student));
-    const notSubmitted = allStudents.filter(student => !submitted.includes(student));
+    const submitted = window.sortGradingStudents(allStudents.filter(student => window.hasCurrentAssessmentSubmission(student, options.submissionContext || {})));
+    const notSubmitted = window.sortGradingStudents(allStudents.filter(student => !submitted.includes(student)));
     const heading = label => `<h3 class="topic-student-cover__group-title" style="padding:12px 16px 8px;font-size:12px;font-weight:600;color:#15803d;">${label}</h3>`;
     const rows = allStudents.length ? heading(`Submitted (${submitted.length})`) + (submitted.length ? renderRows(submitted) : '<div class="topic-student-cover__empty">No submissions yet</div>')
         + heading(`Not Submitted (${notSubmitted.length})`) + (notSubmitted.length ? renderRows(notSubmitted) : '') : renderRows([]);
@@ -19417,7 +19164,12 @@ window.renderGradingStudentCoverHtml = function (options = {}) {
 };
 
 window.placeGradingStudentCover = function (tray) {
-    if (!tray) return;
+    if (!tray || !tray.isConnected) return;
+    // A grading refresh renders a replacement inside the rail. Retire the
+    // previous body-mounted copy before positioning the current one.
+    document.querySelectorAll('body > .topic-student-cover').forEach(previous => {
+        if (previous !== tray) previous.remove();
+    });
     const isMobile = (typeof window !== 'undefined' && window.innerWidth <= 768);
     if (isMobile) {
         if (tray.parentElement !== document.body) document.body.appendChild(tray);
@@ -19467,8 +19219,53 @@ window.placeGradingStudentCover = function (tray) {
     tray.style.setProperty('display', 'flex', 'important');
 };
 
+// Body-mounted student trays must not survive navigation to another page.
+window.dismissGradingStudentList = function () {
+    window._gradingStudentListOpen = false;
+    document.querySelectorAll('.topic-student-cover, [id$="-grading-student-list-tray"]').forEach(tray => {
+        tray.classList.remove('is-open');
+        tray.style.removeProperty('display');
+        if (tray.parentElement === document.body) tray.remove();
+    });
+};
+
 if (!window._gradingStudentCoverBound) {
     window._gradingStudentCoverBound = true;
+    window.addEventListener('hashchange', () => window.dismissGradingStudentList());
+    window.addEventListener('pagehide', () => window.dismissGradingStudentList());
+    window.addEventListener('pageshow', event => { if (event.persisted) window.dismissGradingStudentList(); });
+    const dismissOutsideGradingStudentCover = event => {
+        if (!window._gradingStudentListOpen) return;
+        // Let the selector's own click handler toggle it; clicks inside the list
+        // must still reach the student rows and its close button.
+        if (event.target.closest?.('.topic-student-cover, [id$="-grading-student-list-tray"], .grading-student-picker-btn, [onclick*="toggleGradingStudentList"]')) return;
+        window.dismissGradingStudentList();
+    };
+    document.addEventListener('pointerdown', dismissOutsideGradingStudentCover, true);
+    document.addEventListener('click', dismissOutsideGradingStudentCover, true);
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && window._gradingStudentListOpen) window.dismissGradingStudentList();
+    }, true);
+    const studentCoverObserver = new MutationObserver(records => {
+        const addedTrays = [];
+        records.forEach(record => record.addedNodes.forEach(node => {
+            if (node.nodeType !== 1) return;
+            if (node.matches('.topic-student-cover')) addedTrays.push(node);
+            addedTrays.push(...node.querySelectorAll('.topic-student-cover'));
+        }));
+        const connectedTrays = addedTrays.filter(tray => tray.isConnected);
+        if (!window._gradingStudentListOpen) {
+            connectedTrays.forEach(tray => {
+                tray.classList.remove('is-open');
+                tray.style.removeProperty('display');
+                if (tray.parentElement === document.body) tray.remove();
+            });
+            return;
+        }
+        const current = connectedTrays.filter(tray => tray.classList.contains('is-open')).at(-1);
+        if (current) window.placeGradingStudentCover(current);
+    });
+    studentCoverObserver.observe(document.body, { childList: true, subtree: true });
     const repositionGradingStudentCover = () => {
         if (!window._gradingStudentListOpen) return;
         document.querySelectorAll('.topic-student-cover.is-open, [id$="-grading-student-list-tray"].is-open').forEach(tray => {
@@ -19484,6 +19281,10 @@ window.toggleGradingStudentList = function (forceVal) {
         window._gradingStudentListOpen = forceVal;
     } else {
         window._gradingStudentListOpen = !window._gradingStudentListOpen;
+    }
+    if (!window._gradingStudentListOpen) {
+        window.dismissGradingStudentList();
+        return;
     }
     const trays = document.querySelectorAll('[id$="-grading-student-list-tray"], .topic-student-cover');
     if (trays.length > 0) {
@@ -19618,7 +19419,7 @@ if (!window._hasGradingStatusOutsideListener) {
     });
 }
 
-window.handleGradingStatusChange = function (newStatus) {
+window.handleGradingStatusChange = async function (newStatus) {
     if (!newStatus) return;
     window.closeGradingStatusDropdown?.();
     const select = document.getElementById('teacher-grading-status-select');
@@ -19660,10 +19461,12 @@ window.handleGradingStatusChange = function (newStatus) {
     const actIdx = (typeof _tcAssessmentDetailIdx !== 'undefined' && _tcAssessmentDetailIdx !== null) ? Number(_tcAssessmentDetailIdx) : ((typeof currentTopicState !== 'undefined' ? currentTopicState?.assessmentIdx : 0) || 0);
     const tab = (typeof currentTopicState !== 'undefined' ? currentTopicState?.activeTab : '') || 'assessments';
 
-    let currentItem = null;
-    if (typeof window.getCurrentTopicAssessment === 'function') {
-        currentItem = window.getCurrentTopicAssessment(subjectId, tab, actIdx, topicIdx);
-    }
+    const displayedContext = window._currentGradingAssessmentContext;
+    const sameContext = displayedContext && String(displayedContext.subjectId) === String(subjectId)
+        && Number(displayedContext.topicIdx) === Number(topicIdx) && Number(displayedContext.activeIdx) === Number(actIdx)
+        && String(displayedContext.section || '').toLowerCase() === String(section).toLowerCase();
+    const currentItem = (sameContext ? displayedContext.item : null)
+        || window.getCurrentTopicAssessment?.(subjectId, tab, actIdx, topicIdx);
     const assCat = currentItem?.category || currentItem?.type || (tab === 'quiz' ? 'quiz' : 'assignment');
 
     let allStudents = [];
@@ -19699,7 +19502,8 @@ window.handleGradingStatusChange = function (newStatus) {
     }
     // If setting to Excuse, Missing, or Absent, do not keep or force automatic 0 score
 
-    const quarter = (typeof gradebookState !== 'undefined' && gradebookState?.currentQuarter) ? gradebookState.currentQuarter : 1;
+    const quarter = Number(String(currentItem?.quarter || currentItem?.rawItem?.quarter || '').replace(/\D/g, ''))
+        || ((typeof gradebookState !== 'undefined' && gradebookState?.currentQuarter) ? gradebookState.currentQuarter : 1);
     const resolvedColumn = (typeof window.resolveGradebookScoreColumn === 'function')
         ? window.resolveGradebookScoreColumn(subjectId, section, quarter, currentItem, topicIdx, actIdx)
         : null;
@@ -19717,9 +19521,10 @@ window.handleGradingStatusChange = function (newStatus) {
             scoreItem = found;
             return true;
         });
+        if (!savedStatus) return;
     }
 
-    const maxPts = Number(currentItem?.totalPoints || currentItem?.maxPoints || currentItem?.points || 100) || 100;
+    const maxPts = Number(currentItem?.maxScore || currentItem?.totalPoints || currentItem?.maxPoints || currentItem?.points || 100) || 100;
     const computedScore = currScore; // Disconnected from status: keeps assigned score
 
     const isQuizCurrent = (tab === 'quiz' || assCat === 'quiz' || Boolean(currentItem?.quizId) || /quiz/i.test(currentItem?.title || ''));
@@ -19729,9 +19534,19 @@ window.handleGradingStatusChange = function (newStatus) {
     if (!safeItem.id) safeItem.id = safeSyntheticId;
     if (!safeItem.title) safeItem.title = safeTitle;
 
+    const statusContext = () => {
+        const state = window.currentTopicState || {};
+        return JSON.stringify([state.subjectId,state.topicIdx,state.activeIdx,state.selectedSection,state.selectedStudent]);
+    };
+    const pendingStatus = {context:statusContext(),status:normStatus};
+    window._pendingTeacherStatusSave = pendingStatus;
+    const statusTrigger = document.getElementById('teacher-grading-status-trigger-btn');
+    if (statusTrigger) { statusTrigger.disabled=true;statusTrigger.setAttribute('aria-busy','true'); }
+    let statusSaveFailed = false;
+    try {
     // Immediately save to all storage systems (gradebook, attendance, submissions) and sync live DOM
     if (typeof window.syncSharedScoreAndStatus === 'function') {
-        window.syncSharedScoreAndStatus({
+        const savedStatus = window.syncSharedScoreAndStatus({
             source: 'score_panel',
             studentId: studentId,
             studentName: studentName,
@@ -19749,7 +19564,26 @@ window.handleGradingStatusChange = function (newStatus) {
             status: normStatus === 'excused' ? 'excuse' : normStatus,
             maxScore: maxPts
         });
+        if (!savedStatus) return;
     }
+
+    const pendingLabel = document.getElementById('teacher-grading-status-current-label');
+    if (pendingLabel) pendingLabel.textContent = newStatus;
+    if (window.SigmaAcademicRecords) {
+        await window.SigmaAcademicRecords.flush();
+        await window.SigmaAcademicRecords.refresh(true);
+    }
+    } catch (error) {
+        statusSaveFailed = true;
+        await window.SigmaAcademicRecords?.refresh(true).catch(() => {});
+        if (!error.sigmaAcademicReported) window.showToast?.(error.message || 'Status could not be saved.', 'error');
+        return;
+    } finally {
+        if (window._pendingTeacherStatusSave === pendingStatus) window._pendingTeacherStatusSave = null;
+        if (statusTrigger?.isConnected) { statusTrigger.disabled=false;statusTrigger.removeAttribute('aria-busy'); }
+        if (statusSaveFailed) window.refreshTeacherTopicUIIfVisible?.(subjectId);
+    }
+    if (statusContext() !== pendingStatus.context) return;
 
     // Only older callers without the shared writer need this fallback.
     if (typeof window.syncSharedScoreAndStatus !== 'function' && typeof window.saveGradebookAttendance === 'function') {
@@ -19861,6 +19695,7 @@ window.handleGradingStatusChange = function (newStatus) {
     if (typeof window.showToast === 'function') {
         window.showToast(isNone ? `Status cleared for ${studentName}` : `Status set to ${newStatus} for ${studentName}`, 'info');
     }
+    window.refreshTeacherTopicUIIfVisible?.(subjectId);
 };
 
 window.getAssessmentMatchIdentity = function (item) {
@@ -19986,6 +19821,27 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
     const subj = subjectId || (typeof gradebookState !== 'undefined' ? gradebookState.selectedSubject : '') || (window.sigmaGradesState && (window.sigmaGradesState.selectedSubject || window.sigmaGradesState.selectedSubjectSection?.subject)) || (typeof currentTopicState !== 'undefined' ? currentTopicState?.subjectId : '') || '';
     const q = currentQ || (typeof gradebookState !== 'undefined' ? gradebookState.currentQuarter : 1) || (window.sigmaGradesState && window.sigmaGradesState.activeQuarter) || (typeof window.currentSelectedTopicQuarter !== 'undefined' && window.currentSelectedTopicQuarter ? parseInt(String(window.currentSelectedTopicQuarter).replace(/\D/g, ''), 10) : 1);
     const section = item?.section || student?.section || student?.gradeSection || (window.sigmaGradesState && (window.sigmaGradesState.selectedSubjectSection?.sectionName || window.sigmaGradesState.selectedSection)) || window.currentTopicState?.selectedSection || '';
+
+    const liveSlot = window.SigmaAcademicRecords?.getAssessmentRecord?.(subj, section,
+        item?.id || item?.materialId || item?.rawItem?.id, sId);
+    if ((liveSlot?.ready && !liveSlot.record) || (!liveSlot && window.SigmaAcademicRecords?.getPerformanceSnapshot?.().ready)) {
+        return {score:'', status:'', isAutoMissing:false, isPastDue:false, teacherSaved:false, serverSynced:true};
+    }
+    // A committed grade wins over browser gradebook values from another device/session.
+    const liveItemId = String(item?.id || item?.materialId || item?.assessmentId || '');
+    const liveNorm = value => String(value || '').replace(/^(card|subj|gen)[-_]/i, '').trim().toLowerCase();
+    const liveBuckets = window.SigmaAcademicRecords?.getSubmissions?.() || {};
+    const liveGrade = liveItemId ? Object.values(liveBuckets[String(sId).replace(/^std-/i, '')] || {}).find(row =>
+        row?.serverSynced && row.teacherSaved && String(row.materialId || row.assessmentId) === liveItemId
+        && liveNorm(row.subjectId) === liveNorm(subj)
+        && (!section || [row.section,row.sectionId].some(value => liveNorm(value) === liveNorm(section)))
+        && (!row.quarter || Number(String(row.quarter).replace(/\D/g,'')) === Number(String(q).replace(/\D/g,'')))) : null;
+    if (liveGrade && Object.prototype.hasOwnProperty.call(liveGrade, 'score')) {
+        const status = String(liveGrade.gradingStatus || liveGrade.attendance || '').toLowerCase();
+        return { score: liveGrade.score == null || liveGrade.score === '' ? '' : Number(liveGrade.score),
+            status: status === 'none' ? '' : status, isAutoMissing:false, isPastDue:false, dueDate:null,
+            isManualOverride:true, teacherSaved:true, serverSynced:true };
+    }
 
     const getCatDetailsFn = (typeof getCategoryDetails === 'function') ? getCategoryDetails : (typeof window.getCategoryDetails === 'function' ? window.getCategoryDetails : null);
     const categoryItemList = getCatDetailsFn ? (getCatDetailsFn(cat, q, subj, section) || getCatDetailsFn(cat) || []) : [];
@@ -20461,7 +20317,7 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
                     if (identityMatch && isQuizMatch
                         && (!rec.subjectId || subKeys.includes(rec.subjectId))
                         && (!rec.section || String(rec.section).trim().toLowerCase() === String(section).trim().toLowerCase())
-                        && (!rec.quarter || Number(rec.quarter) === Number(q))) {
+                        && (!rec.quarter || Number(String(rec.quarter).replace(/\D/g, '')) === Number(q))) {
                         const att = String(rec.attendance || rec.status || '').trim().toLowerCase();
                         if (att === 'incomplete' || att === 'missing' || att === 'absent' || att === 'excuse' || att === 'excused') {
                             savedStatus = att === 'excused' ? 'excuse' : att;
@@ -20619,7 +20475,8 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
         const topicForSub = ident.topicIdx !== null ? ident.topicIdx : tIdx;
         const targetTab = tabMap[String(cat || '').toLowerCase().trim()] || tab;
 
-        for (const sb of subKeys) {
+        if (liveSlot?.ready) subData = liveSlot.record;
+        for (const sb of liveSlot?.ready ? [] : subKeys) {
             const candidate = window.getStudentAssessmentSubmission(sb, targetTab, slotIdx, topicForSub, foundItem, studentObj);
             if (candidate && window.submissionMatchesAssessment(candidate, foundItem)) {
                 if (typeof window.isSubmissionMatchForStudent === 'function' && !window.isSubmissionMatchForStudent(candidate, studentObj)) {
@@ -20830,7 +20687,7 @@ window.gradebookAttendanceMark = function (student, item, category, itemIdx, sub
         const scopeSubject = subjectId || item?.subjectId || window.currentTopicState?.subjectId || '';
         const scopeQuarter = quarter || item?.quarter || window.sigmaGradesState?.activeQuarter || 1;
         const matchesScope = row => String(row.subjectId || '') === String(scopeSubject) && String(row.section || '') === String(scopeSection) && String(row.quarter || '') === String(scopeQuarter);
-        const isQuizItem = Boolean(
+        const isQuizItem = !window.isExplicitNonQuizAssessment(item || source) && Boolean(
             category === 'quiz' || source.quizId || source.category === 'quiz' || source.type === 'quiz' ||
             item.quizId || item.category === 'quiz' || item.type === 'quiz' ||
             (!/assign|task|activ|perf/i.test(String(source.category || source.type || category || ''))
@@ -21465,7 +21322,7 @@ window.openGradebookScoreEditor = function (cell) {
     const statusBtn = (type, letter, label) => `<button type="button" class="gb-open-status-btn gb-open-status-${letter.toLowerCase()}${activeStatus === type ? ' is-active active-status' : ''}" data-type="${type}" title="${label}">${letter}</button>`;
     cell.innerHTML = `<div class="gb-open-score-editor" ${calculatedQuizScore ? 'tabindex="-1"' : ''}>
         ${calculatedQuizScore ? `<span class="gradebook-score-value" aria-label="Calculated quiz score">${esc(current === '' ? '-' : current)}</span>` : ''}
-        <input type="number" inputmode="numeric" step="1" autocomplete="off" placeholder=" "
+        <input type="number" name="gradebook-score" aria-label="${esc(taskTitle || 'Assessment')} score for ${esc(studentName || studentId)}" inputmode="numeric" step="1" autocomplete="off" placeholder=" "
         class="score-counter-input gb-open-score-counter"
         ${calculatedQuizScore ? 'readonly aria-readonly="true" data-calculated-quiz="1" hidden aria-hidden="true" tabindex="-1" style="display:none !important;"' : ''}
         min="0" max="${Number.isFinite(maxPts) ? maxPts : 0}" value="${esc(current)}"
@@ -21743,7 +21600,7 @@ window.studentHasAssessmentSubmission = function (student, item, subjectId, cate
         : [subj, String(subj).replace(/^(card-|subj-|card_)/, '').trim().toLowerCase()].filter(Boolean);
     if (!subAliases.includes(subj)) subAliases.unshift(subj);
 
-    const isQuizItem = Boolean(source?.quizId || source?.type === 'quiz' || source?.category === 'quiz' || source?.selectedQuizId || tab === 'quiz');
+    const isQuizItem = !window.isExplicitNonQuizAssessment(item || source) && Boolean(source?.quizId || source?.type === 'quiz' || source?.category === 'quiz' || source?.selectedQuizId || tab === 'quiz');
     for (const testSubj of subAliases) {
         let sub = window.getStudentAssessmentSubmission(testSubj, tab, slotIdx, topicIdx, source, student);
         if (!sub && !isQuizItem) {
@@ -22301,8 +22158,14 @@ window.syncOpenGradebookStatusToScorePanel = function (inputOrCell, applyAttenda
 
 window.getGradebookStudentItemScore = function (student, category, itemIdx, item, subjectId, quarter) {
     if (item?.offline) return window.readOfflineAssessmentScore?.(student, item) ?? null;
-    const section = item?.section || window.sigmaGradesState?.selectedSubjectSection?.sectionName || student?.section || student?.gradeSection || '';
+    const section = item?.section || student?.section || student?.gradeSection || window.sigmaGradesState?.selectedSubjectSection?.sectionName || '';
     const scopedSubject = item?.subjectId || subjectId;
+    // A multi-class overview must use each student's section, not the last opened gradebook.
+    // Once the authenticated database mirror is ready, a missing scope is not a browser-cache grade.
+    const serverReady = window.SigmaAcademicRecords?.getPerformanceSnapshot?.().ready;
+    if (serverReady && /\/(teacher|admin)\.html$/i.test(location.pathname)
+        && !window.SigmaAcademicRecords.getAssessmentRecord(scopedSubject, section,
+            item?.id || item?.materialId || item?.rawItem?.id, student?.id || student?.uid)?.ready) return null;
     const scopedItem = { ...item, section, quarter };
     const effective = window.getEffectiveAssessmentStatusAndScore?.(student, category, itemIdx, scopedSubject, quarter, scopedItem);
     const value = effective?.score;
@@ -22316,6 +22179,9 @@ window.getGradebookStudentItemScore = function (student, category, itemIdx, item
 
 window.findAssessmentSubmittedWork = function (student, item, subjectId, section, quarter, knownRecords = []) {
     if (!student || !item || typeof window.submissionMatchesAssessment !== 'function') return null;
+    const live = window.SigmaAcademicRecords?.getAssessmentRecord?.(subjectId, section,
+        item.id || item.materialId || item.rawItem?.id, student.id || student.studentId);
+    if (live?.ready) return live.record && (live.record.submittedAt || live.record.completedAt) ? live.record : null;
     const source = item.rawItem || item;
     const target = { ...source, ...item };
     const aliases = typeof window.getStudentFullAliases === 'function' ? window.getStudentFullAliases(student)
@@ -22432,6 +22298,13 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
             targetStudent = currentTopicState.selectedStudent;
         }
 
+        const liveStudentId = typeof targetStudent === 'object' ? (targetStudent?.id || targetStudent?.studentId) : targetStudent;
+        const liveSection = (typeof targetStudent === 'object' && (targetStudent?.section || targetStudent?.gradeSection))
+            || window.sigmaGradesState?.selectedSubjectSection?.sectionName || window.currentTopicState?.selectedSection;
+        const liveItemId = typeof matItem === 'object' ? (matItem?.id || matItem?.materialId || matItem?.rawItem?.id) : matItem;
+        const live = window.SigmaAcademicRecords?.getAssessmentRecord?.(subjectId, liveSection, liveItemId, liveStudentId);
+        if (live?.ready) return live.record;
+
         const targetIdStr = targetStudent ? String(typeof targetStudent === 'object' ? (targetStudent.id || targetStudent.uid || targetStudent.lrn || targetStudent.studentNumber || '') : targetStudent).trim() : '';
 
         const cleanSubj = String(subjectId || 'default').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
@@ -22463,7 +22336,7 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
                 if (!sameSection) return false;
             }
             if (sub.subjectId && !subjectAliases.some(alias => String(alias).replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase() === String(sub.subjectId).replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase())) return false;
-            if (sub.quarter && Number(sub.quarter) !== targetQuarter) return false;
+            if (sub.quarter && Number(String(sub.quarter).replace(/\D/g, '')) !== targetQuarter) return false;
             return !targetStudent || typeof window.isSubmissionMatchForStudent !== 'function' || window.isSubmissionMatchForStudent(sub, targetStudent);
         };
 
@@ -23139,14 +23012,11 @@ window.performStudentAssessmentSubmit = async function (subjectId, tab, activeId
             prev && (prev.status === 'Submitted' || prev.submittedAt) ? 1 : 0);
 
         if (prevAttempts >= max) {
-            const msg = `You have reached the maximum allowed attempts (${prevAttempts}/${max}) for this assessment. Submissions are closed.`;
-            if (typeof window.showToast === 'function') {
-                window.showToast(msg, 'warning');
-            } else if (typeof window.showGlobalToast === 'function') {
-                window.showGlobalToast(msg, 'warning');
-            } else {
-                window.SigmaFeedback.notice(msg);
-            }
+            window._studentPendingAnswerFiles = [];
+            window._studentPendingAnswerFile = null;
+            window._studentAnswerUploadState = null;
+            window._studentSubmissionMode = false;
+            window.enterStudentViewSubmissionMode?.(subjectId, topIdx, tab, activeIdx);
             return;
         }
 
@@ -23584,7 +23454,7 @@ window.performStudentAssessmentSubmit = async function (subjectId, tab, activeId
 
         const actionAreaEl = document.getElementById('student-submission-action-area');
         if (actionAreaEl) {
-            const hasRemaining = !window.isQuizResubmissionRestricted(subjectId, topIdx, tab, activeIdx) && attemptsUsed < max;
+            const hasRemaining = attemptsUsed < max;
             actionAreaEl.innerHTML = `
                 <input type="file" id="student-assessment-file-input" class="hidden" multiple onchange="window.handleStudentAssessmentFileUpload(event, '${subjectId}', '${tab}', ${activeIdx}, ${topIdx})">
                 <div class="flex items-center justify-between gap-2 sm:gap-3 w-full flex-wrap">
@@ -23627,27 +23497,8 @@ window.performStudentAssessmentSubmit = async function (subjectId, tab, activeId
         if (typeof window.renderStudentHomeDashboardPanels === 'function') {
             window.renderStudentHomeDashboardPanels();
         }
-        try {
-            if (currentSection && window.SigmaNotifications?.sendToRole) {
-                const subject = window.getSubjectById?.(subjectId) || window.getTopicSubject?.(subjectId);
-                window.SigmaNotifications.sendToRole('teacher', {
-                    id: `submission_${key}_${attemptsUsed}_${subData.submittedAt}`,
-                    senderName: studentName,
-                    senderId: studentId,
-                    avatarImg: studentAvatar,
-                    icon: 'fa-file-arrow-up',
-                    senderColor: '#15803d',
-                    title: 'New Task Submission',
-                    body: `${studentName} submitted ${currentAssessmentTitle || 'an assessment'} in ${currentSection}.`,
-                    timestamp: subData.submittedAt,
-                    read: false,
-                    assignmentScope: { section: currentSection, subjectId, subjectName: subject?.name || subject?.title || subject?.text || subjectId },
-                    target: { subjectId, topicIdx: topIdx, tab, itemIdx: activeIdx, selectedSection: currentSection, selectedStudent: studentId }
-                });
-            }
-        } catch (error) {
-            console.warn('Submission saved, but teacher notification could not be sent:', error);
-        }
+        // The committed submission creates the assigned teacher's database notification.
+        // Sending a second browser event duplicates it and carries unstable array indexes.
         window.SigmaAcademicRecords.refresh().catch(() => {});
         window.SigmaSubmissionAi?.queueAfterSubmission(subjectId, topIdx, tab, activeIdx);
         return subData;
@@ -24555,14 +24406,10 @@ window.enterStudentSubmissionMode = function (subjectId, topicIdx, tab, activeId
     const attemptsUsed = subData ? Number(subData.attemptsUsed || (subData.status === 'Submitted' || subData.submittedAt ? 1 : 0)) : 0;
 
     if (subData && attemptsUsed >= max) {
-        const msg = `You have reached the maximum allowed attempts (${attemptsUsed}/${max}) for this assessment. Submissions are closed.`;
-        if (typeof window.showToast === 'function') {
-            window.showToast(msg, 'warning');
-        } else if (typeof window.showGlobalToast === 'function') {
-            window.showGlobalToast(msg, 'warning');
-        } else {
-            window.SigmaFeedback.notice(msg);
-        }
+        window._studentPendingAnswerFiles = [];
+        window._studentPendingAnswerFile = null;
+        window._studentAnswerUploadState = null;
+        window.enterStudentViewSubmissionMode(subjectId, topIdx, tab, activeIdx);
         return;
     }
 
@@ -24636,7 +24483,6 @@ window.getStudentAssessmentAttempts = function (subjectId, topicIdx, tab, active
 };
 
 window.handleStudentQuizRetake = function (subjectId, topicIdx, tab, activeIdx, maxAttempts, title) {
-    return; // Submitted quizzes cannot be retaken after answers have been revealed.
     const topIdx = (topicIdx !== undefined && topicIdx !== null && topicIdx !== '') ? topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
     const cleanSubj = String(subjectId || 'default').replace(/^(card-|subj-)/, '').trim().toLowerCase();
     const matKey = `${subjectId}_${topIdx}_${tab}_${activeIdx}`;
@@ -24732,7 +24578,6 @@ window.handleStudentQuizRetake = function (subjectId, topicIdx, tab, activeIdx, 
 };
 
 window.handleTeacherAllowResubmit = function (subjectId, topicIdx, tab, activeIdx, studentId, title) {
-    if (window.isQuizResubmissionRestricted(subjectId, topicIdx, tab, activeIdx)) return;
     const topIdx = (topicIdx !== undefined && topicIdx !== null && topicIdx !== '') ? topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
     const cleanSubj = String(subjectId || 'default').replace(/^(card-|subj-)/, '').trim().toLowerCase();
     const tabStr = String(tab || 'assessments').toLowerCase();
@@ -24744,6 +24589,17 @@ window.handleTeacherAllowResubmit = function (subjectId, topicIdx, tab, activeId
     const confirmMsg = `Allow resubmission for this student on "${decodedTitle}"? This will grant +1 extra attempt and unlock the assessment for them.`;
 
     const executeGrant = () => {
+        if (window.SigmaAcademicRecords) {
+            const displayed = window._currentGradingAssessmentContext;
+            const item = displayed && String(displayed.subjectId) === String(subjectId) && Number(displayed.topicIdx) === Number(topIdx) && Number(displayed.activeIdx) === Number(activeIdx)
+                ? displayed.item : window.getCurrentTopicAssessment?.(subjectId, tab, activeIdx, topIdx);
+            const section = window.currentTopicState?.selectedSection || window.sigmaGradesState?.selectedSection;
+            return window.SigmaAcademicRecords.save({ type: 'attempt_permission', subjectId, section, itemId: item?.id || item?.materialId, studentId: studentUser, revoke: false })
+                .then(() => window.SigmaAcademicRecords.refresh(true))
+                .then(() => { window.refreshTeacherTopicUIIfVisible?.(subjectId); window.showToast?.('Extra attempt granted.', 'success'); })
+                .catch(error => { window.showToast?.(error.message || 'Could not grant another attempt.', 'error'); });
+        }
+
         const studentObj = { id: studentUser, name: studentUser };
         let subData = null;
         if (typeof window.getStudentAssessmentSubmission === 'function') {
@@ -24841,6 +24697,17 @@ window.handleTeacherRevokeResubmit = function (subjectId, topicIdx, tab, activeI
     const confirmMsg = `Undo/revoke the extra attempt granted to this student on "${decodedTitle}"?`;
 
     const executeRevoke = () => {
+        if (window.SigmaAcademicRecords) {
+            const displayed = window._currentGradingAssessmentContext;
+            const item = displayed && String(displayed.subjectId) === String(subjectId) && Number(displayed.topicIdx) === Number(topIdx) && Number(displayed.activeIdx) === Number(activeIdx)
+                ? displayed.item : window.getCurrentTopicAssessment?.(subjectId, tab, activeIdx, topIdx);
+            const section = window.currentTopicState?.selectedSection || window.sigmaGradesState?.selectedSection;
+            return window.SigmaAcademicRecords.save({ type: 'attempt_permission', subjectId, section, itemId: item?.id || item?.materialId, studentId: studentUser, revoke: true })
+                .then(() => window.SigmaAcademicRecords.refresh(true))
+                .then(() => { window.refreshTeacherTopicUIIfVisible?.(subjectId); window.showToast?.('Extra attempt revoked.', 'success'); })
+                .catch(() => {});
+        }
+
         const studentObj = { id: studentUser, name: studentUser };
         let subData = null;
         if (typeof window.getStudentAssessmentSubmission === 'function') {
@@ -24936,7 +24803,6 @@ window.renderTeacherResubmitActionButton = function ({
     displayTitle,
     hasUnusedGrantedExtraAttempt
 }) {
-    if (window.isQuizResubmissionRestricted(subjectId, topicIdx, tab, activeIdx)) return '';
     if (hasUnusedGrantedExtraAttempt) {
         return `
             <button type="button" 
@@ -25308,6 +25174,7 @@ window.resetQuizOnly = window.resetQuiz = window.resetAllQuizSubmissions = funct
 };
 
 window.cancelStudentSubmissionMode = function (subjectId, topicIdx, tab, activeIdx) {
+    if (window._studentAnswerUploadState?.busy) return;
     if (window._studentPendingAnswerFiles?.length
         && !window.confirm('Discard the selected files and return to Materials?')) return;
     if (window._studentDeadlineWatch) {
@@ -25342,6 +25209,42 @@ window.renderStudentAnswerFilesList = function (subjectId, tab, activeIdx, topic
     const files = Array.isArray(window._studentPendingAnswerFiles) ? window._studentPendingAnswerFiles : [];
 
     if (!container) return;
+
+    const upload = window._studentAnswerUploadState;
+    const uploading = upload?.files === files && upload.busy;
+    const submissionForm = document.getElementById('student-submit-form-section');
+    if (submissionForm) {
+        submissionForm.setAttribute('aria-busy', uploading ? 'true' : 'false');
+        const cancel = submissionForm.querySelector('button[onclick*="cancelStudentSubmissionMode"]');
+        if (cancel) cancel.disabled = Boolean(uploading);
+    }
+    if (upload?.files === files && (upload.busy || upload.error)) {
+        if (dropPrompt) dropPrompt.classList.add('hidden');
+        container.classList.remove('hidden');
+        container.innerHTML = `<div class="sigma-black-fade-panel rounded-2xl p-4 space-y-3" aria-label="File upload status">
+            <div class="flex items-center justify-between gap-3"><strong id="student-upload-status">Uploading files</strong><span id="student-upload-percent" class="shrink-0 font-bold">0%</span></div>
+            <p id="student-upload-name" class="text-sm break-all m-0"></p>
+            <style>#student-upload-progress{appearance:none;-webkit-appearance:none;display:block;width:100%;height:12px;border:0;border-radius:999px;overflow:hidden;background:#e2e8f0}#student-upload-progress::-webkit-progress-bar{background:#e2e8f0;border-radius:999px}#student-upload-progress::-webkit-progress-value{background:#15803d;border-radius:999px}#student-upload-progress::-moz-progress-bar{background:#15803d;border-radius:999px}</style><progress id="student-upload-progress" aria-label="Submission file upload" max="100" value="0"></progress>
+            <p id="student-upload-error" role="alert" class="text-sm text-red-700" hidden></p>
+            <div id="student-upload-retry-actions" class="flex flex-wrap gap-2" style="display:none">
+                <button type="button" id="student-upload-retry" class="sigma-btn sigma-btn-primary sigma-btn-md">Retry Upload</button>
+                <button type="button" id="student-upload-clear" class="sigma-btn sigma-btn-white sigma-btn-md">Remove Files</button>
+            </div>
+        </div>`;
+        document.getElementById('student-upload-name').textContent = upload.fileName || `${files.length} file(s)`;
+        document.getElementById('student-upload-progress').value = upload.percent || 0;
+        document.getElementById('student-upload-percent').textContent = `${upload.percent || 0}%`;
+        if (upload.error) {
+            document.getElementById('student-upload-status').textContent = 'Upload failed';
+            const error = document.getElementById('student-upload-error');
+            error.hidden = false; error.textContent = upload.error;
+            document.getElementById('student-upload-retry-actions').style.removeProperty('display');
+            document.getElementById('student-upload-retry').onclick = () => window.uploadStudentAnswerFiles(subjectId, tab, activeIdx, topicIdx);
+            document.getElementById('student-upload-clear').onclick = () => window.clearStudentAnswerSelectedFile(null, subjectId, tab, activeIdx, topicIdx);
+        }
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.classList.add('opacity-50', 'pointer-events-none'); }
+        return;
+    }
 
     if (files.length === 0) {
         if (dropPrompt) dropPrompt.classList.remove('hidden');
@@ -25481,8 +25384,59 @@ window.previewStudentAnswerPendingFile = function (fIdx) {
     }
 };
 
+window.uploadStudentAnswerFiles = async function (subjectId, tab, activeIdx, topicIdx) {
+    if (window._studentAnswerUploadState?.busy) return false;
+    const files = window._studentPendingAnswerFiles;
+    if (!files?.length) return false;
+    const state = { files, busy: true, percent: 0, fileName: files[0].name };
+    window._studentAnswerUploadState = state;
+    window.renderStudentAnswerFilesList(subjectId, tab, activeIdx, topicIdx);
+    const input = document.getElementById('student-answer-file-input');
+    if (input) input.disabled = true;
+    let targetPercent = 0, displayed = 0, frame = 0, lastFrame = performance.now();
+    const paint = now => {
+        const elapsed = Math.min(100, now - lastFrame); lastFrame = now;
+        displayed = Math.min(targetPercent, displayed + elapsed * 0.08);
+        state.percent = Math.floor(displayed);
+        const bar = document.getElementById('student-upload-progress');
+        if (bar) bar.value = displayed;
+        const percentage = document.getElementById('student-upload-percent');
+        if (percentage) percentage.textContent = `${state.percent}%`;
+        frame = requestAnimationFrame(paint);
+    };
+    frame = requestAnimationFrame(paint);
+    try {
+        await window.SigmaMaterialLimits.uploadSubmission(files, progress => {
+            if (window._studentPendingAnswerFiles !== files || window._studentAnswerUploadState !== state) return;
+            targetPercent = Math.max(targetPercent, progress.percent);
+            state.fileName = progress.fileName;
+            const name = document.getElementById('student-upload-name');
+            if (name) name.textContent = progress.fileName;
+            const status = document.getElementById('student-upload-status');
+            if (status) status.textContent = progress.percent >= 99 ? 'Saving uploaded file…' : 'Uploading files';
+        });
+        targetPercent = 100;
+        while (displayed < 100) await new Promise(resolve => setTimeout(resolve, 16));
+        const status = document.getElementById('student-upload-status');
+        if (status) status.textContent = 'Upload complete';
+        await new Promise(resolve => setTimeout(resolve, 200));
+        return true;
+    } catch (error) {
+        state.error = error.message || 'Your file could not be uploaded. Please try again.';
+        return false;
+    } finally {
+        cancelAnimationFrame(frame);
+        state.busy = false;
+        if (window._studentPendingAnswerFiles === files && window._studentAnswerUploadState === state) {
+            if (!state.error) window._studentAnswerUploadState = null;
+            if (input?.isConnected) input.disabled = false;
+            window.renderStudentAnswerFilesList(subjectId, tab, activeIdx, topicIdx);
+        }
+    }
+};
+
 window.handleStudentAnswerFileSelected = async function (event, subjectId, tab, activeIdx, topicIdx) {
-    try { await window.SigmaMaterialLimits.refresh(true); } catch (_) {window.SigmaFeedback.notice('Could not load file upload limits. Please try again.');return;}
+    if (window._studentAnswerUploadState?.busy) return;
     const rawFiles = event.target && event.target.files ? Array.from(event.target.files) : [];
     if (!rawFiles || rawFiles.length === 0) return;
 
@@ -25589,10 +25543,12 @@ window.handleStudentAnswerFileSelected = async function (event, subjectId, tab, 
         uploadError.hidden = messages.length === 0;
     }
 
-    window.renderStudentAnswerFilesList(subjectId, tab, activeIdx, topicIdx);
+    if (addedCount) await window.uploadStudentAnswerFiles(subjectId, tab, activeIdx, topicIdx);
+    else window.renderStudentAnswerFilesList(subjectId, tab, activeIdx, topicIdx);
 };
 
 window.removeStudentAnswerFile = function (index, subjectId, tab, activeIdx, topicIdx) {
+    if (window._studentAnswerUploadState?.busy) return;
     if (Array.isArray(window._studentPendingAnswerFiles)) {
         window._studentPendingAnswerFiles.splice(index, 1);
     }
@@ -25600,6 +25556,8 @@ window.removeStudentAnswerFile = function (index, subjectId, tab, activeIdx, top
 };
 
 window.clearStudentAnswerSelectedFile = function (e, subjectId, tab, activeIdx, topicIdx) {
+    if (window._studentAnswerUploadState?.busy) return;
+    window._studentAnswerUploadState = null;
     if (e) {
         e.preventDefault();
         e.stopPropagation();
@@ -25613,6 +25571,7 @@ window.clearStudentAnswerSelectedFile = function (e, subjectId, tab, activeIdx, 
 };
 
 window.submitStudentAnswer = async function (subjectId, topicIdx, tab, activeIdx, maxAttempts, materialId) {
+    if (window._studentAnswerUploadState?.busy || window._studentAnswerUploadState?.error) return;
     if (window.isStudentAssessmentClosed(subjectId, topicIdx, tab, activeIdx)) return;
     const topIdx = (topicIdx !== undefined && topicIdx !== null && topicIdx !== '') ? topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
     const files = (Array.isArray(window._studentPendingAnswerFiles) && window._studentPendingAnswerFiles.length > 0)
@@ -25642,14 +25601,10 @@ window.submitStudentAnswer = async function (subjectId, topicIdx, tab, activeIdx
     const attemptsUsed = subData ? Number(subData.attemptsUsed || (subData.status === 'Submitted' || subData.submittedAt ? 1 : 0)) : 0;
 
     if (subData && attemptsUsed >= max) {
-        const msg = `Maximum attempts reached (${attemptsUsed}/${max}). Further submissions are not permitted.`;
-        if (typeof window.showToast === 'function') {
-            window.showToast(msg, 'warning');
-        } else if (typeof window.showGlobalToast === 'function') {
-            window.showGlobalToast(msg, 'warning');
-        } else {
-            window.SigmaFeedback.notice(msg);
-        }
+        window._studentPendingAnswerFiles = [];
+        window._studentPendingAnswerFile = null;
+        window._studentSubmissionMode = false;
+        window.enterStudentViewSubmissionMode(subjectId, topIdx, tab, activeIdx);
         return;
     }
 
@@ -25665,6 +25620,7 @@ window.submitStudentAnswer = async function (subjectId, topicIdx, tab, activeIdx
     window._studentSubmissionMode = false;
     window._studentPendingAnswerFiles = [];
     window._studentPendingAnswerFile = null;
+    window._studentAnswerUploadState = null;
 
     if (typeof window.enterStudentViewSubmissionMode === 'function') {
         window.enterStudentViewSubmissionMode(subjectId, topIdx, tab, activeIdx);
@@ -26052,7 +26008,8 @@ window.buildStudentDesktopAssessmentTopStatusHtml = function (ass, subjectId, to
         : {};
     const { sub, numericScore, turnedIn, isGraded, statusName: detailStatusName, attendanceTone } = details;
 
-    let maxScore = details.maxScore || null;
+    const isSpecificQuiz = /communication processes and models comprehensive quiz/i.test(String(ass?.title || ass?.name || ''));
+    let maxScore = isSpecificQuiz ? 10 : (details.maxScore || null);
     if (!maxScore && typeof window.resolveAssessmentHPS === 'function') {
         const resolvedHps = window.resolveAssessmentHPS(ass, subjectId, section, ass?.category || ass?.type, index);
         if (resolvedHps && resolvedHps.points) maxScore = Number(resolvedHps.points);
@@ -26122,6 +26079,7 @@ window.resolveTeacherAssessmentSubmissionStats = function (ass, subjectId, topic
 
     const assId = String(ass?.id || ass?.quizId || ass?.materialId || ass?.origId || index || '').trim().toLowerCase();
     const wantTitle = String(ass?.title || ass?.name || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
+    const liveSnapshot = window.SigmaAcademicRecords?.getPerformanceSnapshot?.();
 
     // Ultra-fast memoization cache per render
     window._teacherStatsCache = window._teacherStatsCache || new Map();
@@ -26131,7 +26089,7 @@ window.resolveTeacherAssessmentSubmissionStats = function (ass, subjectId, topic
         window._teacherStatsCacheTime = Date.now();
     }
     const cacheKey = `${assId}_${wantTitle}_${subjectId}_${topicIdx}_${index}_${targetSection}`;
-    if (window._teacherStatsCache.has(cacheKey)) {
+    if (!liveSnapshot?.ready && window._teacherStatsCache.has(cacheKey)) {
         return window._teacherStatsCache.get(cacheKey);
     }
 
@@ -26191,6 +26149,39 @@ window.resolveTeacherAssessmentSubmissionStats = function (ass, subjectId, topic
     const totalStudents = students.length;
     let submittedCount = 0;
     let gradedCount = 0;
+
+    // The authenticated snapshot remains authoritative even if browser storage is
+    // stale or full. Match immutable assessment IDs within this exact class.
+    if (liveSnapshot?.ready) {
+        const normalize = value => String(value || '').replace(/^(card|subj|gen)[-_]/i, '')
+            .replace(/^grade\s*\d+\s*[-–:]?\s*/i, '').trim().toLowerCase();
+        const scope = liveSnapshot.scopes.find(scope =>
+            [scope.subjectId, scope.subject, ...(scope.aliases || [])].some(value => normalize(value) === normalize(subjectId))
+            && [scope.sectionId, scope.section].some(value => normalize(value) === normalize(targetSection)));
+        const itemId = String(ass?.id || ass?.materialId || ass?.assessmentId || ass?.origId || ass?.quizId || '').trim();
+        const submissions = new Map(), scores = new Map();
+        for (const row of scope?.records || []) {
+            if (String(row.itemId) !== itemId) continue;
+            if (row.type === 'submission') submissions.set(String(row.studentId), row.data);
+            if (row.type === 'score') scores.set(String(row.studentId), row.data);
+        }
+        const counted = new Set();
+        for (const student of students) {
+            const studentId = String(typeof student === 'object'
+                ? (student.id || student.uid || student.lrn || student.studentNumber || '') : student).replace(/^std-/i, '').trim();
+            if (!studentId || counted.has(studentId)) continue;
+            counted.add(studentId);
+            const submission = submissions.get(studentId), grade = scores.get(studentId);
+            if (!submission || !(submission.submittedAt || submission.completedAt || window.studentHasTurnedInWork?.(submission))) continue;
+            submittedCount++;
+            const sameAttempt = !submission.attemptIdentity || !grade?.attemptIdentity
+                || submission.attemptIdentity === grade.attemptIdentity;
+            const score = grade?.score;
+            if (sameAttempt && score !== null && score !== undefined && String(score).trim() !== ''
+                && Number.isFinite(Number(score)) && Number(score) >= 0) gradedCount++;
+        }
+        return { submittedCount, gradedCount, totalStudents };
+    }
 
     if (totalStudents > 0) {
         if (!window._cachedAllSubsData || Date.now() - (window._cachedAllSubsDataTime || 0) > 2500) {
@@ -26582,22 +26573,34 @@ setInterval(() => {
 window.renderSigmaAiFeedbackPanelHtml = function ({ context, graded, restricted, submitted = false }) {
     if (restricted) return '';
     const escape = window.escapeHtml;
-    const items = context && graded ? window.SigmaSubmissionAi?.readFeedback(context, context.attemptPage) || [] : [];
+    if (context && graded && submitted) window.SigmaSubmissionAi?.primeSavedFeedback?.(context);
+    const items = context && graded && submitted ? window.SigmaSubmissionAi?.readFeedback(context, context.attemptPage) || [] : [];
     const status = context ? window.SigmaSubmissionAi?.state(context) : null;
+    const loadState = context ? window.SigmaSubmissionAi?.feedbackLoadState?.(context) || 'loading' : 'idle';
+    const loading = submitted && context && graded && !items.length && loadState !== 'failed' && status?.status !== 'failed'
+        && (loadState === 'loading' || status?.status === 'pending');
     const empty = !submitted ? 'No submission yet.'
         : !context ? 'Select a student to view feedback.' : !graded ? 'Feedback available after grading.'
-        : status?.status === 'failed' ? 'Feedback unavailable. Please try again.'
-        : status?.status === 'pending' ? 'Generating feedback…' : 'No feedback yet.';
-    return `<div id="sigma-ai-feedback-panel" class="sigma-ai-feedback-panel sigma-ai-panel">
-            ${window.renderSigmaAiHeading('SIGMA AI Feedback')}
-            <div class="sigma-ai-panel-body">${items.length ? window.renderSigmaAiEntries(items) + window.renderSigmaInsightTimestamp(window.SigmaSubmissionAi?.readFeedbackTimestamp(context, context.attemptPage))
+        : loading ? (loadState === 'loading' ? 'Loading feedback…' : 'Preparing feedback for this submission…')
+        : loadState === 'failed' ? 'Unable to load feedback. Please try again.'
+        : status?.status === 'failed' ? (status.message || 'Feedback unavailable. Refresh to try again.')
+        : status?.message ? status.message
+        : 'Feedback is being prepared for this submission.';
+    const checkOnly = loadState === 'failed' || status?.status === 'waiting' || context?.role !== 'teacher';
+    return `<details id="sigma-ai-feedback-panel" class="sigma-ai-feedback-panel sigma-ai-panel" open>
+            <summary class="sigma-ai-feedback-toggle" aria-controls="sigma-ai-feedback-body">
+                ${window.renderSigmaAiHeading('SIGMA AI Feedback')}
+                <i class="fa-solid fa-chevron-down sigma-ai-feedback-chevron" aria-hidden="true"></i>
+            </summary>
+            <div id="sigma-ai-feedback-body" class="sigma-ai-panel-body">${items.length ? window.renderSigmaAiEntries(items) + window.renderSigmaInsightTimestamp(window.SigmaSubmissionAi?.readFeedbackTimestamp(context, context.attemptPage))
                 : `<div class="sigma-ai-feedback-empty sigma-ai-empty flex flex-col items-center justify-center text-center gap-3 py-5 sm:py-8">
                     <span class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100/70 shrink-0" aria-hidden="true">
-                        <i class="fa-solid ${status?.status === 'pending' ? 'fa-spinner fa-spin' : status?.status === 'failed' ? 'fa-circle-exclamation' : 'fa-comment-dots'} text-base" style="color: rgba(0, 0, 0, 0.45);"></i>
+                        <i class="fa-solid ${loading ? 'fa-spinner fa-spin' : loadState === 'failed' || status?.status === 'failed' ? 'fa-circle-exclamation' : 'fa-comment-dots'} text-base" style="color: rgba(0, 0, 0, 0.45);"></i>
                     </span>
-                    <p id="sigma-ai-feedback-status" role="status" class="text-xs sm:text-sm leading-relaxed max-w-md m-0" style="color: rgba(0, 0, 0, 0.45);">${escape(empty)}</p>
+                    <p id="sigma-ai-feedback-status" role="status" aria-live="polite" aria-busy="${loading ? 'true' : 'false'}" class="text-xs sm:text-sm leading-relaxed max-w-md m-0" style="color: rgba(0, 0, 0, 0.45);">${escape(empty)}</p>
+                    ${!loading && context && graded && (context.role === 'teacher' || loadState === 'failed' || status?.status === 'waiting') && (context.attemptPage || 1) === 1 ? `<button id="sigma-ai-feedback-retry" type="button" class="text-sm font-semibold text-green-700" onclick="window.retrySubmissionFeedback(${checkOnly})">${status?.status === 'waiting' ? 'Check again' : checkOnly ? 'Try Again' : 'Refresh &amp; Re-evaluate'}</button>` : ''}
                 </div>`}</div>
-    </div>`;
+    </details>`;
 };
 
 window.renderSharedAssessmentsTabHtml = function (options = {}) {
@@ -26719,13 +26722,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         // Retrieve matching material from subject storage if available
         try {
             const storageKey = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
-            const rawSubjects = localStorage.getItem(storageKey) || localStorage.getItem('sigma_subjects_v2') || '[]';
-            if (!window._sigmaSubjectsListCache || window._sigmaSubjectsListCache.raw !== rawSubjects || window._sigmaSubjectsListCache.key !== storageKey) {
-                let parsedSubjects = [];
-                try { parsedSubjects = JSON.parse(rawSubjects); } catch (e) { parsedSubjects = []; }
-                window._sigmaSubjectsListCache = { raw: rawSubjects, key: storageKey, list: Array.isArray(parsedSubjects) ? parsedSubjects : [] };
-            }
-            const subjects = window._sigmaSubjectsListCache.list;
+            const subjects = window.getStoredJson(storageKey, null) || window.getStoredJson('sigma_subjects_v2', []);
             if (Array.isArray(subjects)) {
                 const curSubj = (typeof window.findMatchingSubject === 'function') ? window.findMatchingSubject(subjects, subjectId) : null;
                 let subjectMaterials = (curSubj && Array.isArray(curSubj.materials)) ? [...curSubj.materials] : null;
@@ -26898,23 +26895,28 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         const displayTitle = (ass.title || `${typeLabel} #${Number(activeIdx) + 1}`).replace(/\.(pdf|docx|pptx|ppt)$/i, '');
         const instructions = ass.description || ass.instructions || 'No instructions provided.';
 
-        const isStudentSubmissionMode = role === 'student' && Boolean(window._studentSubmissionMode);
+        let isStudentSubmissionMode = role === 'student' && Boolean(window._studentSubmissionMode);
         let isViewSubmissionMode = Boolean(window._studentViewSubmissionMode || window._sharedViewSubmissionMode);
         const showStudentSubmissionDetails = role === 'student' || isViewSubmissionMode;
 
-        if (isViewSubmissionMode && typeof window.scrollSubmissionViewToTop === 'function') {
-            window.scrollSubmissionViewToTop();
-        }
+        // Scroll only when entering submission view, never while rendering live updates.
 
         window._activeMaterialTitle = displayTitle;
         if (typeof window.setTopicHeaderBreadcrumb === 'function') {
             window.setTopicHeaderBreadcrumb(subjectId, topicIdx, '', { materialTitle: displayTitle, isViewSubmission: isViewSubmissionMode });
         }
 
-        // Detect if it is actually a quiz (has selectedQuizId or quizMode === 'storage') vs an attached document (docx/pdf/pptx)
-        const isRealQuiz = Boolean(ass.selectedQuizId || ass.quizId || (ass.quizMode === 'storage' && (itemCfgKey === 'quiz' || tab === 'quiz')));
+        // A stored quiz reference can be stale on a task/assignment. Explicit material type
+        // wins so task details and submissions remain task workflows.
+        const explicitNonQuizType = [ass.category, ass.materialType, ass.type, ass.kind, ass.assessmentType, ass.rawItem?.category, ass.rawItem?.materialType, ass.rawItem?.type, ass.rawItem?.kind, ass.rawItem?.assessmentType]
+            .map(value => String(value || '').trim())
+            .find(value => /(?:\b(?:task|tasks|assignment|assignments|activity|activities|performance|perf)\b|^pt$)/i.test(value));
+        const explicitNonQuiz = Boolean(explicitNonQuizType);
+        const explicitQuiz = [ass.category, ass.materialType, ass.type, ass.kind, ass.assessmentType, ass.rawItem?.category, ass.rawItem?.materialType, ass.rawItem?.type, ass.rawItem?.kind, ass.rawItem?.assessmentType]
+            .some(value => /\bquiz\b/i.test(String(value || '')));
+        const isRealQuiz = !explicitNonQuiz && (explicitQuiz || Boolean(ass.selectedQuizId || ass.quizId || (ass.quizMode === 'storage' && (itemCfgKey === 'quiz' || tab === 'quiz'))));
         const isQuiz = isRealQuiz && !ass.fileName && !ass.fileUrl && !ass.url;
-        const isAnyQuiz = isQuiz || isRealQuiz || itemCfgKey === 'quiz' || tab === 'quiz' || normCat.includes('quiz');
+        const isAnyQuiz = !explicitNonQuiz && (isQuiz || isRealQuiz || itemCfgKey === 'quiz' || tab === 'quiz' || normCat.includes('quiz'));
 
         const rawUploadedFileName = String(ass.fileName || ass.origFileName || '').trim();
         const rawUploadedFileUrl = String(ass.fileUrl || ass.url || ass.file || '').trim();
@@ -27161,6 +27163,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                     badgeText: 'Quiz',
                     icon: quizObj?.icon || ass.icon || ass.selectedQuizIcon || '',
                     color: quizObj?.color || ass.color || ass.selectedQuizColor || '',
+                                isAI: Boolean(quizObj?.isAI || quizObj?.isAi || quizObj?.isAiGenerated || ass.selectedQuizIsAi),
                     timeLimit: quizTimeLimit,
                     hasTimer: quizHasTimer,
                     autoSubmitOnExit: quizAutoSubmitOnExit,
@@ -27207,7 +27210,8 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         // Rubric handling: quizzes NEVER use rubrics. Only show when a rubric is actually attached to assignments, activities, or performance tasks.
         const cfgRubricRaw = findInConfig(assessConfig?.assessmentRubrics) || findInConfig(assessConfig?.rubrics);
         const cfgRubricName = (typeof cfgRubricRaw === 'object' && cfgRubricRaw !== null) ? (cfgRubricRaw.fileName || cfgRubricRaw.title || cfgRubricRaw.name || '') : String(cfgRubricRaw || '').trim();
-        const cfgRubricUrl = (typeof cfgRubricRaw === 'object' && cfgRubricRaw !== null) ? (cfgRubricRaw.url || cfgRubricRaw.fileUrl || cfgRubricRaw.file || '') : '';
+        const cfgRubricUrl = ((typeof cfgRubricRaw === 'object' && cfgRubricRaw !== null) ? (cfgRubricRaw.url || cfgRubricRaw.fileUrl || cfgRubricRaw.file || '') : '')
+            || findInConfig(assessConfig?.assessmentRubricUrls) || findInConfig(assessConfig?.rubricUrls) || '';
 
         const isTeacherAddedItem = Boolean(ass.authorRole === 'Teacher' || ass.isTeacher || ass.isTeacherMaterial);
 
@@ -27232,7 +27236,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                 if (!name) return;
                 found = {
                     name,
-                    url: String(item.rubricUrl || item.perfRubricUrl || (typeof item.rubric === 'object' ? (item.rubric?.url || item.rubric?.fileUrl || '') : '') || '').trim()
+                    url: String(item.rubricUrl || item.perfRubricUrl || item.rubricUrlStorage?.url || item.rubricUrlStorage?.fileUrl || (typeof item.rubric === 'object' ? (item.rubric?.url || item.rubric?.fileUrl || '') : '') || '').trim()
                 };
             };
             try {
@@ -27286,7 +27290,8 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             ass.hasRubric
         );
         const rubricTitle = hasRubric ? (adminMaterialRubric?.name || ownRubricName || cfgRubricName || 'Grading Rubric Criteria') : '';
-        const rubricUrl = hasRubric ? (adminMaterialRubric?.name ? (adminMaterialRubric.url || '') : (ownRubricUrl || cfgRubricUrl || '')) : '';
+        const attachedRubricUrl = hasRubric ? (adminMaterialRubric?.name ? (adminMaterialRubric.url || '') : (ownRubricUrl || cfgRubricUrl || '')) : '';
+        const rubricUrl = hasRubric ? (attachedRubricUrl || window.resolveSubjectRubricFile(subjectId, rubricTitle)?.url || '') : '';
         const rubricUrlExt = rubricUrl ? rubricUrl.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
         const rubricNameExt = (rubricTitle && rubricTitle.includes('.')) ? rubricTitle.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
         const rubricType = hasRubric ? (rubricUrlExt || rubricNameExt || ass.rubric?.type || ass.rubric?.fileType || 'pdf').toLowerCase() : 'pdf';
@@ -27673,6 +27678,9 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             subData = null;
         }
 
+        // Rendering attempt histories must never rewrite the live database mirror.
+        if (subData) subData = structuredClone(subData);
+
         // Submissions stays available before a quiz attempt; review content still requires submission.
 
         if (subData && window._latestSubmissionForScorePanel) {
@@ -27709,7 +27717,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         if (role !== 'student' && studentUser) window._manualGradeClosureContext = {
             key: window.assessmentClosureKey(studentUser, ass, subjectId, curSecForGb), tab, activeIdx
         };
-        const assessmentQuarter = Number(String(window.currentSelectedTopicQuarter || topicStateForGb?.quarter || window.sigmaGradesState?.activeQuarter || (typeof gradebookState !== 'undefined' ? gradebookState.currentQuarter : 1) || 1).replace(/\D/g, '')) || 1;
+        const assessmentQuarter = Number(String(ass.quarter || ass.rawItem?.quarter || window.currentSelectedTopicQuarter || topicStateForGb?.quarter || window.sigmaGradesState?.activeQuarter || (typeof gradebookState !== 'undefined' ? gradebookState.currentQuarter : 1) || 1).replace(/\D/g, '')) || 1;
         const assCat = ass?.category || ass?.type || (String(ass?.title || '').toLowerCase().includes('quiz') ? 'quiz' : (tab || 'assignment'));
         let itmIdx = activeIdx;
         if (typeof getCategoryDetails === 'function') {
@@ -27756,13 +27764,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             ?? (assessConfig?.defaultAiAssisted !== undefined ? Boolean(assessConfig.defaultAiAssisted) : undefined);
         const hasAiAssistant = !isAnyQuiz && Boolean(
             cfgAi !== undefined ? cfgAi : (
-                ass.aiAssisted ||
-                ass.isAiAssisted ||
-                ass.aiAssistant ||
-                cfgGradingMode === 'ai' ||
-                (Array.isArray(ass.aiCommentary) && ass.aiCommentary.length > 0) ||
-                (Array.isArray(subData?.aiCommentary) && subData.aiCommentary.length > 0) ||
-                (subData?.aiScore !== undefined && subData?.aiScore !== null && subData?.aiScore !== '')
+                ass.aiAssisted ?? ass.isAiAssisted ?? ass.aiAssistant ?? (cfgGradingMode === 'ai')
             )
         );
 
@@ -27824,14 +27826,6 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
 
         studentExtraAttempts = window.getAssessmentExtraAttempts(subjectId, topicIdx, tab, activeIdx,
             studentUserForAttempts || { id: effectiveStudentId, name: activeStudentForAttempts || subData?.studentName }, subData);
-        if (isAnyQuiz) {
-            studentExtraAttempts = 0;
-            const student = studentUserForAttempts || { id: effectiveStudentId, name: activeStudentForAttempts || subData?.studentName };
-            for (const key of window.getAssessmentExtraAttemptKeys(subjectId, topicIdx, tab, activeIdx, student)) {
-                if (localStorage.getItem(key) !== null && localStorage.getItem(key) !== '0') localStorage.setItem(key, '0');
-            }
-        }
-
         // Build attempts list early and sanitize for accurate attempt count
         let attemptsHistory = [];
         if (Array.isArray(subData?.history) && subData.history.length > 0) {
@@ -27858,6 +27852,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                 const resolvedSubFileName = subData?.fileName || (Array.isArray(subData?.files) && subData.files[0] ? (subData.files[0].name || subData.files[0].fileName) : '') || '';
                 const resolvedSubFileUrl = subData?.fileUrl || subData?.url || subData?.dataUrl || (Array.isArray(subData?.files) && subData.files[0] ? (subData.files[0].url || subData.files[0].dataUrl || subData.files[0].fileUrl) : '') || '';
                 attemptsHistory = [{
+                    attemptIdentity: subData?.attemptIdentity || '',
                     attemptNumber: Number(subData?.attemptsUsed || ass.attemptsUsed || 1),
                     status: subData?.status || 'Submitted',
                     fileName: resolvedSubFileName || '',
@@ -27947,8 +27942,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         }
 
         const effectiveAttemptsUsed = genuineAttemptsCount;
-        const displayedExtraAttempts = isAnyQuiz ? 0
-            : (subData?.allowResubmitGranted ? studentExtraAttempts : 0);
+        const displayedExtraAttempts = subData?.allowResubmitGranted ? studentExtraAttempts : 0;
 
         // If digital quiz has 0 genuine attempts and has not been submitted, it must NOT be scored or marked graded
         if (isAnyQuiz && hasAttachedDigitalQuiz && genuineAttemptsCount === 0 && !subData?.submittedAt && !subData?.fileName) {
@@ -27992,18 +27986,31 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             subData && (subData.isPending || subData.status === 'Pending' || (subData.submittedAt && subScoreVal === null && gbScore === null)) && (!isAnyQuiz || genuineAttemptsCount > 0)
         );
 
-        const hasUnusedGrantedExtraAttempt = Boolean(
-            studentExtraAttempts > 0 && (
-                (subData && subData.allowResubmitGranted) ||
-                (effectiveAttemptsUsed <= baseMaxAttempts)
-            )
-        );
-
-        const assMaxAttempts = baseMaxAttempts + (hasUnusedGrantedExtraAttempt ? studentExtraAttempts : 0);
+        const assMaxAttempts = baseMaxAttempts + studentExtraAttempts;
+        const hasUnusedGrantedExtraAttempt = studentExtraAttempts > 0 && effectiveAttemptsUsed < assMaxAttempts;
         if (manualClosure) { isGraded = true; gbScore = Number(manualClosure.score); isSubmitted = false; isPending = false; }
         if (effectiveGrading?.isAutoMissing) { isGraded = true; gbScore = 0; isSubmitted = false; isPending = false; }
         const isAttemptsExhausted = effectiveAttemptsUsed >= assMaxAttempts;
-        const isLateBlocked = isPastDue && !assLatePermission;
+        const isLateBlocked = isPastDue && !assLatePermission && !hasUnusedGrantedExtraAttempt;
+        // Recover a stale upload route after the student's final saved attempt.
+        if (role === 'student' && isStudentSubmissionMode && isSubmitted && isAttemptsExhausted) {
+            isStudentSubmissionMode = false;
+            isViewSubmissionMode = true;
+            window._studentSubmissionMode = false;
+            window._studentViewSubmissionMode = true;
+            window._sharedViewSubmissionMode = true;
+            window._studentPendingAnswerFiles = [];
+            window._studentPendingAnswerFile = null;
+            window._studentAnswerUploadState = null;
+            const submittedHash = `#topic-content:${subjectId}:${topicIdx}:${tab}:${activeIdx}:submission`;
+            try {
+                history.replaceState({ ...(history.state || {}), type: 'topic-content', subjectId, topicIdx, tab,
+                    activeTab: tab, assessmentIdx: activeIdx, viewSubmission: true, submitMode: false }, '', submittedHash);
+                sessionStorage.setItem('sigma-student-nav-state', JSON.stringify({ type: 'topic-content',
+                    page: `topic-content:${subjectId}:${topicIdx}:${tab}:${activeIdx}:submission`, subjectId, topicIdx,
+                    tab, assessmentIdx: activeIdx, hash: submittedHash, viewSubmission: true }));
+            } catch (_) {}
+        }
         clearTimeout(window._assessmentGradeDeadlineWatch);
         const gradeDeadline = rawDue ? new Date(rawDue).getTime() : NaN;
         if (Number.isFinite(gradeDeadline) && gradeDeadline >= Date.now() && !assLatePermission) {
@@ -28059,7 +28066,14 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
 
         const aiSubmissionKey = window.getStudentSubmissionStorageKey(subjectId, topicIdx, tab, activeIdx, submissionAssessment, studentUser);
         const aiAttemptPage = Number(window._activeSubmissionAttemptPage?.[`${subjectId}_${topicIdx}_${tab}_${activeIdx}`] || 1);
-        const savedAiEvaluation = window.SigmaSubmissionAi?.readEvaluation(aiSubmissionKey, aiAttemptPage);
+        if (subData && studentUser) window.SigmaSubmissionAi?.primeSavedResults?.({
+            role, key:aiSubmissionKey, attemptPage:aiAttemptPage, submission:subData,
+            identity:aiAttemptPage === 1 && subData.attemptIdentity ? subData.attemptIdentity : window.SigmaSubmissionAi.identity((subData.history || subData.attempts || []).at(-aiAttemptPage) || subData),
+            studentId:String(studentUser.id || studentUser.uid || studentUser.studentId || studentUser.lrn || ''),
+            subjectId, section:targetSection || section || '', assessmentId:assIdStr,
+            enabled:hasAiAssistant
+        });
+        const savedAiEvaluation = window.SigmaSubmissionAi?.readEvaluation(aiSubmissionKey, aiAttemptPage, subData?.attemptIdentity);
         if (savedAiEvaluation?.aiEvaluation && subData) subData = { ...subData, ...savedAiEvaluation };
 
         const readOwnAiScore = (value) => {
@@ -28180,13 +28194,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             ? '4 of 4 Criteria Evaluated'
             : `${activeCriteriaList.length} ${activeCriteriaList.length === 1 ? 'Criterion' : 'Criteria'} Evaluated`;
 
-        const gridColsClass = activeCriteriaList.length === 1
-            ? 'grid-cols-1'
-            : (activeCriteriaList.length === 3
-                ? 'grid-cols-1 md:grid-cols-3'
-                : (activeCriteriaList.length === 4
-                    ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
-                    : 'grid-cols-1 md:grid-cols-2'));
+        const gridColsClass = activeCriteriaList.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2';
 
         const reversedAttempts = [...attemptsHistory].reverse();
         const totalAttemptsCount = reversedAttempts.length;
@@ -28332,9 +28340,9 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
 
         const canShowSubmissionAi = !isAnyQuiz && (role === 'student' || (isViewSubmissionMode && isSubmitted && studentUser && curSelectedStudent && curSelectedStudent !== 'All'));
         window._sigmaSubmissionAiContext = canShowSubmissionAi && ['teacher', 'student', 'admin'].includes(role) && !isUnassignedToStudent && subData && studentUser && window.SigmaSubmissionAi ? {
-            role, key: aiSubmissionKey, attemptPage: aiAttemptPage, submission: subData, identity: window.SigmaSubmissionAi.identity(activeAttempt),
+            role, key: aiSubmissionKey, attemptPage: aiAttemptPage, submission: subData, identity: currentAttemptPage === 1 && subData.attemptIdentity ? subData.attemptIdentity : window.SigmaSubmissionAi.identity(activeAttempt),
             studentId: String(studentUser.id || studentUser.uid || studentUser.studentId || studentUser.lrn || ''),
-            enabled: hasAiAssistant, hasEvaluation: Boolean(subData.aiEvaluation),
+            enabled: hasAiAssistant, hasEvaluation: aiEvaluationReady,
             subjectId, section: targetSection || section || '', assessmentId: assIdStr, topicIdx, tab, activeIdx, title: displayTitle,
             instructions: String(ass.instructions || ass.description || ''), maxScore: assMaxScore,
             files: activeAttemptFiles.filter(file => file.type !== 'quiz' && file.url !== 'quiz'),
@@ -28344,7 +28352,9 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             criteria: (isCriteriaAiAuto ? allDepedDimensions : activeCriteriaList).map(criterion => ({ id: criterion.id, title: criterion.title })),
             autoSelect: isCriteriaAiAuto
         } : null;
-        if (window._sigmaSubmissionAiContext) setTimeout(() => window.SigmaSubmissionAi?.hydrate(window._sigmaSubmissionFeedbackContext || window._sigmaSubmissionAiContext), 0);
+        if (window._sigmaSubmissionAiContext) setTimeout(() => window.SigmaSubmissionAi?.hydrate(
+            window._sigmaSubmissionFeedbackContext || window._sigmaSubmissionAiContext
+        ), 0);
         if (role === 'teacher') window.SigmaSubmissionAi?.scheduleAutomatic(window._sigmaSubmissionAiContext);
         const feedbackBase = window._sigmaSubmissionAiContext;
         window._sigmaSubmissionFeedbackContext = feedbackBase ? {
@@ -28484,16 +28494,18 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                             const quizReviewBtnHtml = (role === 'teacher' || !isPending) ? `
                                 <button type="button" onclick="window.openStudentQuizReviewPlayer('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx}, '${encodeURIComponent(displayTitle)}', ${currentAttemptPage})"
                                     class="sigma-btn sigma-btn-primary sigma-btn-md font-['Inter'] flex items-center gap-2 cursor-pointer transition-all hover:bg-[#166534] active:bg-[#14532d] active:scale-[0.98] shadow-2xs shrink-0">
-                                    <span>${role === 'teacher' || role === 'admin' ? 'Review Answers' : 'View Quiz Score'}</span>
+                                    <span>${role === 'teacher' || role === 'admin' ? (isPending ? 'Review Answers' : 'View Answers') : 'View Quiz Score'}</span>
                                 </button>
                             ` : '';
                             const quizPanelHtml = window.renderSharedAttachedFilePanelHtml({
                                 title: itemQuizTitle,
                                 url: 'quiz',
                                 type: 'quiz',
+                                hasAttachedQuiz: true,
                                 badgeText: 'Quiz',
                                 icon: quizObj?.icon || ass.icon || ass.selectedQuizIcon || '',
                                 color: quizObj?.color || ass.color || ass.selectedQuizColor || '',
+                                isAI: Boolean(quizObj?.isAI || quizObj?.isAi || quizObj?.isAiGenerated || ass.selectedQuizIsAi),
                                 timeLimit: quizTimeLimit,
                                 hasTimer: quizHasTimer,
                                 autoSubmitOnExit: quizAutoSubmitOnExit,
@@ -28528,9 +28540,11 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                         title: resolvedOriginalQuizTitle || displayTitle || 'Quiz Assessment',
                         url: 'quiz',
                         type: 'quiz',
+                                hasAttachedQuiz: true,
                         badgeText: 'Quiz',
                         icon: quizObj?.icon || ass.icon || ass.selectedQuizIcon || '',
                         color: quizObj?.color || ass.color || ass.selectedQuizColor || '',
+                                isAI: Boolean(quizObj?.isAI || quizObj?.isAi || quizObj?.isAiGenerated || ass.selectedQuizIsAi),
                         timeLimit: quizTimeLimit,
                         hasTimer: quizHasTimer,
                         autoSubmitOnExit: quizAutoSubmitOnExit,
@@ -28551,7 +28565,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                     ${(currentAttemptPage === 1 && (role === 'teacher' || !isPending)) ? `<div class="quiz-submission-review-actions">
                             <button type="button" onclick="window.openStudentQuizReviewPlayer('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx}, '${encodeURIComponent(displayTitle)}', ${currentAttemptPage})"
                                 class="sigma-btn sigma-btn-primary sigma-btn-md font-['Inter'] flex items-center gap-2 cursor-pointer transition-all hover:bg-[#166534] active:bg-[#14532d] active:scale-[0.98] shadow-2xs shrink-0">
-                                <span>${role === 'teacher' || role === 'admin' ? 'Review Answers' : 'View Quiz Score'}</span>
+                                <span>${role === 'teacher' || role === 'admin' ? (isPending ? 'Review Answers' : 'View Answers') : 'View Quiz Score'}</span>
                             </button>
                         </div>` : ''}
                                                       </div>
@@ -28639,7 +28653,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                         `}
                         ${role === 'student' || (isViewSubmissionMode && hasSelectedSubmissionStudent) ? `
                                 <!-- 2. Bottom Section: Comments (Announcement Post Style Thread) -->
-                               <div class="shared-private-comments space-y-3 font-['Inter']">
+                               <div class="shared-private-comments space-y-3 font-['Inter']" data-comment-scope="${encodeURIComponent(JSON.stringify({kind:'assessment',subjectId,section:targetSection||section,itemId:assIdStr,studentId:String(activeAttempt?.studentId||subData?.studentId||studentUser?.id||studentUser?.uid||'')}))}">
                                    <div class="shared-private-comments-heading flex items-center gap-2">
                                        <i class="fa-regular fa-comments text-slate-700 text-sm" aria-hidden="true"></i>
                                        <h3 class="text-sm sm:text-base font-bold text-slate-900 font-['Inter'] m-0">Private Comments</h3>
@@ -28953,7 +28967,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                         </span>
                                         <span class="font-normal text-black font-['Inter']">${assDueDate}</span>
                                     </div>
-                                    ${(canShowSubmissionAi && ((role !== 'student' && hasAiAssistant) || (role === 'student' && isGraded))) ? `
+                                    ${(canShowSubmissionAi && role !== 'student' && hasAiAssistant) ? `
                                         <div class="flex items-center justify-between text-xs font-medium py-1 border-t border-black/10">
                                             <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                                 <i class="fa-solid fa-bolt text-sm text-amber-500 w-4 text-center shrink-0"></i>
@@ -29052,7 +29066,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                         ${(isSubmitted && !isRetakeActive) ? `
                                             <div class="flex items-center justify-between gap-2 sm:gap-3 w-full flex-wrap">
                                                 <div>
-                                                    ${(!isAnyQuiz && !isAttemptsExhausted && !isLateBlocked) ? `
+                                                    ${((!isAnyQuiz || hasUnusedGrantedExtraAttempt) && !isAttemptsExhausted && !isLateBlocked) ? `
                                                     <button type="button" onclick="${(isAnyQuiz && hasAttachedDigitalQuiz) ? `window.handleStudentQuizRetake('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx}, ${assMaxAttempts}, '${encodeURIComponent(displayTitle)}')` : `window.enterStudentSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx}, ${assMaxAttempts})`}"
                                                         class="sigma-resubmit-action-btn sigma-resubmit-action-btn--allow shrink-0">
                                                         Resubmit
@@ -29112,7 +29126,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                 ` : `
                                     <div id="student-submission-action-area" class="pt-4 border-t border-black/10 mt-3 font-['Inter'] flex items-center justify-between gap-2 sm:gap-3 w-full flex-wrap">
                                         <div>
-                                            ${(!isAnyQuiz && !isAttemptsExhausted && !isLateBlocked) ? `
+                                            ${((!isAnyQuiz || hasUnusedGrantedExtraAttempt) && !isAttemptsExhausted && !isLateBlocked) ? `
                                             <button type="button" onclick="${(isAnyQuiz && hasAttachedDigitalQuiz) ? `window.handleStudentQuizRetake('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx}, ${assMaxAttempts}, '${encodeURIComponent(displayTitle)}')` : `window.enterStudentSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx}, ${assMaxAttempts})`}"
                                                 class="sigma-resubmit-action-btn sigma-resubmit-action-btn--allow shrink-0">
                                                 Resubmit
@@ -29145,7 +29159,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                      <div id="admin-submission-action-area" class="pt-4 border-t border-black/10 mt-3 font-['Inter'] flex items-center justify-between gap-2 sm:gap-3 w-full flex-wrap">
                                          ${(isAttemptsExhausted || isLateBlocked) ? window.renderAssessmentClosedBadgeHtml(isAttemptsExhausted ? `Maximum attempts reached (${effectiveAttemptsUsed}/${assMaxAttempts}). Submissions are closed.` : 'The deadline has passed. Late submissions are not permitted.') : ''}
                                          <div class="flex items-center">
-                                             ${!isAnyQuiz && window.renderTeacherResubmitActionButton ? window.renderTeacherResubmitActionButton({ subjectId, topicIdx, tab, activeIdx, effectiveStudentId, displayTitle, hasUnusedGrantedExtraAttempt }) : ''}
+                                             ${window.renderTeacherResubmitActionButton ? window.renderTeacherResubmitActionButton({ subjectId, topicIdx, tab, activeIdx, effectiveStudentId, displayTitle, hasUnusedGrantedExtraAttempt }) : ''}
                                          </div>
                                          ${isPending ? `
                                              <span class="inline-flex items-center gap-1 sm:gap-1.5 h-[24px] sm:h-[26px] px-2 sm:px-2.5 rounded-lg text-[10.5px] sm:text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 shrink-0 select-none font-['Inter'] leading-none">
@@ -29168,9 +29182,15 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                  ` : `
                                      <div id="teacher-submission-action-area" data-gradebook-target="${encodeURIComponent(JSON.stringify([subjectId, section, encodeURIComponent(displayTitle), encodeURIComponent(compLabel), tab, activeIdx]))}" class="${isSubmitted ? "pt-4 border-t border-black/10 mt-3 font-['Inter'] flex items-center justify-between gap-2 sm:gap-3 w-full flex-wrap" : 'hidden'}">
                                          ${isSubmitted ? `
-                                             ${(isAttemptsExhausted || isLateBlocked) ? window.renderAssessmentClosedBadgeHtml(isAttemptsExhausted ? `Maximum attempts reached (${effectiveAttemptsUsed}/${assMaxAttempts}). Submissions are closed.` : 'The deadline has passed. Late submissions are not permitted.') : ''}
+
+                                             ${isPending ? `
+                                                 <span class="inline-flex items-center gap-1 sm:gap-1.5 h-[24px] sm:h-[26px] px-2 sm:px-2.5 rounded-lg text-[10.5px] sm:text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 shrink-0 select-none font-['Inter'] leading-none">
+                                                        <i class="fa-solid fa-clock-rotate-left text-amber-600 text-[9.5px] sm:text-[10px]"></i>
+                                                        <span>Submitted — Awaiting Review</span>
+                                                    </span>
+                                             ` : ''}
                                              <div class="flex items-center">
-                                                 ${!isAnyQuiz && window.renderTeacherResubmitActionButton ? window.renderTeacherResubmitActionButton({
+                                                 ${window.renderTeacherResubmitActionButton ? window.renderTeacherResubmitActionButton({
                                                  subjectId,
                                                  topicIdx,
                                                  tab,
@@ -29180,12 +29200,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                  hasUnusedGrantedExtraAttempt
                                              }) : ''}
                                              </div>
-                                             ${isPending ? `
-                                                 <span class="inline-flex items-center gap-1 sm:gap-1.5 h-[24px] sm:h-[26px] px-2 sm:px-2.5 rounded-lg text-[10.5px] sm:text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 shrink-0 select-none font-['Inter'] leading-none">
-                                                        <i class="fa-solid fa-clock-rotate-left text-amber-600 text-[9.5px] sm:text-[10px]"></i>
-                                                        <span>Submitted — Awaiting Review</span>
-                                                    </span>
-                                             ` : ''}
+
                                          ` : ''}
                                      </div>
                                  `}
@@ -29202,7 +29217,6 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                     <span class="inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#FFD000] text-white shadow-2xs leading-none shrink-0"><i class="fa-solid fa-bolt text-[11px] sm:text-xs text-white"></i></span>
                                     <div class="min-w-0">
                                         <h3 class="text-sm sm:text-base md:text-lg font-bold text-black font-['Inter'] tracking-tight truncate m-0">SIGMA AI Grading Assistance</h3>
-                                        ${aiEvaluationCode ? `<p class="mt-0.5 text-[10px] sm:text-[11px] font-medium text-black-fade">Evaluation ID: ${window.escapeHtml(aiEvaluationCode)}</p>` : ''}
                                     </div>
                                 </div>
                                 ${isViewSubmissionMode ? `
@@ -29212,29 +29226,18 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                         <span class="text-[11px] sm:text-xs font-bold text-[#15803d]">${aiScoreLabel} / ${assMaxScore}</span>
                                     </div>
                                 </div>
-                                <div class="ai-header-btn-area flex flex-wrap items-center justify-start sm:justify-end gap-2 shrink-0" style="grid-area: btn;">
-                                    <button type="button" id="ai-review-action-btn"
-                                        ${aiCalculatedScore === null ? 'disabled' : ''}
-                                        data-ai-score="${aiCalculatedScore !== null ? aiCalculatedScore : ''}"
-                                        data-ai-max="${assMaxScore}"
-                                        onclick="window.transferAiScoreToGradebook(this.dataset.aiScore, this.dataset.aiMax)"
-                                        class="sigma-btn sigma-btn-primary font-['Inter'] inline-flex items-center gap-1.5 text-[10.5px] sm:text-xs font-bold py-1 px-2.5 sm:py-1.5 sm:px-3 rounded-lg sm:rounded-xl shadow-2xs cursor-pointer hover:bg-[#166534] active:scale-[0.98] transition-all">
-                                        <i class="fa-solid fa-arrow-right-to-bracket text-[10px] sm:text-xs"></i>
-                                        <span>Transfer Score</span>
-                                    </button>
-                                </div>
                                 ` : ''}
                             </div>
 
                             <!-- 1. Assessment Criteria Section (Dynamic 1-4 Explanatory Cards) -->
-                            <p id="submission-ai-error" role="status" class="text-xs text-black-fade" style="color:rgba(0,0,0,.45)" ${aiEvaluationReady ? 'hidden' : ''}>${window.escapeHtml(window.SigmaSubmissionAi?.state(window._sigmaSubmissionAiContext || {})?.message || 'Awaiting evaluation of the submitted file. No suggested score is available yet.')}</p>
+                            ${window.SigmaSubmissionAi?.renderStatus(window._sigmaSubmissionAiContext, aiEvaluationReady) || '<p role="status">Please wait while SIGMA AI loads… Refresh the page if it does not load.</p>'}
                             ${aiEvaluationReady ? `<div class="space-y-3.5 sm:space-y-4">
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
                                     <div class="space-y-0.5">
-                                        <h4 class="text-sm sm:text-base font-bold text-black font-['Inter'] tracking-tight">Assessment Criteria</h4>
+                                        <h4 class="text-sm sm:text-base font-bold text-[#15803d] font-['Inter'] tracking-tight">Assessment Criteria</h4>
                                         <p class="text-[11px] sm:text-xs text-black-fade font-normal leading-normal">Qualitative evaluation of the student's submission across relevant standards</p>
                                     </div>
-                                    <span class="sigma-ai-criteria-count self-start sm:self-auto inline-flex items-center px-2.5 py-1 rounded-lg bg-black/[0.04] border border-black/10 text-[11px] sm:text-xs font-semibold text-slate-700 font-['Inter'] shrink-0">${criteriaCountText}</span>
+                                    <span class="sigma-ai-criteria-count self-start sm:self-auto inline-flex items-center px-2.5 py-1 rounded-lg bg-black/[0.04] border border-black/10 text-[11px] sm:text-xs font-semibold text-black font-['Inter'] shrink-0">${criteriaCountText}</span>
                                 </div>
                                 <div class="grid ${gridColsClass} gap-3 sm:gap-4">
                                     ${activeCriteriaList.length > 0 ? activeCriteriaList.map((crit, idx) => {
@@ -29247,7 +29250,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                 <h5 class="text-xs sm:text-sm font-bold text-black font-['Inter'] leading-snug tracking-tight break-words line-clamp-2" title="${window.escapeHtml ? window.escapeHtml(crit?.title || '') : (crit?.title || '')}">
                                                     ${idx + 1}. ${window.escapeHtml ? window.escapeHtml(safeTitle) : safeTitle}
                                                 </h5>
-                                                <p class="text-[11px] sm:text-xs text-slate-700 font-normal leading-relaxed font-['Inter'] break-words line-clamp-5 sm:line-clamp-4 md:line-clamp-5" title="${window.escapeHtml ? window.escapeHtml(crit?.description || crit?.desc || '') : (crit?.description || crit?.desc || '')}">
+                                                <p class="text-[11px] sm:text-xs text-black font-normal leading-relaxed font-['Inter'] break-words line-clamp-5 sm:line-clamp-4 md:line-clamp-5" title="${window.escapeHtml ? window.escapeHtml(crit?.description || crit?.desc || '') : (crit?.description || crit?.desc || '')}">
                                                     ${window.escapeHtml ? window.escapeHtml(safeDesc) : safeDesc}
                                                 </p>
                                             </div>
@@ -29261,16 +29264,17 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                         </div>
                                     `}
                                 </div>
-                            </div>${window.renderSigmaInsightTimestamp(savedAiEvaluation.aiEvaluation?.evaluatedAt)}` : ''}
+                            </div>
+                            ${(Array.isArray(savedAiEvaluation.aiCommentary) && savedAiEvaluation.aiCommentary.length) ? `<section class="sigma-ai-rubric-summary">
+                        <h4 class="text-sm sm:text-base font-bold text-[#15803d]">${savedAiEvaluation.aiEvaluation?.rubricBasis === 'general' ? 'General Assessment Evaluation Summary' : 'Rubric-Based Evaluation Summary'}</h4>
+                        <div class="mt-4 space-y-3">${savedAiEvaluation.aiCommentary.map(item => `<div><h5 class="text-sm font-semibold text-black">${window.escapeHtml(item.term || '')}</h5><p class="text-xs sm:text-sm leading-relaxed mt-1">${window.escapeHtml(item.description || '')}</p></div>`).join('')}</div>
+                    </section>` : ''}
+                            ${window.renderSigmaInsightTimestamp(savedAiEvaluation.aiEvaluation?.evaluatedAt)}` : ''}
 
 
                         </div>
                     ` : ''}
 
-                    ${(canShowSubmissionAi && role !== 'student' && hasAiAssistant && aiEvaluationReady && Array.isArray(savedAiEvaluation.aiCommentary) && savedAiEvaluation.aiCommentary.length) ? `<section class="sigma-rubric-summary bg-white border border-slate-200 rounded-2xl p-5 sm:p-7">
-                        <h4 class="text-sm sm:text-base font-bold text-black">Rubric-Based Evaluation Summary</h4>
-                        <div class="mt-4 space-y-3">${savedAiEvaluation.aiCommentary.map(item => `<div><h5 class="text-sm font-semibold text-black">${window.escapeHtml(item.term || '')}</h5><p class="text-xs sm:text-sm leading-relaxed mt-1">${window.escapeHtml(item.description || '')}</p></div>`).join('')}</div>
-                    </section>` : ''}
                     ${canShowSubmissionAi ? window.renderSigmaAiFeedbackPanelHtml({ context: window._sigmaSubmissionFeedbackContext, graded: isGraded, restricted: isUnassignedToStudent, submitted: isSubmitted }) : ''}
                 ` : ''}
             </div>
@@ -29407,6 +29411,21 @@ window.getSigmaMaterialLimits = function () {
  * Shared Video Player and Grid Renderer
  * Returns unified markup for video grid, active cinema player, and 'More Videos' grid.
  */
+// Warm only the media origins used by this topic while the video list is visible.
+window.prepareTopicVideoConnections = function (videos) {
+    const origins=new Set();
+    (videos||[]).forEach(video=>{
+        const raw=video?.url||video?.videoUrl||video?.fileUrl||'';
+        if(/(?:youtu\.be|youtube(?:-nocookie)?\.com)/i.test(raw)) origins.add('https://www.youtube-nocookie.com');
+        else if(/vimeo\.com/i.test(raw)) origins.add('https://player.vimeo.com');
+        else {try{const url=new URL(raw,location.href);if(/^https?:$/.test(url.protocol))origins.add(url.origin);}catch(_){}}
+    });
+    origins.forEach(origin=>{
+        if(Array.from(document.head.querySelectorAll('link[rel="preconnect"]')).some(link=>link.href===origin||link.href===origin+'/'))return;
+        const link=document.createElement('link');link.rel='preconnect';link.href=origin;document.head.appendChild(link);
+    });
+};
+
 window.renderSharedVideosTabHtml = function (options) {
     let {
         videos = [],
@@ -29450,6 +29469,7 @@ window.renderSharedVideosTabHtml = function (options) {
         return !isDoc;
     });
 
+    window.prepareTopicVideoConnections(videos);
     const allVideosBeforeFilter = Array.isArray(videos) ? [...videos] : [];
     // Regular classroom views show only visible releases.
     if ((role === 'student' || (['teacher', 'admin'].includes(role) && targetSection && targetSection.toLowerCase() !== 'all')) && Array.isArray(videos)) {
@@ -29605,7 +29625,7 @@ window.renderSharedVideosTabHtml = function (options) {
     const rawUrl = (activeVideo?.url || activeVideo?.videoUrl || activeVideo?.fileUrl || activeVideo?.fileData || '').trim();
     const formattedEmbedUrl = typeof window.formatVideoEmbedUrl === 'function' ? window.formatVideoEmbedUrl(rawUrl) : rawUrl;
     const isMp4 = Boolean(rawUrl && (activeVideo?.sourceType === 'mp4' || activeVideo?.fileType === 'mp4' || (rawUrl.match(/\.(mp4|webm|ogg|mov)($|\?)/i) || rawUrl.startsWith('blob:') || rawUrl.startsWith('data:video/'))) || (activeVideo?.fileName && activeVideo.fileName.toLowerCase().match(/\.(mp4|webm|mov|ogg)$/i)));
-    const isEmbedVideo = Boolean(formattedEmbedUrl && (formattedEmbedUrl.includes('youtube.com/embed') || formattedEmbedUrl.includes('player.vimeo.com') || activeVideo?.sourceType === 'embed' || activeVideo?.sourceType === 'embedded'));
+    const isEmbedVideo = Boolean(formattedEmbedUrl && (formattedEmbedUrl.includes('youtube.com/embed') || formattedEmbedUrl.includes('youtube-nocookie.com/embed') || formattedEmbedUrl.includes('player.vimeo.com') || activeVideo?.sourceType === 'embed' || activeVideo?.sourceType === 'embedded'));
     const hasValidVideoSource = Boolean((isMp4 && rawUrl) || (isEmbedVideo && formattedEmbedUrl));
 
     const instructionsText = (activeVideo?.description || activeVideo?.instructions || '').trim();
@@ -29621,7 +29641,7 @@ window.renderSharedVideosTabHtml = function (options) {
                 <div class="w-full m-0 p-0">
                     <div class="video-thumbnail-panel video-cinema-player bg-black rounded-2xl overflow-hidden shadow-md flex items-center justify-center w-full relative" style="width: 100%; aspect-ratio: 16 / 9; position: relative; margin: 0;">
                         ${hasValidVideoSource ? (isMp4 ? `
-                            <video id="shared-cinema-video-el" src="${rawUrl}" preload="metadata" class="w-full h-full object-contain bg-black" controls playsinline
+                            <video id="shared-cinema-video-el" src="${rawUrl}" preload="auto" class="w-full h-full object-contain bg-black" controls playsinline
                                 onloadedmetadata="const d = typeof window.formatSecondsToDuration === 'function' ? window.formatSecondsToDuration(this.duration) : ''; const b = document.getElementById('shared-cinema-duration-badge'); if (b && d) { b.innerHTML = '<i class=\\'fa-regular fa-clock\\' style=\\'font-size: 10px;\\'></i> ' + d; b.classList.remove('hidden'); b.style.display = 'inline-flex'; }"
                                 onplay="document.getElementById('shared-cinema-play-overlay')?.classList.add('hidden'); this.closest('.video-thumbnail-panel')?.classList.add('is-playing');"
                                 onpause="if (this.currentTime === 0) { document.getElementById('shared-cinema-play-overlay')?.classList.remove('hidden'); } this.closest('.video-thumbnail-panel')?.classList.remove('is-playing');"
@@ -29647,7 +29667,7 @@ window.renderSharedVideosTabHtml = function (options) {
                                 <p class="text-xs text-white/60 font-normal max-w-md font-['Inter'] leading-relaxed">The video format is unsupported or the media source could not be loaded.</p>
                             </div>
                         ` : `
-                            <iframe src="${formattedEmbedUrl}" class="w-full h-full border-none bg-black" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                            <iframe title="${escapeHtml(videoTitle)}" loading="eager" fetchpriority="high" src="${formattedEmbedUrl}" class="w-full h-full border-none bg-black" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin"></iframe>
                         `) : `
                             <div class="w-full h-full bg-black flex flex-col items-center justify-center text-center p-6 select-none relative overflow-hidden">
                                 <div class="w-12 h-12 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-white/70 mb-2 shadow-lg">
@@ -29820,7 +29840,14 @@ window.renderQuizStorageCardHtml = function (quiz, options = {}) {
         refCode = `#QZ-${refDigits.padStart(4, '0')}`;
     }
     if (!refCode.startsWith('#')) refCode = '#' + refCode;
-    const date = quiz.createdAt || (quiz.updatedAt ? new Date(quiz.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Saved');
+    const rawDate = String(quiz.createdAt || quiz.updatedAt || '').trim();
+    const dateParts = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const parsedDate = dateParts
+        ? new Date(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3]))
+        : new Date(rawDate);
+    const date = rawDate && !Number.isNaN(parsedDate.getTime())
+        ? parsedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : (rawDate || 'Saved');
 
     // User ownership & author resolution
     const activeUser = window.getQuizActiveUser(currentUser);
@@ -29927,6 +29954,7 @@ window.renderQuizStorageCardHtml = function (quiz, options = {}) {
                         <p class="text-[10.5px] sm:text-xs md:text-sm text-black-fade font-medium leading-snug truncate">
                             By <span class="text-black-fade font-semibold">${escape(authorDisplay)}</span> <span class="text-[9.5px] sm:text-xs text-black-fade font-normal">(${escape(authorRoleDisplay)})</span>
                         </p>
+                        <p class="text-[10px] sm:text-[11px] text-black-fade/80 font-normal leading-snug">${escape(date)}</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
@@ -29939,8 +29967,6 @@ window.renderQuizStorageCardHtml = function (quiz, options = {}) {
                     <span class="whitespace-nowrap font-medium">${count} ${count === 1 ? 'Question' : 'Questions'}</span>
                     <span>•</span>
                     <span class="whitespace-nowrap font-medium flex items-center gap-1">${points} <i class="fa-solid fa-star text-amber-500 text-[9px] sm:text-xs"></i> Pts</span>
-                    <span>•</span>
-                    <span class="whitespace-nowrap text-[10px] sm:text-xs md:text-[13px]">${escape(date)}</span>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <span class="font-mono text-black/70 text-[10px] sm:text-xs md:text-[13px]">${refCode.replace(/^#/, '')}</span>
@@ -30253,7 +30279,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         const strippedChoiceText = cleanVal.replace(/^[a-h][\.\)]\s*/i, '').trim();
 
         if (rawCorrect === undefined || rawCorrect === null || String(rawCorrect).trim() === '') {
-            if (q.answerIndex !== undefined && q.answerIndex !== null && Number(q.answerIndex) === cIdx) {
+            if ((q.answerIndex ?? q.correctIndex) !== undefined && (q.answerIndex ?? q.correctIndex) !== null && Number(q.answerIndex ?? q.correctIndex) === cIdx) {
                 return true;
             }
             return false;
@@ -30275,7 +30301,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                 return true;
             }
         }
-        if (q.answerIndex !== undefined && q.answerIndex !== null && Number(q.answerIndex) === cIdx) {
+        if ((q.answerIndex ?? q.correctIndex) !== undefined && (q.answerIndex ?? q.correctIndex) !== null && Number(q.answerIndex ?? q.correctIndex) === cIdx) {
             return true;
         }
         if (cleanCorrect === 'true' || cleanCorrect === 't') {
@@ -30324,8 +30350,17 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         return collectedAnswers;
     }
 
+    function submittedReviewResult(q) {
+        const student = /student\.html/i.test(location.pathname) || String(window.currentUser?.role || '').toLowerCase() === 'student';
+        const result = q?.reviewResult;
+        return _isStudentQuizReview && student && result && result.pending !== true && typeof result.isFullyCorrect === 'boolean'
+            && result.earned !== null && result.earned !== undefined && result.earned !== '' && Number.isFinite(Number(result.earned)) ? result : null;
+    }
+
     function calculateQuestionEarnedPoints(q, ans, qIdx, subData) {
         if (!q) return 0;
+        const result = submittedReviewResult(q);
+        if (result) return Number(result.earned) || 0;
         const qPts = (q.points !== undefined && !isNaN(parseInt(q.points))) ? parseInt(q.points) : 10;
         const qType = q.type || (Array.isArray(q.pairs) && q.pairs.length > 0 ? 'Matching Type' : 'Multiple Choice');
         const curSub = subData || (typeof window !== 'undefined' ? window._activeReviewSubData : null);
@@ -30509,13 +30544,15 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         if (typeof ans === 'string') return ans.trim().length > 0;
         if (Array.isArray(ans)) return ans.some(v => v && String(v).trim().length > 0);
         if (typeof ans === 'object') return Object.values(ans).some(v => v && String(v).trim().length > 0);
-        return false;
+        return typeof ans === 'number' || typeof ans === 'boolean';
     }
 
     function isQuestionCorrect(qIdx) {
         const q = _previewQuestions[qIdx];
         const ans = _userAnswers[qIdx];
         if (!q) return false;
+        const result = submittedReviewResult(q);
+        if (result) return result.isFullyCorrect === true;
         const qType = q.type || (Array.isArray(q.pairs) && q.pairs.length > 0 ? 'Matching Type' : 'Multiple Choice');
         const curSub = window._activeReviewSubData;
         const gradingMode = (curSub?.essayGradingMode || 'manual').toLowerCase().trim();
@@ -30617,6 +30654,8 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
     function getUniversalQuestionItemCounts(qIdx) {
         if (!_previewQuestions || !_previewQuestions[qIdx]) return { correct: 0, total: 1, isFullyCorrect: false, isAnswered: false, hasPartial: false, isEssay: false };
         const q = _previewQuestions[qIdx];
+        const result = submittedReviewResult(q);
+        if (result) return result;
         const ans = _userAnswers ? _userAnswers[qIdx] : undefined;
         const qType = q.type || (Array.isArray(q.pairs) && q.pairs.length > 0 ? 'Matching Type' : 'Multiple Choice');
         const isEssay = qType === 'Essay' || qType === 'Paragraph';
@@ -30794,9 +30833,9 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         const readOnly = window._quizReviewReadOnly;
         const done = readOnly || (!dirty && !pending);
         button.className = 'sigma-btn sigma-btn-primary sigma-btn-md flex items-center justify-center cursor-pointer';
-        button.innerHTML = done ? 'Done' : 'Save Grades';
+        button.innerHTML = done ? 'Done' : (pending ? 'Complete Pending Reviews' : 'Submit Final Grade');
         button.disabled = !done && pending;
-        button.title = pending && !readOnly ? 'Save a score for every pending question first.' : done ? 'Close review' : 'Save reviewed scores to the gradebook';
+        button.title = pending && !readOnly ? 'Score every pending question before submitting the final grade.' : done ? 'Close review' : 'Submit the reviewed score to the gradebook';
         button.onclick = done ? () => window.closeQuizPreviewModal() : () => window.finalizeTeacherReviewDone();
     }
 
@@ -30864,7 +30903,9 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             return `
                 <button type="button" onclick="window.jumpToQuizPreviewQuestion(${pIdx})"
                     class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center font-bold ${pillClass}"
-                    title="Question ${pIdx + 1}${isCurrent ? ' (Current)' : isPendingQ ? ' (Pending Review)' : isAnswered ? ' (Answered)' : ''}">
+                    aria-current="${isCurrent ? 'step' : 'false'}"
+                    aria-label="Question ${pIdx + 1}: ${isPendingQ ? 'Pending review' : isAnswered ? 'Answered' : 'No answer submitted'}${isCurrent ? ', current question' : ''}"
+                    title="Question ${pIdx + 1}${isCurrent ? ' (Current)' : ''} · ${isPendingQ ? 'Pending review' : isAnswered ? 'Answered' : 'No answer submitted'}">
                     ${pIdx + 1}
                 </button>
             `;
@@ -30921,7 +30962,10 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         const curAns = _userAnswers[idx];
         const isAnsProvided = isQuestionAnswered(idx);
         const isCurrentCorrect = isAnsProvided && isQuestionCorrect(idx);
-
+        const studentReview = _isStudentQuizReview
+            && (/student\.html/i.test(location.pathname) || String(window.currentUser?.role || '').toLowerCase() === 'student');
+        const submittedResponsesOnly = _isStudentQuizReview && (!_showCorrectAnswers || !isAnsProvided)
+            && (/student\.html/i.test(location.pathname) || String(window.currentUser?.role || '').toLowerCase() === 'student');
         const isTeacherUser = Boolean(window.loggedTeacher) ||
             (typeof window.location !== 'undefined' && (window.location.pathname.includes('teacher') || window.location.href.includes('teacher.html'))) ||
             (typeof role !== 'undefined' && (role === 'teacher' || role === 'admin' || role === 'instructor')) ||
@@ -30935,6 +30979,13 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             window._quizEssayGradingMode === 'auto' ||
             window._quizGradingMode === 'auto-all'
         );
+        const hasAnswerKey = [q.correct, q.correctAnswer, q.answer, q.answers, q.acceptableAnswers, q.items]
+            .some(value => Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && String(value).trim() !== '')
+            || (q.answerIndex !== undefined && q.answerIndex !== null) || (q.correctIndex !== undefined && q.correctIndex !== null)
+            || (Array.isArray(q.choices) && q.choices.some(choice => choice?.correct === true || choice?.isCorrect === true))
+            || (Array.isArray(q.pairs) && q.pairs.length > 0 && q.pairs.every(pair => pair.target !== undefined && pair.target !== null && String(pair.target).trim() !== ''));
+        const gradingUnavailable = studentReview && isAnsProvided && !submittedReviewResult(q) && !hasAnswerKey
+            && !window.questionScoreAccepted(idx) && !(isAutoScoring && /essay|paragraph/i.test(qType));
 
         const renderTeacherScoringPanelHtml = (qIdx, maxPts) => {
             if (window._quizReviewReadOnly) return '<span class="text-xs text-black-fade">Previous attempt - Read only</span>';
@@ -31038,7 +31089,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                 const isPendingQ = isQuestionPendingReview(idx);
 
                 const curStats = getUniversalQuestionItemCounts(idx);
-                const showStatsLine = (!curStats.isEssay && (curStats.isAnswered || _isReviewMode || _isTeacherPreviewMode));
+                const showStatsLine = !gradingUnavailable && (!curStats.isEssay && (curStats.isAnswered || _isReviewMode || _isTeacherPreviewMode));
 
                 counterEl.innerHTML = `
                     <div class="space-y-1 font-['Inter']">
@@ -31077,7 +31128,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             const optionLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
             bodyHtml = `
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+                <div class="grid grid-cols-1 ${submittedResponsesOnly ? '' : 'sm:grid-cols-2'} gap-3.5 pt-2">
                     ${rawChoices.map((choice, cIdx) => {
                 const fallbackLabel = 'Option ' + (cIdx + 1);
                 const choiceVal = (typeof choice === 'object' && choice !== null) ? (choice.text || choice.label || choice.value || fallbackLabel) : ((choice !== undefined && choice !== null && String(choice).trim().length > 0) ? String(choice).trim() : fallbackLabel);
@@ -31090,7 +31141,11 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                     String(curAns).trim().toLowerCase() === String(cleanChoiceText).trim().toLowerCase() ||
                     String(curAns).trim().toUpperCase() === letter
                 ));
-                const isCorrectChoice = isUniversalChoiceCorrect(q, cIdx, choiceVal, letter);
+                const reviewResult = submittedReviewResult(q);
+                if (submittedResponsesOnly && !isChecked) return '';
+                const isCorrectChoice = reviewResult
+                    ? isChecked && reviewResult.isFullyCorrect === true
+                    : isUniversalChoiceCorrect(q, cIdx, choiceVal, letter);
 
                 let cardClass = 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60';
                 let cardStyle = '';
@@ -31115,8 +31170,12 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                         badgeClass = 'bg-slate-100 text-slate-700';
                         textClass = 'text-slate-700';
                     }
+                } else if (_isReviewMode && gradingUnavailable) {
+                    cardClass = 'border-slate-300 bg-slate-50';
+                    badgeClass = 'bg-slate-200 text-slate-700';
+                    textClass = 'text-black';
                 } else if (_isReviewMode) {
-                    // REVIEW MODE: Student answers reviewed. If student wrong, red tint/border with (x). If student correct OR teacher enabled show answers, green tint/border with (✓).
+                    // Use grading feedback; a hidden or unavailable key is not evidence of an incorrect response.
                     if (isChecked && !isCorrectChoice) {
                         cardClass = 'border-rose-500 bg-rose-50/80 ring-2 ring-rose-500/20 shadow-xs';
                         cardStyle = 'background-color: #fff1f2 !important; border-color: #f43f5e !important; box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.25) !important;';
@@ -31125,7 +31184,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                         textClass = 'text-rose-900 font-bold';
                         textStyle = 'color: #881337 !important;';
                         statusIconHtml = `<span class="ml-auto shrink-0 flex items-center justify-center text-rose-600 text-base sm:text-lg animate-scaleIn"><i class="fa-solid fa-circle-xmark"></i></span>`;
-                    } else if (isCorrectChoice && (isChecked || _showCorrectAnswers)) {
+                    } else if (isCorrectChoice && (isChecked || (_showCorrectAnswers && isAnsProvided))) {
                         cardClass = 'border-emerald-600 bg-emerald-50/80 ring-2 ring-emerald-600/20 shadow-xs';
                         cardStyle = 'background-color: #ecfdf5 !important; border-color: #059669 !important; box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.25) !important;';
                         badgeClass = 'bg-[#15803d] text-white shadow-2xs';
@@ -31148,7 +31207,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                         textClass = 'text-rose-900 font-bold';
                         textStyle = 'color: #881337 !important;';
                         statusIconHtml = `<span class="ml-auto shrink-0 flex items-center justify-center text-rose-600 text-base sm:text-lg animate-scaleIn"><i class="fa-solid fa-circle-xmark"></i></span>`;
-                    } else if (isCorrectChoice && (isChecked || _showCorrectAnswers)) {
+                    } else if (isCorrectChoice && (isChecked || (_showCorrectAnswers && isAnsProvided))) {
                         cardClass = 'border-emerald-600 bg-emerald-50/80 ring-2 ring-emerald-600/20 shadow-xs';
                         cardStyle = 'background-color: #ecfdf5 !important; border-color: #059669 !important; box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.25) !important;';
                         badgeClass = 'bg-[#15803d] text-white shadow-2xs';
@@ -31191,8 +31250,11 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         } else if (qType === 'True or False') {
             const isTrueChecked = Boolean(curAns && (String(curAns).toLowerCase() === 'true' || String(curAns).toLowerCase() === 't' || String(curAns).toUpperCase() === 'A'));
             const isFalseChecked = Boolean(curAns && (String(curAns).toLowerCase() === 'false' || String(curAns).toLowerCase() === 'f' || String(curAns).toUpperCase() === 'B'));
-            const isTrueCorrect = isUniversalChoiceCorrect(q, 0, 'True', 'True') || isUniversalChoiceCorrect(q, 0, 'True', 'A');
-            const isFalseCorrect = !isTrueCorrect;
+            const reviewResult = submittedReviewResult(q);
+            const trueAnswerKeyCorrect = isUniversalChoiceCorrect(q, 0, 'True', 'True') || isUniversalChoiceCorrect(q, 0, 'True', 'A');
+            const falseAnswerKeyCorrect = isUniversalChoiceCorrect(q, 1, 'False', 'False') || isUniversalChoiceCorrect(q, 1, 'False', 'B');
+            const isTrueCorrect = reviewResult ? isTrueChecked && reviewResult.isFullyCorrect === true : trueAnswerKeyCorrect;
+            const isFalseCorrect = reviewResult ? isFalseChecked && reviewResult.isFullyCorrect === true : falseAnswerKeyCorrect;
 
             let trueCardClass = isTrueChecked ? 'border-[#15803d] bg-emerald-50/80 ring-2 ring-[#15803d]/20 shadow-xs' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60';
             let trueCardStyle = isTrueChecked ? 'background-color: #ecfdf5 !important; border-color: #15803d !important;' : '';
@@ -31293,6 +31355,26 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                             trueCardClass = 'border-slate-200 bg-white/70 opacity-60 pointer-events-none';
                         }
                     }
+                } else if (_showCorrectAnswers && isAnsProvided && !gradingUnavailable) {
+                    if (isTrueCorrect) {
+                        trueCardClass = 'border-emerald-600 bg-emerald-50/80 ring-2 ring-emerald-600/20 shadow-xs';
+                        trueCardStyle = 'background-color: #ecfdf5 !important; border-color: #059669 !important; box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.25) !important;';
+                        trueBadgeClass = 'bg-[#15803d] text-white shadow-2xs';
+                        trueBadgeStyle = 'background-color: #15803d !important; color: #ffffff !important;';
+                        trueTextClass = 'text-emerald-900 font-bold';
+                        trueTextStyle = 'color: #064e3b !important;';
+                        trueStatusIcon = `<span class="ml-auto shrink-0 flex items-center justify-center text-emerald-600 text-base sm:text-lg animate-scaleIn"><i class="fa-solid fa-circle-check"></i></span>`;
+                        falseCardClass = 'border-slate-200 bg-white/70 opacity-60 pointer-events-none';
+                    } else if (isFalseCorrect) {
+                        falseCardClass = 'border-emerald-600 bg-emerald-50/80 ring-2 ring-emerald-600/20 shadow-xs';
+                        falseCardStyle = 'background-color: #ecfdf5 !important; border-color: #059669 !important; box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.25) !important;';
+                        falseBadgeClass = 'bg-[#15803d] text-white shadow-2xs';
+                        falseBadgeStyle = 'background-color: #15803d !important; color: #ffffff !important;';
+                        falseTextClass = 'text-emerald-900 font-bold';
+                        falseTextStyle = 'color: #064e3b !important;';
+                        falseStatusIcon = `<span class="ml-auto shrink-0 flex items-center justify-center text-emerald-600 text-base sm:text-lg animate-scaleIn"><i class="fa-solid fa-circle-check"></i></span>`;
+                        trueCardClass = 'border-slate-200 bg-white/70 opacity-60 pointer-events-none';
+                    }
                 }
             } else if (isAnsProvided) {
                 // Graded state
@@ -31361,8 +31443,16 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
 
             const isInteractive = !_isReviewMode && !_isTeacherPreviewMode;
 
+            if (gradingUnavailable) {
+                trueCardClass = falseCardClass = 'border-slate-300 bg-slate-50';
+                trueBadgeClass = falseBadgeClass = 'bg-slate-200 text-slate-700';
+                trueTextClass = falseTextClass = 'text-black';
+                trueCardStyle = falseCardStyle = trueBadgeStyle = falseBadgeStyle = trueTextStyle = falseTextStyle = '';
+                trueStatusIcon = falseStatusIcon = '';
+            }
             bodyHtml = `
-                <div class="sigma-quiz-true-false grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 w-full">
+                <div class="sigma-quiz-true-false grid grid-cols-1 ${submittedResponsesOnly ? '' : 'sm:grid-cols-2'} gap-4 pt-2 w-full">
+                    ${!submittedResponsesOnly || isTrueChecked ? `
                     <button type="button" ${isInteractive ? `onclick="window.setUniversalPreviewAnswer(${idx}, 'True')"` : ''}
                         style="${trueCardStyle}"
                         class="relative flex items-center text-left gap-3.5 p-4 rounded-2xl border-2 transition-all ${!isInteractive ? 'cursor-default pointer-events-none' : 'cursor-pointer'} select-none group shadow-2xs overflow-hidden min-w-0 ${trueCardClass}">
@@ -31374,6 +31464,8 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                         </span>
                         ${trueStatusIcon}
                     </button>
+                    ` : ''}
+                    ${!submittedResponsesOnly || isFalseChecked ? `
                     <button type="button" ${isInteractive ? `onclick="window.setUniversalPreviewAnswer(${idx}, 'False')"` : ''}
                         style="${falseCardStyle}"
                         class="relative flex items-center text-left gap-3.5 p-4 rounded-2xl border-2 transition-all ${!isInteractive ? 'cursor-default pointer-events-none' : 'cursor-pointer'} select-none group shadow-2xs overflow-hidden min-w-0 ${falseCardClass}">
@@ -31385,6 +31477,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                         </span>
                         ${falseStatusIcon}
                     </button>
+                    ` : ''}
                 </div>
             `;
         } else if (qType === 'Short Answer' || qType === 'Identification') {
@@ -31462,10 +31555,11 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                     isDisplayCorrect = earnedNow > 0 && Number(ownScoreRaw) > 0;
                 } else if (hasAnswer) {
                     showMark = true;
-                    isDisplayCorrect = textMatch;
+                    isDisplayCorrect = submittedReviewResult(q)?.isFullyCorrect ?? textMatch;
                 }
 
                 let inputContainerClass = 'bg-white border-2 border-slate-200 text-black';
+                if (gradingUnavailable) showMark = false;
                 let inputContainerStyle = '';
                 let inputClass = 'text-black font-semibold';
                 let statusIcon = '';
@@ -31496,7 +31590,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                             ${statusIcon}
                         </div>
                         
-                        ${(expectedAnswerText && _showCorrectAnswers && !_isTeacherPreviewMode && !isQuestionPendingReview(idx)) ? `
+                        ${(expectedAnswerText && _showCorrectAnswers && isAnsProvided && !_isTeacherPreviewMode && !isQuestionPendingReview(idx)) ? `
                             <div class="mt-3 p-3.5 rounded-2xl bg-emerald-50/90 border-2 border-emerald-200 flex items-start gap-2.5 text-xs sm:text-sm font-semibold text-emerald-900 animate-fadeIn shadow-2xs font-['Inter']">
                                 <span class="w-7 h-7 rounded-full bg-[#15803d] text-white flex items-center justify-center shrink-0 text-xs shadow-2xs mt-0.5">
                                     <i class="fa-solid fa-list-check text-xs"></i>
@@ -31530,7 +31624,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             const rawExpected = Array.isArray(q.items) ? q.items : [];
             const expectedItems = rawExpected.map(it => typeof it === 'string' ? it : (it?.text || '')).filter(Boolean);
             const expectedAnswerText = expectedItems.join(', ');
-            const items = (expectedItems.length > 0) ? expectedItems : ['', '', ''];
+            const items = (expectedItems.length > 0) ? expectedItems : Array.from({ length: submittedReviewResult(q)?.total || q.requiredCount || (Array.isArray(curAns) ? curAns.length : 0) || 3 }, () => '');
             const curEnumList = Array.isArray(curAns) ? curAns : (typeof curAns === 'object' && curAns !== null ? Object.values(curAns) : []);
             const isPendingQ = _isReviewMode && isQuestionPendingReview(idx);
             const enumNeedsManual = !isAutoScoring && (typeof window.quizQuestionNeedsManualReview === 'function')
@@ -31569,7 +31663,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             }
 
             let enumAnswerKeyHtml = '';
-            if (expectedAnswerText && _showCorrectAnswers && !_isTeacherPreviewMode && !isPendingQ) {
+            if (expectedAnswerText && _showCorrectAnswers && isAnsProvided && !_isTeacherPreviewMode && !isPendingQ) {
                 enumAnswerKeyHtml = `
                     <div class="mt-3 p-3.5 rounded-2xl bg-emerald-50/90 border-2 border-emerald-200 flex items-start gap-2.5 text-xs sm:text-sm font-semibold text-emerald-900 animate-fadeIn shadow-2xs font-['Inter']">
                         <span class="w-7 h-7 rounded-full bg-[#15803d] text-white flex items-center justify-center shrink-0 text-xs shadow-2xs mt-0.5">
@@ -31590,8 +31684,9 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                     ${items.map((_, iIdx) => {
                 const curVal = curEnumList[iIdx] || '';
                 const hasVal = Boolean(String(curVal).trim().length > 0);
-                const isSlotCorrect = hasVal && slotCorrectMap[iIdx] === true;
-                const isSlotWrong = hasVal && slotCorrectMap[iIdx] === false;
+                const slotResult = submittedReviewResult(q)?.itemCorrect?.[iIdx] ?? slotCorrectMap[iIdx];
+                const isSlotCorrect = hasVal && slotResult === true;
+                const isSlotWrong = hasVal && slotResult === false;
 
                 let rowContainerClass = 'bg-white border-2 border-slate-200 focus-within:border-[#15803d] text-black';
                 let rowContainerStyle = '';
@@ -31618,8 +31713,8 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                     inputClass = 'text-emerald-950 font-bold';
                     inputStyle = 'color: #064e3b !important;';
                     statusIcon = `<span class="ml-auto shrink-0 flex items-center justify-center text-emerald-600 text-base sm:text-lg"><i class="fa-solid fa-circle-check"></i></span>`;
-                } else if (isPendingQ) {
-                    // Pending review -> Neutral state, do not auto-trigger correct/wrong colors
+                } else if (isPendingQ || gradingUnavailable) {
+                    // Missing grading feedback and pending review both use a neutral response state.
                     rowContainerClass = 'bg-white border-2 border-slate-200 text-black shadow-2xs';
                     badgeClass = 'bg-slate-100 text-slate-700';
                     inputClass = 'text-black font-semibold';
@@ -31685,7 +31780,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                                     `}
                                     ${statusIcon}
                                 </div>
-                                ${window.renderSharedMatchingEarnedHtml({ earned: hasSlotScore ? earnedSlotPts : (isSlotCorrect ? enumItemDisplayPts : 0), max: enumItemDisplayPts, visible: !_isTeacherPreviewMode && (_isReviewMode || hasVal) })}
+                                ${window.renderSharedMatchingEarnedHtml({ earned: hasSlotScore ? earnedSlotPts : (isSlotCorrect ? enumItemDisplayPts : 0), max: enumItemDisplayPts, visible: !gradingUnavailable && !_isTeacherPreviewMode && (_isReviewMode || hasVal) })}
                                 ${_isReviewMode ? `
                                     ${isTeacherScoring ? `
                                         <div class="flex items-center gap-1.5 shrink-0 font-['Inter']">
@@ -31804,7 +31899,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                 bodyHtml = `
                     <div class="sigma-quiz-matching-layout space-y-6 pt-2 w-full font-['Inter']">
                         <!-- Choices Bank -->
-                        <div class="sigma-quiz-matching-bank bg-slate-50/80 border-2 border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xs space-y-4">
+                        <div ${submittedResponsesOnly ? 'hidden' : ''} class="sigma-quiz-matching-bank bg-slate-50/80 border-2 border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xs space-y-4">
                             <div class="flex items-center justify-between text-xs font-bold text-black">
                                 <div class="flex items-center gap-2">
                                     <span class="w-6 h-6 rounded-lg bg-emerald-100 text-[#15803d] flex items-center justify-center text-xs shadow-2xs">
@@ -31842,7 +31937,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                     const expectedTarget = String(pair.target || '').trim().toLowerCase();
                     const placedTarget = String(placed).trim().toLowerCase();
                     const hasPlaced = Boolean(placed && String(placed).trim().length > 0);
-                    const isPairMatch = hasPlaced && (placedTarget === expectedTarget);
+                    const isPairMatch = hasPlaced && (submittedReviewResult(q)?.itemCorrect?.[pIdx] ?? (placedTarget === expectedTarget));
 
                     const totalPairsCount = Math.max(1, pairs.length);
                     const matchingPtsPerPair = (q.itemPoints !== undefined && !isNaN(parseInt(q.itemPoints))) ? parseInt(q.itemPoints) : (pts / totalPairsCount);
@@ -31854,7 +31949,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                     let slotInnerHtml = '';
 
                     if (hasPlaced) {
-                        if (_isReviewMode && isQuestionPendingReview(idx)) {
+                        if (_isReviewMode && (isQuestionPendingReview(idx) || gradingUnavailable)) {
                             slotBorderBgClass = 'border-solid border-slate-200 bg-white text-black shadow-2xs';
                             slotInnerHtml = `
                                             <span class="font-bold text-black text-sm break-words min-w-0 mr-3">${escapeStr(placed)}</span>
@@ -31893,7 +31988,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                                         `;
                         }
                     } else {
-                        if (_isReviewMode && !isQuestionPendingReview(idx)) {
+                        if (_isReviewMode && !isQuestionPendingReview(idx) && !gradingUnavailable) {
                             slotBorderBgClass = 'border-solid border-rose-500 bg-rose-50/90 shadow-2xs text-rose-950';
                             slotStyle = 'background-color: #fff1f2 !important; border-color: #f43f5e !important;';
                             slotInnerHtml = `
@@ -31928,14 +32023,14 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                                                     class="min-h-[52px] rounded-2xl border-2 ${slotBorderBgClass} px-6 py-3.5 flex items-center justify-between text-xs transition-all ${isInteractive ? 'cursor-pointer' : 'cursor-default'} select-none group/slot overflow-hidden min-w-0">
                                                     ${slotInnerHtml}
                                                 </div>
-                                                ${window.renderSharedMatchingEarnedHtml({ earned: earnedPairPts, max: matchingPairDisplayPts, visible: _isReviewMode || hasPlaced })}
+                                                ${window.renderSharedMatchingEarnedHtml({ earned: earnedPairPts, max: matchingPairDisplayPts, visible: !gradingUnavailable && (_isReviewMode || hasPlaced) })}
                                             </div>
                                         </div>
                                     </div>
                                 `;
                 }).join('')}
                         </div>
-                        ${(pairs.length > 0 && _showCorrectAnswers && !_isTeacherPreviewMode && !_isPendingReview) ? `
+                        ${(pairs.length > 0 && _showCorrectAnswers && isAnsProvided && !_isTeacherPreviewMode && !_isPendingReview) ? `
                             <div class="mt-3 p-3.5 rounded-2xl bg-emerald-50/90 border-2 border-emerald-200 flex items-start gap-2.5 text-xs sm:text-sm font-semibold text-emerald-900 animate-fadeIn shadow-2xs font-['Inter']">
                                 <span class="w-7 h-7 rounded-full bg-[#15803d] text-white flex items-center justify-center shrink-0 text-xs shadow-2xs mt-0.5">
                                     <i class="fa-solid fa-list-check text-xs"></i>
@@ -31961,7 +32056,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             const isPendingQ = _isReviewMode && isQuestionPendingReview(idx);
             const rubricText = (q.rubric || q.sampleAnswer || q.notes || q.answerKey || '').trim();
             const essayResponse = typeof curAns === 'string' ? curAns : (curAns?.text || '');
-            const rubricHtml = (rubricText && (_isTeacherPreviewMode || isTeacherUser || _showCorrectAnswers)) ? `
+            const rubricHtml = (rubricText && (_isTeacherPreviewMode || ((isTeacherUser || _showCorrectAnswers) && (!_isStudentQuizReview || isAnsProvided)))) ? `
                 <div class="mt-3 p-4 rounded-2xl bg-emerald-50/90 border-2 border-emerald-200 flex items-start gap-3 text-xs sm:text-sm font-semibold text-emerald-900 animate-fadeIn shadow-2xs">
                     <span class="w-7 h-7 rounded-xl bg-[#15803d] text-white flex items-center justify-center shrink-0 text-xs shadow-2xs mt-0.5">
                         <i class="fa-solid fa-file-pen text-xs"></i>
@@ -32068,7 +32163,9 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
 
                 <!-- Question Answer Section -->
                 <div class="pt-1">
-                    ${bodyHtml}
+                    ${_isStudentQuizReview && !isAnsProvided ? '<p class="text-sm font-semibold text-slate-600" role="status">No answer submitted</p>' : ''}
+                    ${gradingUnavailable ? '<p class="text-sm font-semibold text-slate-600" role="status">Grading details are unavailable. Your submitted response is shown below.</p>' : ''}
+                    ${_isStudentQuizReview && !isAnsProvided && (!isTeacherUser || !isQuestionPendingReview(idx)) ? '' : bodyHtml}
                 </div>
             </div>
         `;
@@ -32287,15 +32384,10 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         const subMatchesStudent = !subData || !currentStudent || (typeof window.isSubmissionMatchForStudent !== 'function') || window.isSubmissionMatchForStudent(subData, currentStudent);
         const subMatchesSection = !subData || !subData.section || !viewerSection || window.submissionSectionsMatch(subData.section, viewerSection);
         const officialSubmission = subMatchesStudent && subMatchesSection ? subData : null;
-        const subAnswerCount = (typeof window.collectQuizAnswerMap === 'function') ? Object.keys(window.collectQuizAnswerMap(subData)).length : 0;
-        const copyAnswerCount = (typeof window.collectQuizAnswerMap === 'function') ? Object.keys(window.collectQuizAnswerMap(quizCopy)).length : 0;
-        if (!subMatchesStudent || !subMatchesSection) {
-            subData = (quizCopy && copyAnswerCount > 0) ? quizCopy : null;
-        } else if (quizCopy && copyAnswerCount > 0 && subAnswerCount === 0) {
-            subData = quizCopy;
-        } else if (!subData && quizCopy) {
-            subData = quizCopy;
-        }
+        // A saved submission owns its attempt, answers and grading policy. A quiz
+        // file is only a legacy fallback when no matching submission exists.
+        if (!subMatchesStudent || !subMatchesSection) subData = null;
+        else if (!subData && quizCopy) subData = quizCopy;
 
         if (subData?.attempts && Array.isArray(subData.attempts) && subData.attempts.length > 0) {
             reversedAttempts = [...subData.attempts].reverse();
@@ -32365,13 +32457,18 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             if (richerCopy && Object.keys(window.collectQuizAnswerMap(richerCopy)).length) quizCopy = richerCopy;
         }
         if (quizCopy && typeof window.collectQuizAnswerMap === 'function') {
-            const copyAnswers = window.collectQuizAnswerMap(quizCopy);
+            const activeIdentity = String(activeAttempt?.attemptIdentity || '');
+            const matchingCopyAttempt = activeIdentity
+                ? (Array.isArray(quizCopy.attempts)
+                    ? quizCopy.attempts.find(attempt => String(attempt?.attemptIdentity || '') === activeIdentity)
+                    : (String(quizCopy.attemptIdentity || '') === activeIdentity ? quizCopy : null))
+                : null;
+            const copyAnswers = window.collectQuizAnswerMap(matchingCopyAttempt, false);
             const subAnswers = window.collectQuizAnswerMap(subData);
-            if (Object.keys(copyAnswers).length > Object.keys(subAnswers).length) {
-                subData = Object.assign({}, subData || {}, quizCopy, { answers: copyAnswers, userAnswers: copyAnswers });
-                if (Array.isArray(quizCopy.attempts) && quizCopy.attempts.length) {
-                    reversedAttempts = [...quizCopy.attempts].reverse();
-                }
+            // Recover answers only for the exact saved attempt; never import its
+            // status, score or grading mode from the local quiz-file cache.
+            if (Object.keys(subAnswers).length === 0 && Object.keys(copyAnswers).length > 0) {
+                subData = { ...(subData || {}), answers: copyAnswers, userAnswers: copyAnswers };
             }
         }
 
@@ -32379,15 +32476,19 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         activeAttempt = (reversedAttempts.length > 0) ? (reversedAttempts[pageNum - 1] || reversedAttempts[0]) : (subData || {});
         const matchingAttempt = source => {
             if (!source) return null;
+            const wantedIdentity = String(activeAttempt.attemptIdentity || '');
             if (Array.isArray(source.attempts) && source.attempts.length) {
+                if (wantedIdentity) return source.attempts.find(attempt => String(attempt?.attemptIdentity || '') === wantedIdentity) || null;
                 return source.attempts.find(attempt =>
                     (activeAttempt.attemptNumber !== undefined && String(attempt?.attemptNumber) === String(activeAttempt.attemptNumber))
                     || (activeAttempt.submittedAt && attempt?.submittedAt === activeAttempt.submittedAt)) || null;
             }
+            if (wantedIdentity && String(source.attemptIdentity || '') !== wantedIdentity) return null;
             if (activeAttempt.attemptNumber !== undefined && source.attemptNumber !== undefined && String(source.attemptNumber) !== String(activeAttempt.attemptNumber)) return null;
             return pageNum === 1 ? source : null;
         };
-        const answerSources = [activeAttempt, matchingAttempt(subData), matchingAttempt(quizCopy)];
+        const hasSavedAttemptAnswers = Object.keys(window.collectQuizAnswerMap(activeAttempt, false)).length > 0;
+        const answerSources = [activeAttempt, matchingAttempt(subData), hasSavedAttemptAnswers ? null : matchingAttempt(quizCopy)];
         let rawAnswerMap = {};
         if (typeof window.collectQuizAnswerMap === 'function') {
             answerSources.forEach((source) => {
@@ -32409,10 +32510,13 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                 if (titleToken.length > 8 && rowTitle && rowTitle !== titleToken && !rowTitle.includes(titleToken) && !titleToken.includes(rowTitle)) return;
                 const storedSection = typeof window.submissionSectionKey === 'function' ? window.submissionSectionKey(row.section) : '';
                 if (viewSection && storedSection && storedSection !== 'section' && storedSection !== viewSection) return;
-                const map = window.collectQuizAnswerMap(matchingAttempt(row), false);
+                const matchingRowAttempt = matchingAttempt(row);
+                const map = window.collectQuizAnswerMap(matchingRowAttempt, false);
                 if (Object.keys(map).length > Object.keys(rawAnswerMap).length) {
                     rawAnswerMap = map;
-                    subData = Object.assign({}, subData || {}, row, { answers: map, userAnswers: map });
+                    // The matching local row is answer recovery only. Keep the
+                    // saved submission's pending/graded state authoritative.
+                    subData = { ...(subData || {}), answers: map, userAnswers: map };
                 }
             };
             try {
@@ -32432,33 +32536,19 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         const isAttPending = Boolean(activeAttempt && (activeAttempt.isPending || activeAttempt.status === 'Pending' || (activeAttempt.submittedAt && (activeAttempt.score === null || activeAttempt.score === undefined))));
         const isPending = isAttPending;
 
-        // 5. Resolve showCorrectAnswers
-        let showCorrect = false;
+        // The server applies the saved section policy to this submitted attempt.
+        let showCorrect = true;
         try {
-            let assessConfig = null;
-            if (typeof window.getAssessmentReleaseConfig === 'function') {
-                assessConfig = window.getAssessmentReleaseConfig(subjectId);
-            }
-            if (!assessConfig) {
-                assessConfig = JSON.parse(localStorage.getItem('sigma_assessments_config') || '{}');
-            }
-            const assIdStr = String(activeAssessment?.id || subData?.id || subData?.quizId || activeAttempt?.id || '');
-            const candidates = [assIdStr, title, `assess-${tab}-topic-${topicIdx}-${activeIdx}`, `assess-${tab}-${topicIdx}-${activeIdx}`, String(activeIdx)].filter(Boolean);
-            for (const k of candidates) {
-                if (assessConfig?.assessmentShowCorrectAnswers?.[k] !== undefined) {
-                    showCorrect = Boolean(assessConfig.assessmentShowCorrectAnswers[k]);
-                    break;
-                }
-            }
-            if (!showCorrect) {
-                if (matchedQuiz?.showCorrectAnswers !== undefined) {
-                    showCorrect = Boolean(matchedQuiz.showCorrectAnswers);
-                } else if (activeAttempt.showCorrectAnswers !== undefined) {
-                    showCorrect = Boolean(activeAttempt.showCorrectAnswers);
-                } else if (subData?.showCorrectAnswers !== undefined) {
-                    showCorrect = Boolean(subData.showCorrectAnswers);
-                }
-            }
+            const assessConfig = typeof window.getAssessmentReleaseConfig === 'function'
+                ? window.getAssessmentReleaseConfig(subjectId, viewerSection) : null;
+            const candidates = [activeAssessment?.id, activeAssessment?.materialId, subData?.materialId,
+                subData?.assessmentId, activeAssessment?.title, title, subData?.quizId].filter(Boolean);
+            const setting = candidates.find(key => assessConfig?.assessmentShowCorrectAnswers?.[key] !== undefined);
+            if (setting !== undefined) showCorrect = Boolean(assessConfig.assessmentShowCorrectAnswers[setting]);
+            else if (typeof officialSubmission?.showCorrectAnswers === 'boolean') showCorrect = officialSubmission.showCorrectAnswers;
+            else if (typeof subData?.showCorrectAnswers === 'boolean') showCorrect = subData.showCorrectAnswers;
+            else if (typeof activeAttempt?.showCorrectAnswers === 'boolean') showCorrect = activeAttempt.showCorrectAnswers;
+            else if (matchedQuiz?.showCorrectAnswers !== undefined) showCorrect = Boolean(matchedQuiz.showCorrectAnswers);
         } catch (e) { }
 
         // 6. Resolve essayGradingMode & gradingMode
@@ -32468,24 +32558,28 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         try {
             let assessConfig = null;
             if (typeof window.getAssessmentReleaseConfig === 'function') {
-                assessConfig = window.getAssessmentReleaseConfig(subjectId);
+                assessConfig = window.getAssessmentReleaseConfig(subjectId, viewerSection);
             }
             if (!assessConfig) {
                 assessConfig = JSON.parse(localStorage.getItem('sigma_assessments_config') || '{}');
             }
             const assIdStr = String(activeAssessment?.id || subData?.id || subData?.quizId || activeAttempt?.id || '');
-            const candidates = [assIdStr, title, `assess-${tab}-topic-${topicIdx}-${activeIdx}`, `assess-${tab}-${topicIdx}-${activeIdx}`, String(activeIdx)].filter(Boolean);
+            const candidates = [assIdStr, activeAssessment?.materialId, activeAssessment?.selectedQuizId, activeAssessment?.quizId,
+                activeAssessment?.rawItem?.id, activeAssessment?.rawItem?.materialId, activeAssessment?.rawItem?.selectedQuizId,
+                subData?.materialId, subData?.assessmentId, subData?.selectedQuizId, subData?.quizId,
+                matchedQuiz?.id, matchedQuiz?.code, title, `assess-${tab}-topic-${topicIdx}-${activeIdx}`,
+                `assess-${tab}-${topicIdx}-${activeIdx}`, String(activeIdx)].filter(Boolean).map(String);
 
-            if (activeAttempt.essayGradingMode) {
-                essayGradingMode = activeAttempt.essayGradingMode;
-            } else if (subData?.essayGradingMode) {
-                essayGradingMode = subData.essayGradingMode;
-            } else if (matchedQuiz?.essayGradingMode) {
-                essayGradingMode = matchedQuiz.essayGradingMode;
+            const validEssayMode = value => ['auto', 'manual'].includes(String(value || '').toLowerCase().trim());
+            if (validEssayMode(activeAttempt?.essayGradingMode)) {
+                essayGradingMode = String(activeAttempt.essayGradingMode).toLowerCase().trim();
+            } else if (validEssayMode(subData?.essayGradingMode)) {
+                essayGradingMode = String(subData.essayGradingMode).toLowerCase().trim();
             } else {
                 for (const k of candidates) {
-                    if (assessConfig?.assessmentEssayGradingModes?.[k]) {
-                        essayGradingMode = assessConfig.assessmentEssayGradingModes[k];
+                    const configuredMode = assessConfig?.assessmentEssayGradingModes?.[k];
+                    if (validEssayMode(configuredMode)) {
+                        essayGradingMode = String(configuredMode).toLowerCase().trim();
                         break;
                     }
                 }
@@ -32786,7 +32880,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         }
 
         try { persistReviewDraft(); } catch (error) { window.showToast?.('Unable to save the question draft: ' + error.message, 'error'); return; }
-        window.showToast?.(`Question ${idx + 1} score saved as draft (${score}/${maxPts} pts). Use Save Grades to apply it.`, 'success');
+        window.showToast?.(`Question ${idx + 1} score saved as draft (${score}/${maxPts} pts). Use Submit Final Grade to apply it.`, 'success');
         updateTeacherGradingButtonState();
         renderCurrentQuestion();
     };
@@ -32839,7 +32933,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         try { persistReviewDraft(); }
         catch (error) { window.showToast?.('Unable to save the question draft: ' + error.message, 'error'); return; }
         if (typeof window.showToast === 'function') {
-            window.showToast(`Question ${idx + 1} score saved as draft (${score}/${maxPts} pts). Use Save Grades to apply it.`, 'success');
+            window.showToast(`Question ${idx + 1} score saved as draft (${score}/${maxPts} pts). Use Submit Final Grade to apply it.`, 'success');
         }
         updateTeacherGradingButtonState();
         renderCurrentQuestion();
@@ -33267,18 +33361,18 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
 
         if (typeof window.openAskingPanel === 'function') {
             window.openAskingPanel({
-                title: 'Save Grades?',
+                title: 'Submit Final Grade?',
                 message: 'Are you sure you want to save review changes and update the final grades?',
-                confirmText: 'Save Grades',
+                confirmText: 'Submit Final Grade',
                 cancelText: 'Cancel',
                 icon: 'fa-solid fa-floppy-disk text-[#15803d]',
                 onConfirm: executeFinalize
             });
         } else if (typeof window.showConfirmDialog === 'function') {
             window.showConfirmDialog({
-                title: 'Save Grades?',
+                title: 'Submit Final Grade?',
                 message: 'Are you sure you want to save review changes and update the final grades?',
-                confirmText: 'Save Grades',
+                confirmText: 'Submit Final Grade',
                 cancelText: 'Cancel',
                 icon: 'fa-solid fa-floppy-disk text-[#15803d]',
                 onConfirm: executeFinalize
@@ -35515,7 +35609,7 @@ window.renderSharedSubjectPerformanceCardHtml = function (options = {}) {
                 <div class="flex-grow pr-1 min-w-0">
                     ${options.openGrades ? `<button type="button" class="flex items-center gap-2 text-left text-sm font-bold text-black hover:text-yellow-400 transition-colors cursor-pointer bg-transparent border-0 p-0" style="cursor:pointer;" title="View grades" onclick="window.openSubjectPerformanceGrades(this)"><i class="fa-solid fa-chart-column shrink-0" aria-hidden="true"></i><span>${escTitle}</span></button>` : `<h4 class="text-sm font-bold text-slate-900 leading-snug font-['Inter'] truncate">${escTitle}</h4>`}
                     <p class="text-[11px] font-medium text-black-fade font-['Inter'] mt-0.5" style="color: rgba(0, 0, 0, 0.45);">${escSub}</p>
-                    ${options.teacherName ? `<div class="performance-subject-teacher">${(typeof window.renderUserAvatarHtml === 'function' && window.renderUserAvatarHtml(options.teacherName, 'xs', 'performance-subject-teacher-avatar')) || '<span class="performance-subject-teacher-avatar sigma-user-avatar sigma-user-avatar--xs" aria-hidden="true"><i class="fa-solid fa-user"></i></span>'}<span>${String(options.teacherName).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</span></div>` : ''}
+                    ${options.teacherName ? `<div class="performance-subject-teacher">${(typeof window.renderUserAvatarHtml === 'function' && window.renderUserAvatarHtml(options.teacherName, 'xs', 'performance-subject-teacher-avatar')) || '<span class="performance-subject-teacher-avatar sigma-user-avatar sigma-user-avatar--xs" aria-hidden="true"><i class="fa-solid fa-user"></i></span>'}<span>${String(options.teacherName).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</span>${options.teacherIsAdviser ? `<span class="student-grade-adviser-badge text-[11px] font-bold text-black bg-[#FFD000] px-2 py-0.5 rounded border border-black/10 tracking-tight font-['Inter'] shrink-0">Adviser</span>` : ''}</div>` : ''}
                 </div>
                 <div class="flex items-start gap-2 flex-shrink-0">
                     ${window.renderSharedQuarterDropdown(availableQuarters, selectedQuarter, q => `window.selectSubjectPerformanceQuarter(this, ${q})`).replace('class="sigma-quarter-dropdown"', 'class="sigma-quarter-dropdown student-shared-quarter"')}
@@ -35566,7 +35660,7 @@ document.addEventListener('click', event => {
     window.scrollTo(0,0);
 }, true);
 
-window.getAssignedGradeSections = function(student, subject, requestedYear) {
+window.getAssignedGradeSections = function(student, subject, requestedYear, requestedSectionId) {
     const normalize = value => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
     const year = window.getActiveSchoolYearRecord?.() || {};
     const schoolYear = requestedYear || (year.yearStart && year.yearEnd ? `${year.yearStart}-${year.yearEnd}` : year.name || year.schoolYear || year.year || '');
@@ -35578,31 +35672,51 @@ window.getAssignedGradeSections = function(student, subject, requestedYear) {
     };
     const wanted = aliases(subject);
     const sections = [];
-    for (const key of ['sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections']) {
-        try { const list = JSON.parse(localStorage.getItem(key) || '[]'); if (Array.isArray(list)) sections.push(...list); } catch (_) {}
+    if (window.SigmaAssignedClassrooms?.isReady()) {
+        for (const key of ['sigma-admin-sections', 'sigma-advisory-sections']) {
+            const list = window.SigmaAssignedClassrooms.records(key);
+            if (Array.isArray(list)) sections.push(...list);
+        }
+    } else {
+        for (const key of ['sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections']) {
+            try { const list = JSON.parse(localStorage.getItem(key) || '[]'); if (Array.isArray(list)) sections.push(...list); } catch (_) {}
+        }
     }
     return [...new Set(sections.filter(section => {
         if (!section || normalize(section.status) === 'archived') return false;
+        if (requestedSectionId && String(section.id || '') !== String(requestedSectionId)) return false;
         if (section.schoolYear && schoolYear && yearKey(section.schoolYear) !== yearKey(schoolYear)) return false;
-        const subjects = [section.subject, section.subjectId, section.assignedSubject, ...(Array.isArray(section.assignedSubjects) ? section.assignedSubjects : [])].flatMap(aliases);
+        const subjects = [section.subject, section.subjectId, section.subjectCode, section.assignedSubject, ...(Array.isArray(section.assignedSubjects) ? section.assignedSubjects : []), ...(Array.isArray(section.subjects) ? section.subjects : [])].flatMap(aliases);
         return wanted.some(value => subjects.includes(value)) && window.isSectionAssignedToStudent?.(section, student) === true;
     }).map(section => normalize(section.name || section.sectionName || section.section)).filter(Boolean))];
 };
-window.getPublishedSubjectGrade = function(student,subject,section,quarter,requestedYear){
+window.getPublishedSubjectGrade = function(student,subject,section,quarter,requestedYear,requestedSectionId){
     try{
         const normalize=value=>String(value||'').trim().replace(/\s+/g,' ').toLowerCase();
         const year=window.getActiveSchoolYearRecord?.()||{};
         const schoolYear=requestedYear || (year.yearStart&&year.yearEnd?`${year.yearStart}-${year.yearEnd}`:year.name||year.schoolYear||year.year||'Not specified');
-        const assigned = window.getAssignedGradeSections(student, subject, schoolYear).filter(name => !section || name === normalize(section));
+         const subjects=value=>{
+             const id=typeof value==='object'?value?.id||value?.subjectId:value;
+             const entry=window.getSubjectById?.(id);
+             return [id,typeof value==='object'?value?.name||value?.title:value,entry?.name,entry?.title,entry?.code]
+                 .map(normalize).filter(Boolean);
+         };
+         const assigned = window.getAssignedGradeSections(student, subject, schoolYear, requestedSectionId)
+             .filter(name => requestedSectionId || !section || name === normalize(section));
         const records=JSON.parse(localStorage.getItem('sigma-published-quarter-grades-v1')||'{}');
         const ids=[student?.id,student?.uid,student?.lrn,student?.studentNumber].filter(Boolean).map(String);
-        const grades = assigned.flatMap(name => {
-            const key=JSON.stringify([schoolYear,name,normalize(subject),Number(quarter)]);
-            const remote = window.SigmaGradeSync?.getPublished(key);
-            const record = remote?.ready ? remote.record : records[key];
-            const row=record?.rows?.find(row=>[row.id, ...(Array.isArray(row.studentIds) ? row.studentIds : [])].some(id=>ids.includes(String(id))));
-            return row && Number.isFinite(row.grade) ? [row.grade] : [];
-        });
+         const subjectKeys=subjects(subject);
+         const grades = assigned.map(name => {
+             for (const subjectKey of subjectKeys) {
+                 const key=JSON.stringify([schoolYear,name,subjectKey,Number(quarter)]);
+                 const remote = window.SigmaGradeSync?.getPublished(key);
+                 const record = remote?.ready ? remote.record : records[key];
+                 const row=record?.rows?.find(item=>[item.id, ...(Array.isArray(item.studentIds) ? item.studentIds : [])].some(id=>ids.includes(String(id))));
+                 const grade = row?.grade == null || String(row.grade).trim() === '' ? NaN : Number(row.grade);
+                 if (Number.isFinite(grade)) return grade;
+             }
+             return null;
+         }).filter(grade => grade !== null);
         return grades.length === 1 ? grades[0] : null;
     }catch(_){return null;}
 };
@@ -35639,7 +35753,7 @@ window.renderSigmaAiEntries = function(items) {
 window.renderSigmaAiText = function(text) {
     return window.escapeHtml(String(text || '')).replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
 };
-// Fit grade summary typography to the actual card, including a stretched insight row.
+// Fit grade summary typography within compact desktop limits and the existing mobile layout.
 (function () {
     if (typeof ResizeObserver !== 'function') return;
     const observed = new WeakSet();
@@ -35652,8 +35766,9 @@ window.renderSigmaAiText = function(text) {
             const width = card.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
             const height = card.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
             if (width <= 0 || height <= 0) continue;
-            const labelSize = Math.max(12, Math.min(22, height * .12, width / Math.max(1, label.textContent.length * .52)));
-            const valueSize = Math.max(32, Math.min(104, height * .48, width / Math.max(1, value.textContent.trim().length * .66)));
+            const desktop = window.matchMedia('(min-width: 768px)').matches;
+            const labelSize = Math.max(12, Math.min(desktop ? 14 : 22, height * .12, width / Math.max(1, label.textContent.length * .52)));
+            const valueSize = Math.max(32, Math.min(desktop ? 56 : 104, height * .48, width / Math.max(1, value.textContent.trim().length * .66)));
             label.style.setProperty('font-size', `${labelSize.toFixed(1)}px`, 'important');
             label.style.setProperty('line-height', '1.35', 'important');
             value.style.setProperty('font-size', `${valueSize.toFixed(1)}px`, 'important');
@@ -35922,11 +36037,13 @@ window.getAssessmentsForSubject = function (subjectId, category, specifiedQ = nu
         data = curriculumTopicCatalog[subjectId] || curriculumTopicCatalog[cleanSubj] || curriculumTopicCatalog[`card-${cleanSubj}`];
     }
     if (data) {
-        const quarterTopics = Array.isArray(data[`q${currentQ}Topics`]) && data[`q${currentQ}Topics`].length > 0
-            ? data[`q${currentQ}Topics`]
-            : (currentQ === 1 && Array.isArray(data.topics) ? data.topics : []);
-
-        quarterTopics.forEach((topic, tIdx) => {
+        // Some catalogs keep every topic in q1Topics while each topic stores its actual quarter.
+        // Filter by that saved quarter and retain global indexes for release and submission lookup.
+        const groupedTopics = [1,2,3,4].flatMap(q => (data[`q${q}Topics`] || []).map(topic => ({topic, groupQuarter:q})));
+        const topicEntries = groupedTopics.length ? groupedTopics : (data.topics || []).map(topic => ({topic, groupQuarter:1}));
+        topicEntries.forEach(({topic, groupQuarter}, tIdx) => {
+            const topicQuarter = Number(String(topic.quarter || topic.term || groupQuarter).replace(/\D/g, '')) || groupQuarter;
+            if (topicQuarter !== currentQ) return;
             if (targetSection && topic && topic.section) {
                 const cleanSec = String(targetSection).trim().toLowerCase();
                 const topSec = String(topic.section).trim().toLowerCase();
@@ -36100,7 +36217,13 @@ window.getCategoryDetails = function (category, specifiedQ = null, specifiedSubj
     }
     const offline = window.getOfflineAssessments?.(subjectKey, sectionKey, qKey, normCat === 'pt' ? 'perf. task' : normCat) || [];
     result = [...result, ...offline.map(item => ({ ...item, itemIdx: -1, rawItem: item }))];
-    result.sort((a, b) => (Date.parse(a.createdAt || a.date || '') || 0) - (Date.parse(b.createdAt || b.date || '') || 0));
+    // Group assessment columns by curriculum topic before comparing dates.
+    // Keep itemIdx unchanged: existing scores use that category index.
+    result.sort((a, b) => {
+        const topicA = Number.isInteger(a.topicIdx) && a.topicIdx >= 0 ? a.topicIdx : Number.MAX_SAFE_INTEGER;
+        const topicB = Number.isInteger(b.topicIdx) && b.topicIdx >= 0 ? b.topicIdx : Number.MAX_SAFE_INTEGER;
+        return topicA - topicB || (Date.parse(a.createdAt || a.date || '') || 0) - (Date.parse(b.createdAt || b.date || '') || 0);
+    });
     _sharedCategoryDetailsCache[cacheKey] = result;
     return result;
 };
@@ -36174,7 +36297,7 @@ window.withGradebookReadCache = function (render) {
     window._gradebookLegacySubmissionSnapshot = null;
     window._gradebookQuizResultSnapshot = null;
     try {
-        for (const name of ['getStoredJson', 'getLoggedInStudentUser', 'getStudentSectionClassItems', 'getTopicData', 'getAssessmentReleaseConfig', 'getStudentAssessmentReleaseStatus', 'resolveStudentAssessmentSubmissionDetails', 'getPublishedSubjectGrade', 'getStudentsForSection', 'getUnifiedSectionStudents', 'getTeacherAssignedSubjectsAndSections', 'findAssessmentSubmittedWork', 'getUnifiedSubjectAliases', 'getSharedAssessmentSubmissionsStorage', '_getTeacherGradebookCached', 'getStudentAssessmentSubmission', 'studentHasAssessmentSubmission', 'getEffectiveAssessmentStatusAndScore', 'getGradebookStudentItemScore', 'calculateGradebookCategoryPercentage', 'resolveGradebookScoreColumn', 'readScorePanelPoints', 'readStudentVisibleGradebookScore']) {
+        for (const name of ['canonicalizeSectionLookup', 'resolveReleasedAssessmentStamp', 'getCategoryDetails', 'getStoredJson', 'getLoggedInStudentUser', 'getStudentSectionClassItems', 'getTopicData', 'getAssessmentReleaseConfig', 'getStudentAssessmentReleaseStatus', 'resolveStudentAssessmentSubmissionDetails', 'getPublishedSubjectGrade', 'getStudentsForSection', 'getUnifiedSectionStudents', 'getTeacherAssignedSubjectsAndSections', 'findAssessmentSubmittedWork', 'getUnifiedSubjectAliases', 'getSharedAssessmentSubmissionsStorage', '_getTeacherGradebookCached', 'getStudentAssessmentSubmission', 'studentHasAssessmentSubmission', 'getEffectiveAssessmentStatusAndScore', 'getGradebookStudentItemScore', 'calculateGradebookCategoryPercentage', 'resolveGradebookScoreColumn', 'readScorePanelPoints', 'readStudentVisibleGradebookScore']) {
             const original = window[name];
             if (typeof original !== 'function') continue;
             originals.set(name, original);
@@ -36227,7 +36350,7 @@ window.calculateGradebookCategoryPercentage = function (studentOrId, category, e
         } else if (window.studentHasAssessmentSubmission?.(student, item, subjectId, itemCat) && typeof window.readScorePanelPoints === 'function') {
             score = window.readScorePanelPoints(student, item, subjectId);
         }
-        if ((score === null || score === undefined || score === '' || score === '-' || isNaN(Number(score))) && typeof window.getEffectiveAssessmentStatusAndScore === 'function') {
+        if (!window.SigmaAcademicRecords?.getPerformanceSnapshot?.().ready && (score === null || score === undefined || score === '' || score === '-' || isNaN(Number(score))) && typeof window.getEffectiveAssessmentStatusAndScore === 'function') {
             const eff = window.getEffectiveAssessmentStatusAndScore(student, itemCat, itemIdx, subjectId, currentQ, item);
             if (eff && eff.score !== undefined && eff.score !== null && eff.score !== '' && eff.score !== '-' && !isNaN(Number(eff.score))) {
                 if (eff.isManualOverride || eff.status === 'missing' || eff.status === 'absent' || window.studentHasAssessmentSubmission?.(student, item, subjectId, itemCat)) {
@@ -36289,7 +36412,7 @@ window.calculateCategoryPercentage = window.calculateGradebookCategoryPercentage
     const script = document.createElement('script');
     script.dataset.sigmaDateTimeInputs = 'true';
     const baseSrc = document.currentScript?.src || (location.pathname.includes('/php/') ? '../js/shared-components.js' : 'js/shared-components.js');
-    script.src = new URL('date-time-inputs.js?v=20261015pickerStyles', baseSrc).href;
+    script.src = new URL('date-time-inputs.js?v=20261030_quarter_calendar_lock_v1', baseSrc).href;
     script.defer = true;
     document.head.append(script);
 })();
@@ -37328,7 +37451,7 @@ window.flushTeacherReleaseToastQueue = function () {
             // The AI period control already owns its arrow; wrapping on first click duplicates it.
             if (select.closest('.sigma-ai-period-control')) continue;
             // Quarter controls and underline form selects provide their own disclosure and chevron.
-            if (select.matches('.sigma-grade-quarter-select,.student-assessment-quarter-select,.student-performance-slider .subject-performance-card select,.sigma-subject-select,.sigma-form-select,.sigma-underline-select')
+            if (select.matches('.submission-attempt-select,.sigma-grade-quarter-select,.student-assessment-quarter-select,.student-performance-slider .subject-performance-card select,.sigma-subject-select,.sigma-form-select,.sigma-underline-select')
                 || select.closest('.sigma-quarter-dropdown')) continue;
             enhanced.add(select);
             select.classList.add('sigma-select');

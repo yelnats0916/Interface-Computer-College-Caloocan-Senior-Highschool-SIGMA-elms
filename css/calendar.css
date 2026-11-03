@@ -1349,6 +1349,11 @@ body.calendar-page-mode #mobile-calendar-panel {
     background: #ef4444;
 }
 
+.calendar-timeline-now-line--empty {
+    margin: 1rem 1.125rem 1.5rem !important;
+    padding-left: 0 !important;
+}
+
 .calendar-panel-footer {
     padding: 0.875rem 1.125rem !important;
     border-top: 1px solid var(--sigma-black-fade-border, rgba(0, 0, 0, 0.08)) !important;
@@ -1619,6 +1624,17 @@ body.calendar-page-mode #mobile-calendar-panel {
 .calendar-mobile-collapse-bar,
 .calendar-mobile-nav-chevron-btn {
     display: none;
+}
+
+@media (max-width: 1023px) {
+    #nav-cal-prev-btn,
+    #nav-cal-next-btn {
+        display: none !important;
+    }
+
+    #attendance-month-picker-btn {
+        display: inline-flex !important;
+    }
 }
 
 /* Keep month-cell previews bounded on both layouts. */

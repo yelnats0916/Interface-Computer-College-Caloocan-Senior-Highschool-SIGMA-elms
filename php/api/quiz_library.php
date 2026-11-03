@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../includes/creator_names.php';
 require_once __DIR__ . '/../includes/quiz_icons.php';
+require_once __DIR__ . '/../includes/quiz_images.php';
+require_once __DIR__ . '/../includes/generated_assessments.php';
 require_once dirname(__DIR__) . '/includes/data_provenance.php';
 require_once dirname(__DIR__) . '/includes/record_creation_numbers.php';
 /**
@@ -77,6 +79,8 @@ try {
     // Ignore if table exists or permission issue
 }
 
+sigmaEnsureQuizImageSchema($pdo);
+
 function decodeQuestions($raw) {
     if (empty($raw)) return [];
     if (is_array($raw)) return $raw;
@@ -108,6 +112,7 @@ function quizRowToRecord(array $row): array {
         'authorName'     => (string) ($row['author_name'] ?? 'Admin'),
         'authorRole'     => (string) ($row['author_role'] ?? 'Admin'),
         'questions'      => $questions,
+        'generalImages'  => array_key_exists('questions', $row) ? sigmaReadQuizImages($pdo, (string)$row['id']) : [],
         'questionsCount' => $totalQuestions,
         'totalQuestions' => $totalQuestions,
         'totalPoints'    => $totalPoints,
@@ -132,14 +137,20 @@ try {
             $stmt = $pdo->prepare("SELECT * FROM `quizzes` WHERE (`id` = :id OR `code` = :code_match) AND `is_deleted` = 0 LIMIT 1");
             $stmt->execute([':id' => $quizId, ':code_match' => $quizId]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($row && strtolower($row['status']??'')==='draft' && (string)$row['author_id']!==(string)$databaseActor['id']) $row=false;
+            $isAdmin=in_array(strtolower($databaseActor['role']),['admin','masteradmin','administrator'],true);
+            if ($row && strtolower($row['status']??'')==='draft' && (string)$row['author_id']!==(string)$databaseActor['id'] && !$isAdmin) $row=false;
             if (!$row) {
+                $generated=sigmaFindGeneratedQuiz($pdo,$quizId,$databaseActor);
+                if($generated)jsonResponse(['success'=>true,'quiz'=>$generated]);
                 jsonResponse(['success' => false, 'error' => 'Quiz not found'], 404);
             }
             jsonResponse(['success' => true, 'quiz' => quizRowToRecord($row)]);
         }
 
-        $query = "SELECT * FROM `quizzes` WHERE `is_deleted` = 0 AND (LOWER(status) <> 'draft' OR author_id = :library_owner)";
+        $columns = ($_GET['summary'] ?? '') === '1'
+            ? 'id,code,title,description,status,author_id,author_name,author_role,total_questions,total_points,time_limit,icon,color,is_ai,created_at,updated_at'
+            : '*';
+        $query = "SELECT $columns FROM `quizzes` WHERE `is_deleted` = 0 AND (LOWER(status) <> 'draft' OR author_id = :library_owner)";
         $params = [':library_owner'=>(string)$databaseActor['id']];
 
         if ($status !== '') {
@@ -261,6 +272,7 @@ try {
         $questionsArr = $quiz['questions'] ?? [];
         if (!is_array($questionsArr)) $questionsArr = [];
         if(count($questionsArr)>100)jsonResponse(['success'=>false,'error'=>'A quiz can contain at most 100 questions. Remove extra questions before saving.'],400);
+        $images = array_key_exists('generalImages', $quiz) ? sigmaQuizImages($quiz['generalImages']) : null;
         $questionsJson = json_encode($questionsArr);
 
         $totalQuestions = count($questionsArr);
@@ -303,6 +315,8 @@ try {
             `is_ai`           = VALUES(`is_ai`),
             `is_deleted`      = `is_deleted`";
 
+        $ownsSaveTransaction = !$pdo->inTransaction();
+        if ($ownsSaveTransaction) $pdo->beginTransaction();
         $stmt = $pdo->prepare($upsertSql);
         $stmt->execute([
             ':id'              => $id,
@@ -322,14 +336,18 @@ try {
             ':is_ai'           => $isAi
         ]);
 
+        if ($images !== null) sigmaSaveQuizImages($pdo, $id, $images);
         $stmt = $pdo->prepare("SELECT * FROM `quizzes` WHERE `id` = :id LIMIT 1");
         $stmt->execute([':id' => $id]);
         $savedRow = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$savedRow) throw new RuntimeException('The saved quiz could not be verified.');
+        $savedRecord = quizRowToRecord($savedRow);
+        if ($ownsSaveTransaction) $pdo->commit();
 
         jsonResponse([
             'success' => true,
             'message' => 'Quiz saved successfully',
-            'quiz'    => $savedRow ? quizRowToRecord($savedRow) : $quiz
+            'quiz'    => $savedRecord
         ]);
     }
 
@@ -366,7 +384,9 @@ try {
 
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
 } catch (PDOException $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
     jsonResponse(['success' => false, 'error' => 'Database error: ' . $e->getMessage()], 500);
 } catch (Exception $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
     jsonResponse(['success' => false, 'error' => 'Server error: ' . $e->getMessage()], 500);
 }

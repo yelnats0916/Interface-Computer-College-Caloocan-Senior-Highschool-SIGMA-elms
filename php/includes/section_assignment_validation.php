@@ -42,6 +42,7 @@ function sigmaValidateSectionAssignments(array $section, array $users, array $ex
         if (!$daily) {
             $days = $record['days'] ?? [];
             if (is_string($days)) $days = explode(',', $days);
+            $days = array_values(array_filter($days, static fn($day) => trim((string)$day) !== ''));
             foreach ($days as $day) $daily[] = ['day'=>trim($day),'active'=>true,'startTime'=>$record['startTime'] ?? $record['start_time'] ?? '', 'endTime'=>$record['endTime'] ?? $record['end_time'] ?? ''];
         }
         $result = [];
@@ -63,11 +64,27 @@ function sigmaValidateSectionAssignments(array $section, array $users, array $ex
     foreach ($existing as $other) {
         if (!empty($other['is_deleted']) || (string)($other['id'] ?? '') === (string)($section['id'] ?? '') || $norm($other['school_year'] ?? $other['schoolYear'] ?? '') !== $norm($section['schoolYear'] ?? '')) continue;
         if ($norm($other['name'] ?? '') === $norm($section['name'] ?? '') && $norm($other['grade_level'] ?? $other['grade'] ?? '') === $norm($section['grade'] ?? $section['gradeLevel'] ?? '') && $norm($other['subject'] ?? '') === $norm($section['subject'] ?? '') && !empty($section['subject'])) throw new DomainException('This section already has the selected subject. Edit its existing assignment.');
-        if (!$deployed || !in_array($norm($other['status'] ?? ''), ['deployed','published'], true)) continue;
-        $overlap = false;
-        foreach ($wantedSlots as $a) foreach ($slots($other) as $b) if ($a[0] === $b[0] && $a[1] < $b[2] && $a[2] > $b[1]) $overlap = true;
-        if (!$overlap) continue;
-        if ($norm($other['room'] ?? '') === $norm($section['room'] ?? '')) throw new DomainException('Room schedule conflict with section '.$other['name'].'.');
+        if (!in_array($norm($other['status'] ?? ''), ['deployed','published'], true)) continue;
+        $overlapSlots = null;
+        foreach ($wantedSlots as $a) {
+            foreach ($slots($other) as $b) {
+                if ($a[0] === $b[0] && $a[1] < $b[2] && $a[2] > $b[1]) {
+                    $overlapSlots = [$a, $b];
+                    break 2;
+                }
+            }
+        }
+        if (!$overlapSlots) continue;
+        if ($norm($other['room'] ?? '') === $norm($section['room'] ?? '')) {
+            [$candidateSlot, $occupiedSlot] = $overlapSlots;
+            $dayNames = ['mon'=>'Monday','tue'=>'Tuesday','wed'=>'Wednesday','thu'=>'Thursday','fri'=>'Friday','sat'=>'Saturday','sun'=>'Sunday'];
+            $dayName = $dayNames[$candidateSlot[0]] ?? ucfirst($candidateSlot[0]);
+            throw new DomainException(
+                'Room "'.trim((string)($section['room'] ?? '')).'" schedule conflict with section "'.($other['name'] ?? 'Unnamed section').'" on '.$dayName.
+                ': '.$candidateSlot[1].'-'.$candidateSlot[2].' overlaps '.$occupiedSlot[1].'-'.$occupiedSlot[2].'. Choose another room or adjust the schedule.'
+            );
+        }
+        if (!$deployed) continue;
         foreach ($list($other['teachers'] ?? []) as $person) {
             $id = (string)($person['id'] ?? $person['uid'] ?? '');
             if (isset($teacherIds[$id])) throw new DomainException('Teacher schedule conflict with section '.$other['name'].'.');

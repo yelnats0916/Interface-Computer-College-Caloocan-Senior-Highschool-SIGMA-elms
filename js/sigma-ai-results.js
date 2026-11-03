@@ -3,6 +3,18 @@
 
     // These views are populated only from saved generations and verified profiles.
     const REAL_USERS = [];
+    let generationLogs = [], generationTask = null, generationLoaded = false, generationError = '', generationReadAt = 0;
+    function refreshAssessmentGenerations(force = false) {
+        if (!location.pathname.toLowerCase().includes('admin') || !window.SigmaAiDatabase?.request) return;
+        if (generationTask || (!force && generationLoaded && Date.now() - generationReadAt < 15000)) return generationTask;
+        generationError = '';
+        generationTask = window.SigmaAiDatabase.request('ai_records', {action:'assessment_generations'}, true)
+            .then(result => { if (result.success === false) throw new Error(result.error || 'Unable to load generated assessments.'); generationLogs = Array.isArray(result.logs) ? result.logs : []; generationLoaded = true; generationReadAt = Date.now(); })
+            .catch(error => { generationError = error.message || 'Unable to load generated assessments.'; })
+            .finally(() => { generationTask = null; renderTabTable('assessments'); });
+        return generationTask;
+    }
+
     const DATA_STORES = { evaluations: [], feedback: [], assessments: [], insights: [], bot: [] };
     const EVALUATION_PREVIEW_ROWS = [];
     const FEEDBACK_PREVIEW_ROWS = [];
@@ -87,6 +99,17 @@
     }
 
     
+    let submissionResults = [], submissionResultsTask = null, submissionResultsAt = 0;
+    function refreshSubmissionResults() {
+        if (!location.pathname.toLowerCase().includes('admin') || !window.SigmaAcademicRecords || submissionResultsTask || Date.now() - submissionResultsAt < 10000) return;
+        submissionResultsAt = Date.now();
+        submissionResultsTask = window.SigmaAcademicRecords.request({action:'submission_ai_results'}, true, true)
+            .then(result => { submissionResults = Array.isArray(result.records) ? result.records : [];
+                renderTabTable('evaluations'); renderTabTable('feedback'); })
+            .catch(error => { console.warn('Submission AI records:', error.message); })
+            .finally(() => { submissionResultsTask = null; });
+    }
+
     function savedFeedbacks() {
         const found = new Map();
         const deletedIds = getDeletedAiRecordIds();
@@ -458,7 +481,8 @@
         const value = String(user?.role || user?.type || fallback);
         return /teacher/i.test(value) ? 'Teacher' : /student/i.test(value) ? 'Student' : /admin/i.test(value) ? 'Admin' : fallback;
     }
-    function realLogs() {
+    function realLogs(tabKey) {
+        if (tabKey === 'assessments') return generationLoaded ? generationLogs : [];
         const records = [];
         try { records.push(...(window.SigmaAiLogs?.getDisplayRecords?.() || [])); } catch (_) {}
         try { records.push(...(JSON.parse(localStorage.getItem('sigma-ai-recorded-logs') || '[]') || [])); } catch (_) {}
@@ -475,13 +499,13 @@
     function loggedGenerations(tabKey) {
         const pattern = generationPatterns[tabKey];
         const deletedIds = getDeletedAiRecordIds();
-        return realLogs().flatMap(log => {
+        return realLogs(tabKey).flatMap(log => {
             const genId = String(log.generationId || log.id || '');
             if (!featureTabs[tabKey]?.includes(log.feature)) return [];
-            if (tabKey !== 'bot' && !pattern.test(String(log.generationId || ''))) return [];
+            if (tabKey !== 'bot' && !(tabKey === 'assessments' && log.quizId) && !pattern.test(String(log.generationId || ''))) return [];
             if (deletedIds.has(genId)) return [];
             const userId = String(log.userId || '');
-            const user = profileFor(userId);
+            const user = log.userProfile || profileFor(userId);
             let role = userRole(user, log.feature.startsWith('submission_') ? 'Student' : 'User');
             if (log.source?.kind === 'teacher' || log.prompt?.startsWith('Class Grades:')) {
                 role = 'Teacher';
@@ -543,8 +567,11 @@
                 role,
                 requestedBy: reqName,
                 requestedById: reqId,
-                subject: topicText,
-                assessmentTitle: topicText,
+                subject: log.assessmentTitle || topicText,
+                assessmentTitle: log.assessmentTitle || topicText,
+                quizId: log.quizId || '',
+                questionCount: log.questionCount,
+                canOpen: log.canOpen,
                 fileName,
                 fileType,
                 type,
@@ -566,9 +593,9 @@
         const deletedIds = getDeletedAiRecordIds();
         let records = [];
         if (tabKey === 'evaluations') {
-            records = uniqueRecords([...savedEvaluations(), ...savedFeedbacks(), ...loggedGenerations('evaluations'), ...loggedGenerations('feedback')]);
+            records = uniqueRecords([...submissionResults, ...savedEvaluations(), ...savedFeedbacks(), ...loggedGenerations('evaluations'), ...loggedGenerations('feedback')]);
         } else if (tabKey === 'feedback') {
-            records = uniqueRecords([...savedFeedbacks(), ...loggedGenerations(tabKey)]);
+            records = uniqueRecords([...submissionResults.filter(row => row.type === 'Post-grade Feedback'), ...savedFeedbacks(), ...loggedGenerations(tabKey)]);
             if (!records.length) {
                 return FEEDBACK_PREVIEW_ROWS.filter(row => !deletedIds.has(String(row.id)));
             }
@@ -644,278 +671,71 @@
         };
     }
 
-    function openEvaluationInSectionSubmission(item) {
+    async function openEvaluationInSectionSubmission(item) {
         if (!item) return;
-        const parsedSubject = splitAssessmentSubject(item.subject);
-        const subjectLabel = item.subjectName || parsedSubject.subject || 'Computer Programming 1';
-        const targetAssessmentTitle = String(item.assessmentTitle || parsedSubject.assessment || '').trim().toLowerCase();
-
-        const sections = window.getStoredJson?.('sigma-admin-sections', []) || [];
-        let matchedSection = null;
-        if (item.section) {
-            const cleanSecHint = String(item.section).replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim().toLowerCase();
-            matchedSection = sections.find(s => {
-                const sName = String(s?.name || s?.sectionName || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim().toLowerCase();
-                return sName === cleanSecHint || String(s?.id || '').toLowerCase() === cleanSecHint;
-            });
-        }
-        if (!matchedSection && subjectLabel) {
-            const lowerSubj = subjectLabel.toLowerCase();
-            matchedSection = sections.find(s => {
-                const sSubj = String(s?.subject || s?.assignedSubject || (Array.isArray(s?.assignedSubjects) && s.assignedSubjects[0]) || '').toLowerCase();
-                return sSubj && (sSubj.includes(lowerSubj) || lowerSubj.includes(sSubj));
-            });
-        }
-        if (!matchedSection && sections.length > 0) {
-            matchedSection = sections[0];
-        }
-
-        const effectiveSection = matchedSection
-            ? (matchedSection.name || matchedSection.sectionName || matchedSection.id)
-            : (item.section || 'Rizal');
-        const effectiveSubjectName = matchedSection
-            ? (matchedSection.subject || matchedSection.assignedSubject || (Array.isArray(matchedSection.assignedSubjects) && matchedSection.assignedSubjects[0]) || subjectLabel)
-            : subjectLabel;
-
-        let effectiveSubjectId = item.subjectId || '';
-        if (!effectiveSubjectId && typeof window.resolveSubjectTopicId === 'function') {
-            effectiveSubjectId = window.resolveSubjectTopicId(effectiveSubjectName, effectiveSubjectName);
-        }
-        if (!effectiveSubjectId) {
-            effectiveSubjectId = 'card-prog1';
-        }
-
-        let resolvedTopicIdx = (item.topicIdx !== undefined && item.topicIdx !== null && !Number.isNaN(Number(item.topicIdx)))
-            ? Number(item.topicIdx)
-            : 0;
-        let resolvedActiveIdx = (item.activeIdx !== undefined && item.activeIdx !== null && item.activeIdx !== '' && !Number.isNaN(Number(item.activeIdx)))
-            ? Number(item.activeIdx)
-            : null;
-
-        if (typeof window.getAdminTopicSubjectAndData === 'function') {
-            try {
-                const { data } = window.getAdminTopicSubjectAndData(effectiveSubjectId, effectiveSubjectName, effectiveSection) || {};
-                const topics = Array.isArray(data?.q1Topics) ? data.q1Topics : [];
-                let foundMatch = false;
-
-                for (let tIdx = 0; tIdx < topics.length; tIdx++) {
-                    const topic = topics[tIdx];
-                    const rawAssign = Array.isArray(topic?.assignments) ? topic.assignments : [];
-                    const rawQuiz = Array.isArray(topic?.quiz) ? topic.quiz : [];
-                    const rawAct = Array.isArray(topic?.activity) ? topic.activity : [];
-                    const rawPerf = Array.isArray(topic?.performance) ? topic.performance : [];
-                    let assessments = [...rawAssign, ...rawQuiz, ...rawAct, ...rawPerf];
-                    if (typeof window.getUnifiedTopicAssessments === 'function') {
-                        assessments = window.getUnifiedTopicAssessments('assessments', effectiveSubjectId, tIdx, assessments, effectiveSection);
-                    }
-                    if (typeof window.deduplicateMaterialsArray === 'function') {
-                        assessments = window.deduplicateMaterialsArray(assessments, { collapseRoles: true });
-                    }
-                    if (!assessments.length) continue;
-
-                    if (resolvedActiveIdx === null || item.isPreview) {
-                        const matchIdx = assessments.findIndex(ass => {
-                            const assId = String(ass?.id || ass?.materialId || '').trim();
-                            if (item.materialId && assId && assId === String(item.materialId).trim()) return true;
-                            const assTitle = String(ass?.title || ass?.name || '').trim().toLowerCase();
-                            if (!targetAssessmentTitle || !assTitle) return false;
-                            return assTitle === targetAssessmentTitle || assTitle.includes(targetAssessmentTitle) || targetAssessmentTitle.includes(assTitle);
-                        });
-                        if (matchIdx !== -1) {
-                            resolvedTopicIdx = tIdx;
-                            resolvedActiveIdx = matchIdx;
-                            foundMatch = true;
-                            break;
-                        }
-                    } else if (tIdx === resolvedTopicIdx && assessments[resolvedActiveIdx]) {
-                        foundMatch = true;
-                        break;
-                    }
-                }
-
-                if (!foundMatch && resolvedActiveIdx === null) {
-                    for (let tIdx = 0; tIdx < topics.length; tIdx++) {
-                        const topic = topics[tIdx];
-                        const rawAssign = Array.isArray(topic?.assignments) ? topic.assignments : [];
-                        const rawQuiz = Array.isArray(topic?.quiz) ? topic.quiz : [];
-                        const rawAct = Array.isArray(topic?.activity) ? topic.activity : [];
-                        const rawPerf = Array.isArray(topic?.performance) ? topic.performance : [];
-                        let assessments = [...rawAssign, ...rawQuiz, ...rawAct, ...rawPerf];
-                        if (typeof window.getUnifiedTopicAssessments === 'function') {
-                            assessments = window.getUnifiedTopicAssessments('assessments', effectiveSubjectId, tIdx, assessments, effectiveSection);
-                        }
-                        if (assessments.length > 0) {
-                            resolvedTopicIdx = tIdx;
-                            resolvedActiveIdx = 0;
-                            break;
-                        }
-                    }
-                }
-            } catch (_) {}
-        }
-
-        if (resolvedActiveIdx === null) {
-            resolvedActiveIdx = 0;
-        }
-
-        const studentIdentifier = item.name && item.name !== 'Student not recorded'
-            ? item.name
-            : (item.userId || 'All');
-
-        if (typeof window.viewSection === 'function') {
-            window.viewSection(effectiveSection, effectiveSubjectName, 'topics');
-        }
-        if (typeof window.openTopicContent === 'function') {
-            window.openTopicContent(effectiveSubjectId, resolvedTopicIdx, 'assessments', resolvedActiveIdx, true, {
-                viewSubmission: true,
-                _studentViewSubmissionMode: true,
-                _sharedViewSubmissionMode: true,
-                selectedSection: effectiveSection,
-                selectedStudent: studentIdentifier
-            });
-        }
-    }
-
-    function extractQuestionsFromItem(item) {
-        if (!item) return [];
-        let raw = item.details || item.response || '';
-        if (Array.isArray(item.questions)) return item.questions;
-        if (typeof raw === 'string') {
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) return parsed;
-                if (Array.isArray(parsed.questions)) return parsed.questions;
-            } catch (_) {}
-        }
-        // Fallback: mock sample questions if preview
-        const count = 10;
-        const topic = item.assessmentTitle || item.subject || 'Practice Assessment';
-        return [
-            {
-                type: 'Multiple Choice',
-                question: `What is the primary function of ${topic}?`,
-                choices: [
-                    'To automate iterative execution of instructions',
-                    'To clear working memory allocations',
-                    'To define static compile-time constants',
-                    'To initialize network socket interfaces'
-                ],
-                answer: 'To automate iterative execution of instructions',
-                points: 10
-            },
-            {
-                type: 'Multiple Choice',
-                question: `Which scenario represents an appropriate use-case for ${topic}?`,
-                choices: [
-                    'Processing items sequentially until a terminating condition is met',
-                    'Rendering static user interface headers without dynamic states',
-                    'Encrypting stored offline passwords using salt hashes',
-                    'Exporting comma-separated values to an external disk'
-                ],
-                answer: 'Processing items sequentially until a terminating condition is met',
-                points: 10
-            },
-            {
-                type: 'True or False',
-                question: `A properly formed assessment on ${topic} requires defined termination criteria to prevent infinite execution.`,
-                answer: 'True',
-                points: 10
+        const previousCursor = document.body.style.cursor;
+        document.body.style.cursor = 'progress';
+        // Paint the clicked menu state before resolving the selected saved record.
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        try {
+            const parsed = splitAssessmentSubject(item.subject);
+            const subjects = window.getStoredJson?.('sigma-admin-subjects', []) || [];
+            const subject = subjects.find(row => String(row.id) === String(item.subjectId))
+                || window.findMatchingSubject?.(subjects, item.subjectId || item.subjectName || parsed.subject);
+            const subjectId = subject?.id || item.subjectId;
+            const subjectName = subject?.name || item.subjectName || parsed.subject;
+            const sectionName = String(item.section || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim();
+            if (!subjectId || !sectionName || !item.userId) throw new Error('This saved result is missing its classroom or student.');
+            const sections = window.getStoredJson?.('sigma-admin-sections', []) || [];
+            const matchesSection = row => String(row.name || row.sectionName || row.id).toLowerCase() === sectionName.toLowerCase()
+                || String(row.id) === String(item.section);
+            const section = sections.find(row => matchesSection(row) && String(row.subject || row.assignedSubject || '').toLowerCase() === String(subjectName).toLowerCase())
+                || sections.find(matchesSection);
+            const effectiveSection = section?.name || sectionName;
+            const { data } = window.getAdminTopicSubjectAndData?.(subjectId, subjectName, effectiveSection) || {};
+            const topics = data?.q1Topics || [];
+            const materialId = String(item.materialId || '');
+            const title = String(item.assessmentTitle || parsed.assessment || '').trim().toLowerCase();
+            const matches = value => materialId ? String(value?.id || value?.materialId || '') === materialId
+                : Boolean(title) && String(value?.title || value?.name || '').trim().toLowerCase() === title;
+            const fields = ['assignments', 'quiz', 'activity', 'performance', 'assessments', 'materials'];
+            const material = (subject?.materials || []).find(matches);
+            let topicIdx = topics.findIndex(topic => fields.some(field => (topic[field] || []).some(matches))
+                || (material?.topicId && String(topic.id) === String(material.topicId)));
+            if (topicIdx < 0 && Number.isInteger(Number(item.topicIdx)) && item.topicIdx != null) topicIdx = Number(item.topicIdx);
+            // Legacy records may lack a material/topic ID. Resolve their exact title without opening unrelated classes.
+            const candidates = topicIdx >= 0 ? [topicIdx] : topics.map((_, index) => index);
+            let activeIdx = -1;
+            for (const index of candidates) {
+                const topic = topics[index];
+                if (!topic) continue;
+                const defaults = ['assignments', 'quiz', 'activity', 'performance'].flatMap(field => topic[field] || []);
+                let assessments = window.getUnifiedTopicAssessments?.('assessments', subjectId, index, defaults, effectiveSection, topic) || defaults;
+                assessments = window.deduplicateMaterialsArray?.(assessments, { collapseRoles: true }) || assessments;
+                activeIdx = assessments.findIndex(matches);
+                if (activeIdx >= 0) { topicIdx = index; break; }
             }
-        ];
+            if (activeIdx < 0) throw new Error('The assessment for this saved result is no longer available in this section.');
+            // Do not render the entire classroom/grade overview just to open one submission.
+            window.currentAdminClassroomSection = { ...section, name: effectiveSection, subject: subjectName };
+            window.currentClassroomSectionName = effectiveSection;
+            window.currentClassroomSubject = subjectName;
+            window.currentClassroomKey = `${effectiveSection}::${subjectName}`;
+            window.openTopicContent?.(subjectId, topicIdx, 'assessments', activeIdx, true, {
+                viewSubmission: true, _studentViewSubmissionMode: true, _sharedViewSubmissionMode: true,
+                selectedSection: effectiveSection, selectedStudent: String(item.userId)
+            });
+            const context = window._sigmaSubmissionFeedbackContext || window._sigmaSubmissionAiContext;
+            if (context) await window.SigmaSubmissionAi?.hydrate(context);
+        } catch (error) {
+            window.showToast?.(error.message || 'Could not open the saved AI result.', 'error');
+        } finally { document.body.style.cursor = previousCursor; }
     }
 
     function openAssessmentInQuizCreator(item) {
-        if (!item) return;
-        const questionsList = extractQuestionsFromItem(item);
-        const quizTitle = item.assessmentTitle || item.subject || 'AI Generated Assessment';
-
-        const ephemeralQuiz = {
-            id: 'ai-asmt-' + (item.id || Date.now()),
-            code: item.id || '#QZ-9999',
-            title: quizTitle,
-            desc: `Generated by SIGMA AI for ${item.name || 'Educator'}${item.fileName ? ' from ' + item.fileName : ''}.`,
-            icon: 'fa-bolt-lightning',
-            color: '#15803d',
-            questions: questionsList,
-            isAi: true,
-            isAiGenerated: true,
-            aiGenerated: true,
-            source: 'ai',
-            createdAt: item.date || new Date().toISOString()
-        };
-
-        // Cache in stored quiz library so quiz-creator resolves it smoothly in new tab
-        try {
-            const library = JSON.parse(localStorage.getItem('sigma_quiz_storage') || '[]');
-            const filteredLib = library.filter(q => q && String(q.id) !== String(ephemeralQuiz.id));
-            filteredLib.unshift(ephemeralQuiz);
-            localStorage.setItem('sigma_quiz_storage', JSON.stringify(filteredLib));
-            localStorage.setItem('sigma-quiz-storage-library', JSON.stringify(filteredLib));
-        } catch (_) {}
-
-        window.open(`quiz-creator.html?mode=edit&id=${encodeURIComponent(ephemeralQuiz.id)}`, '_blank');
-    }
-
-    function downloadAssessmentExport(item) {
-        if (!item) return;
-
-        // If direct file data (data URI / blob URL) exists on item or log
-        if (item.fileData || item.fileUrl) {
-            const dlLink = document.createElement('a');
-            dlLink.href = item.fileData || item.fileUrl;
-            dlLink.download = item.fileName || 'uploaded_document';
-            document.body.appendChild(dlLink);
-            dlLink.click();
-            document.body.removeChild(dlLink);
-            return;
-        }
-
-        const fileName = item.fileName || (item.fileType ? `uploaded_document.${item.fileType}` : 'uploaded_document.txt');
-        const fileExt = (fileName.split('.').pop() || '').toLowerCase();
-
-        // If file content is stored directly
-        if (item.fileContent) {
-            const mimeType = fileExt === 'pdf' ? 'application/pdf' :
-                             fileExt === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' :
-                             fileExt === 'txt' ? 'text/plain;charset=utf-8' :
-                             'application/octet-stream';
-            const blob = new Blob([item.fileContent], { type: mimeType });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            return;
-        }
-
-        // Generate the uploaded grounding text document representation
-        const topic = item.assessmentTitle || item.subject || 'Lesson Document';
-        let content = `=================================================================\n`;
-        content += `                 SIGMA ELMS - UPLOADED SOURCE FILE               \n`;
-        content += `=================================================================\n`;
-        content += `File Name:   ${fileName}\n`;
-        content += `Assessment:  ${item.id}\n`;
-        content += `Instructor:  ${item.name || 'Educator'}\n`;
-        content += `Date:        ${item.date}\n`;
-        content += `=================================================================\n\n`;
-        content += `--- DOCUMENT CONTENT SUMMARY ---\n\n`;
-        content += `${item.details || `Source instructional material for ${topic}.`}\n\n`;
-        content += `=================================================================\n`;
-        content += `                     END OF SOURCE FILE                          \n`;
-        content += `=================================================================\n`;
-
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName.endsWith('.txt') ? fileName : `${fileName}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        if (!item || item.canOpen === false) return;
+        const quizId = item.quizId || ('ai-asmt-' + item.id);
+        window.open(`quiz-creator.html?mode=edit&id=${encodeURIComponent(quizId)}`, '_blank', 'noopener');
     }
 
     function deleteAiResultItem(item, tabKey) {
@@ -1997,6 +1817,8 @@
 
     // Main render function for each tab
     function renderTabTable(tabKey) {
+        if (tabKey === 'assessments' && (location.hash.includes('nav-ai-assessments') || document.getElementById('ai-assessments-view')?.classList.contains('hidden') === false) && !generationTask && !generationError && (!generationLoaded || Date.now() - generationReadAt >= 15000)) refreshAssessmentGenerations();
+        if (tabKey === 'evaluations' || tabKey === 'feedback') refreshSubmissionResults();
         if (tabKey !== 'bot') {
             viewingBotConversationItem = null;
         }
@@ -2058,6 +1880,18 @@
         if (!tbody) return;
         tbody.innerHTML = '';
 
+        if (!filtered.length && tabKey === 'assessments' && (!generationLoaded || generationError)) {
+            const cell = document.createElement('td');cell.colSpan = 7;cell.className = 'py-20 text-center';
+            const row = document.createElement('tr');row.append(cell);tbody.append(row);
+            if (generationError) {
+                const message = document.createElement('p');message.textContent = generationError;cell.append(message);
+                const retry = document.createElement('button');retry.type='button';retry.className='sigma-btn sigma-btn-white sigma-btn-md';retry.textContent='Try Again';
+                retry.onclick=()=>{refreshAssessmentGenerations(true);renderTabTable('assessments');};cell.append(retry);
+            } else {
+                cell.innerHTML = window.SigmaContentLoading?.html({compact:true}) || '<span class="sigma-dot-spinner" role="status" aria-label="Loading generated assessments"></span>';
+            }
+            return;
+        }
         if (!filtered.length) {
             let emptyIcon = 'fa-solid fa-file-circle-check';
             let emptyTitle = 'No Evaluations Found';
@@ -2141,7 +1975,8 @@
                 const asmtStatusText = isSuccess ? 'Success' : 'Failed';
                 const asmtBadgeClass = isSuccess ? 'bg-emerald-50 text-[#15803d] font-bold' : 'bg-rose-50 text-rose-700 font-bold';
 
-                const displayFileName = item.fileName || (item.fileType ? `grounding_document.${item.fileType}` : (item.assessmentTitle || 'Generated File'));
+                const questionCount = Number.isInteger(item.questionCount) ? item.questionCount : null;
+                const countLabel = questionCount === null ? 'Unavailable' : `${questionCount} ${questionCount === 1 ? 'question' : 'questions'}`;
 
                 tr.innerHTML = `
                     <td class="px-4 py-4 text-center">
@@ -2160,8 +1995,8 @@
                         </div>
                     </td>
                     <td class="px-4 py-4 font-normal text-black font-['Inter']">
-                        <div class="truncate text-[13px] font-normal text-black leading-snug" title="${escapeHtml(displayFileName)}">
-                            ${escapeHtml(displayFileName)}
+                        <div class="truncate text-[13px] font-normal text-black leading-snug" title="${escapeHtml(countLabel)}">
+                            ${escapeHtml(countLabel)}
                         </div>
                     </td>
                     <td class="px-4 py-4 text-center">
@@ -2179,13 +2014,9 @@
                                     <i class="fa-solid fa-ellipsis"></i>
                                 </button>
                                 <div class="ai-tab-row-dropdown action-dropdown-menu">
-                                    <button type="button" class="ai-action-open-quiz action-dropdown-item cursor-pointer">
+                                    <button type="button" class="ai-action-open-quiz action-dropdown-item cursor-pointer" ${item.canOpen === false ? 'disabled title="No saved questions available"' : ''}>
                                         <i class="fa-solid fa-arrow-up-right-from-square"></i>
                                         <span>View in Quiz Creator</span>
-                                    </button>
-                                    <button type="button" class="ai-action-download action-dropdown-item cursor-pointer">
-                                        <i class="fa-solid fa-download"></i>
-                                        <span>Download File</span>
                                     </button>
                                 </div>
                             </div>
@@ -2310,7 +2141,6 @@
             const viewBtn = tr.querySelector('.ai-action-view');
             const deleteBtn = tr.querySelector('.ai-action-delete');
             const openQuizBtn = tr.querySelector('.ai-action-open-quiz');
-            const downloadBtn = tr.querySelector('.ai-action-download');
 
             menuBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -2346,16 +2176,6 @@
                     menuBtn.classList.remove('active');
                     menuBtn.setAttribute('aria-expanded', 'false');
                     openAssessmentInQuizCreator(item);
-                });
-            }
-
-            if (downloadBtn) {
-                downloadBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    menuDropdown.classList.remove('show', 'dropup');
-                    menuBtn.classList.remove('active');
-                    menuBtn.setAttribute('aria-expanded', 'false');
-                    downloadAssessmentExport(item);
                 });
             }
 
@@ -2448,6 +2268,13 @@
             });
         }
     });
+
+    setInterval(() => { if (document.visibilityState === 'visible' && /nav-ai-(evaluations|feedback)/.test(location.hash)) refreshSubmissionResults(); }, 15000);
+
+    window.addEventListener('sigma:quiz-library-loaded', () => { if (location.hash.includes('nav-ai-assessments')) refreshAssessmentGenerations(true); });
+    window.addEventListener('storage', event => { if (event.key === 'sigma_quiz_broadcast' && location.hash.includes('nav-ai-assessments')) refreshAssessmentGenerations(true); });
+    window.addEventListener('focus', () => { if (location.hash.includes('nav-ai-assessments')) refreshAssessmentGenerations(true); });
+    window.addEventListener('sigma:database-session-ready', () => { if (location.hash.includes('nav-ai-assessments')) { refreshAssessmentGenerations(); renderTabTable('assessments'); } });
 
     // Public API
     window.SigmaAiResults = {

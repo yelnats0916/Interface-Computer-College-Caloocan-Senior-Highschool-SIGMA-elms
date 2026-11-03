@@ -28,6 +28,7 @@ try{
     if($action==='manual'){
         if(!is_bool($input['enabled']??null))throw new InvalidArgumentException('Invalid maintenance setting.');
         $config['enabled']=$input['enabled'];
+        if(!$input['enabled'])$config['masterOnly']=false;
         if(!$input['enabled']&&sigmaMaintenanceState($config)['scheduleStatus']==='active')$config['schedule']['canceled']=true;
     }elseif($action==='cancel'){
         if(isset($config['schedule']))$config['schedule']['canceled']=true;

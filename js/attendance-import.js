@@ -176,12 +176,12 @@
         };
         const escape = event => {if(event.key==='Escape')requestClose();};overlay.querySelectorAll('[data-close]').forEach(button=>button.onclick=requestClose);document.addEventListener('keydown',escape);
         document.body.style.overflow='hidden';document.documentElement.style.overflow='hidden';document.documentElement.classList.add('has-modal-open');document.body.append(overlay);
-        // Mouse dragging pans the same scroller used by the form on desktop.
+        // Pan the worksheet inside the form without moving its header or actions.
         let drag=null;
         overlay.addEventListener('pointerdown',event=>{
             const table=event.target.closest('.attendance-import-table');
             if(!table || event.pointerType!=='mouse' || event.button!==0)return;
-            drag={table,id:event.pointerId,x:event.clientX,y:event.clientY,left:(window.innerWidth>=768?overlay:table).scrollLeft,scroller:window.innerWidth>=768?overlay:table,active:false};
+            drag={table,id:event.pointerId,x:event.clientX,y:event.clientY,left:table.scrollLeft,scroller:table,active:false};
         });
         overlay.addEventListener('pointermove',event=>{
             if(!drag || drag.id!==event.pointerId)return;
@@ -196,7 +196,7 @@
         overlay.addEventListener('pointerup',finishDrag);overlay.addEventListener('pointercancel',finishDrag);
         overlay.addEventListener('keydown',event=>{
             if(!event.target.matches('.attendance-import-table') || !['ArrowLeft','ArrowRight'].includes(event.key))return;
-            event.preventDefault();(window.innerWidth>=768?overlay:event.target).scrollBy({left:event.key==='ArrowRight'?120:-120});
+            event.preventDefault();event.target.scrollBy({left:event.key==='ArrowRight'?120:-120});
         });
         const button = (label, action, secondary = false) => {const b=document.createElement('button');b.type='button';b.className=`attendance-export-download-btn sigma-btn sigma-btn-${secondary?'secondary':'primary'} sigma-btn-md`;b.textContent=label;b.onclick=action;return b;};
         async function run(control, label, work) {

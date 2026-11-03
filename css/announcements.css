@@ -1296,12 +1296,14 @@ html body :is(.sigma-composer-backdrop, .sigma-student-picker-backdrop, .sigma-d
     text-transform: none !important;
 }
 
-.sigma-card-see-more-btn {
+.sigma-card-post-body .sigma-card-see-more-btn {
     border: none;
     background: transparent;
-    color: #0f172a;
-    font-size: 14px;
-    font-weight: 700;
+    color: var(--announcement-green, #15803d) !important;
+    -webkit-text-fill-color: var(--announcement-green, #15803d) !important;
+    font-family: inherit;
+    font-size: 14px !important;
+    font-weight: 700 !important;
     cursor: pointer;
     padding: 0;
     margin-left: 4px;
@@ -1309,7 +1311,7 @@ html body :is(.sigma-composer-backdrop, .sigma-student-picker-backdrop, .sigma-d
     transition: text-decoration 0.12s ease;
 }
 
-.sigma-card-see-more-btn:hover {
+.sigma-card-post-body .sigma-card-see-more-btn:is(:hover, :focus-visible) {
     text-decoration: underline;
 }
 
@@ -1779,7 +1781,7 @@ button.sigma-card-video-expand-btn {
 /* ═════════════════════════════════════════════════════════════════════════
    6. DISCARD CONFIRMATION DIALOG PANEL
    ═════════════════════════════════════════════════════════════════════════ */
-.sigma-discard-dialog-backdrop {
+html body #sigma-discard-dialog-backdrop {
     position: fixed;
     inset: 0;
     background: rgba(15, 23, 42, 0.55);
@@ -1799,10 +1801,12 @@ button.sigma-card-video-expand-btn {
 .sigma-discard-dialog {
     background: #ffffff;
     width: 100%;
-    max-width: 580px;
-    border-radius: 20px;
+    max-width: 360px;
+    border-radius: 22px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
-    padding: 2rem 2rem 1.75rem;
+    padding: 20px;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
     text-align: center;
     border: 1px solid #e2e8f0;
     animation: modalScaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1824,14 +1828,14 @@ button.sigma-card-video-expand-btn {
 }
 
 .sigma-discard-dialog-title {
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 700;
-    color: #0f172a;
+    color: #000000;
     margin: 0 0 0.5rem;
 }
 
 .sigma-discard-dialog-desc {
-    font-size: 13px;
+    font-size: 12.5px;
     color: #64748b;
     line-height: 1.45;
     margin: 0 0 1.25rem;
@@ -1845,45 +1849,57 @@ button.sigma-card-video-expand-btn {
 
 .sigma-discard-btn-cancel {
     flex: 1;
-    padding: 0.625rem 1rem;
+    min-width: 0;
+    height: 46px;
+    padding: 0 16px;
     border-radius: 12px;
     border: 1px solid #cbd5e1;
     background: #ffffff;
-    color: #475569;
-    font-size: 13px;
+    color: #000000;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s ease;
 }
 
 .sigma-discard-btn-cancel:hover {
-    background: #f1f5f9;
-    color: #0f172a;
+    background: #e2e8f0;
+    color: #000000;
 }
 
 .sigma-discard-btn-confirm {
     flex: 1;
-    padding: 0.625rem 1rem;
+    min-width: 0;
+    height: 46px;
+    padding: 0 16px;
     border-radius: 12px;
     border: none;
-    background: #dc2626;
+    background: var(--announcement-green);
     color: #ffffff;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s ease;
 }
 
 .sigma-discard-btn-confirm:hover {
-    background: #b91c1c;
+    background: var(--announcement-green-dark);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 639px) {
     .sigma-discard-dialog {
-        max-width: 90% !important;
-        width: 90% !important;
-        padding: 1.5rem 1.25rem !important;
-        border-radius: 16px !important;
+        max-width: 330px;
+        padding: 16px;
+        border-radius: 18px;
+    }
+    .sigma-discard-dialog-title { font-size: 14px; }
+    .sigma-discard-dialog-desc { font-size: 12px; }
+    #sigma-discard-dialog-backdrop .sigma-discard-dialog-actions .sigma-btn {
+        height: 46px !important;
+        min-height: 46px !important;
+        max-height: none !important;
+        padding: 0 12px !important;
+        font-size: 12px !important;
     }
 }
 

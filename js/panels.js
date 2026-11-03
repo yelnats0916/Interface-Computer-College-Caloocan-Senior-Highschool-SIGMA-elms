@@ -26,6 +26,69 @@
             .replace(/'/g, '&#39;');
     }
 
+    function getPanelExpansionState(container) {
+        if (!container) return {};
+        try {
+            const value = JSON.parse(container.dataset.sigmaPanelExpansion || '{}');
+            return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+        } catch (_) {
+            return {};
+        }
+    }
+
+    function savePanelExpansionState(container, key, expanded) {
+        if (!container || !key) return;
+        const state = getPanelExpansionState(container);
+        if (expanded) state[key] = true;
+        else delete state[key];
+        container.dataset.sigmaPanelExpansion = JSON.stringify(state);
+    }
+
+    function updateMoreButtonLabel(button, expanded) {
+        const count = Number(button.dataset.extraCount || 0);
+        button.innerHTML = expanded
+            ? '<span>Show less</span><i class="fa-solid fa-chevron-up"></i>'
+            : `<span>+${count} more</span><i class="fa-solid fa-chevron-down"></i>`;
+        button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    }
+
+    function bindMoreButton(button, container, target, expandClass, stateKey, extraCount, targetMode) {
+        button.dataset.expandClass = expandClass;
+        button.dataset.expandTarget = targetMode || 'card';
+        button.dataset.expandKey = stateKey;
+        button.dataset.extraCount = String(extraCount);
+
+        const expanded = Boolean(getPanelExpansionState(container)[stateKey]);
+        target.classList.toggle(expandClass, expanded);
+        updateMoreButtonLabel(button, expanded);
+
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const isExpanded = target.classList.toggle(expandClass);
+            savePanelExpansionState(container, stateKey, isExpanded);
+            updateMoreButtonLabel(button, isExpanded);
+        });
+    }
+
+    document.addEventListener('click', (event) => {
+        const origin = event.target instanceof Element ? event.target : event.target?.parentElement;
+        const button = origin?.closest('.mobile-schedule-card-clone .home-dashboard-more-btn[data-expand-class]');
+        if (!button) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        const card = button.closest('.home-dashboard-card');
+        const target = button.dataset.expandTarget === 'self' ? button.parentElement : card;
+        if (!target) return;
+
+        const expanded = target.classList.toggle(button.dataset.expandClass);
+        updateMoreButtonLabel(button, expanded);
+
+        const sourceContainerId = card?.dataset.expansionContainerId;
+        const sourceContainer = sourceContainerId ? document.getElementById(sourceContainerId) : null;
+        savePanelExpansionState(sourceContainer, button.dataset.expandKey, expanded);
+    });
+
     // ─── RELATIVE TIME FORMATTER (AGENTS.md Section 7) ────────────────────────
     function formatRelativeTime(date, context) {
         if (!date) return '';
@@ -204,10 +267,28 @@
         };
     }
 
+    function schoolClock(date = new Date()) {
+        const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(date).filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));
+        return new Date(Date.UTC(parts.year,parts.month-1,parts.day,parts.hour,parts.minute,parts.second));
+    }
+
+    function assessmentDeadline(row) {
+        let value=row?.dueDate;
+        if(value instanceof Date)return Number.isNaN(value.getTime())?null:value.getTime();
+        value=String(value||'').trim();
+        if(!value||/^(?:-|none|null|undefined|no-deadline|no deadline|no due date)$/i.test(value))return null;
+        if(/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            const time=String(row.dueTime||'23:59:59').trim();
+            const minutes=clockValueToMinutes(/^\d{2}:\d{2}:\d{2}$/.test(time)?time.slice(0,5):time);
+            value+='T'+String(Math.floor(minutes/60)).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0')+':59+08:00';
+        }else if(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(value))value=value.replace(' ','T')+'+08:00';
+        const stamp=Date.parse(value);return Number.isFinite(stamp)?stamp:null;
+    }
+
     function isClassScheduledToday(item, now = new Date()) {
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const fullDayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const dayIdx = now.getDay();
+        const dayIdx = schoolClock(now).getUTCDay();
         const shortDay = dayNames[dayIdx].toUpperCase();
         const fullDay = fullDayNames[dayIdx].toUpperCase();
 
@@ -220,8 +301,7 @@
                 return dName === shortDay || dName === fullDay || dName.startsWith(shortDay);
             });
             if (match) return true;
-            const hasAnyActive = dailyList.some(d => d && d.active !== false && d.startTime && d.endTime);
-            if (hasAnyActive) return false;
+            return false;
         }
 
         // 2. Check days array if present
@@ -246,8 +326,7 @@
 
         const hasAnyDayMentioned = /(?:MON|TUE|WED|THU|FRI|SAT|SUN|DAILY|EVERYDAY)/i.test(rawString);
         if (!hasAnyDayMentioned) {
-            // Default to school weekdays (Mon-Fri) if no day names mentioned
-            return dayIdx >= 1 && dayIdx <= 5;
+            return false; // An unscheduled subject is not a next class.
         }
 
         if (rawString.includes('DAILY') || rawString.includes('EVERYDAY') || rawString.includes('ALL DAYS')) {
@@ -273,7 +352,7 @@
 
     function getClassTimeForToday(item, now = new Date()) {
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const shortDay = dayNames[now.getDay()].toUpperCase();
+        const shortDay = dayNames[schoolClock(now).getUTCDay()].toUpperCase();
 
         const dailyList = item.dailySchedules || item.rawSection?.dailySchedules;
         if (Array.isArray(dailyList) && dailyList.length > 0) {
@@ -311,34 +390,20 @@
         return parseClassSchedule(raw);
     }
 
-    function filterUpcomingClasses(classes, limit = 2) {
+    function filterUpcomingClasses(classes, limit = 2, now = new Date()) {
         if (!Array.isArray(classes) || !classes.length) return [];
-        const now = new Date();
-        const nowMinutes = (now.getHours() * 60) + now.getMinutes();
-
-        // 1. Filter classes scheduled for TODAY (current 24-hour cycle)
-        const todayClasses = classes.filter(item => isClassScheduledToday(item, now));
-        if (!todayClasses.length) return [];
-
-        // 2. Filter out classes that have ALREADY ENDED today
-        // If endMinutes <= nowMinutes, the class has ended and should be gone now.
-        // It resets at 12:00 AM (midnight) when nowMinutes becomes 0 for the next 24-hour cycle.
-        const upcoming = todayClasses
-            .map(item => {
-                const schedule = getClassTimeForToday(item, now);
-                return {
-                    ...item,
-                    schedule,
-                    scheduleInfo: schedule
-                };
-            })
-            .filter(item => {
-                const endMin = item.schedule?.endMinutes;
-                if (!endMin) return true;
-                return endMin > nowMinutes;
-            })
-            .sort((a, b) => (a.schedule?.startMinutes || 0) - (b.schedule?.startMinutes || 0) || (a.name || a.subject || '').localeCompare(b.name || b.subject || ''));
-
+        const clock=schoolClock(now),nowMinutes=clock.getUTCHours()*60+clock.getUTCMinutes(),upcoming=[];
+        for(const item of classes)for(let offset=0;offset<=7;offset++){
+            const calendar=new Date(Date.UTC(clock.getUTCFullYear(),clock.getUTCMonth(),clock.getUTCDate()+offset));
+            const date=calendar.toISOString().slice(0,10),meeting=new Date(date+'T12:00:00+08:00');
+            if(!isClassScheduledToday(item,meeting))continue;
+            const time=getClassTimeForToday(item,meeting);
+            if(!time.start||!time.end||!time.endMinutes||time.endMinutes<=time.startMinutes||(offset===0&&time.endMinutes<=nowMinutes))continue;
+            const dayLabel=offset===0?'':offset===1?'Tomorrow':new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Manila',weekday:'short'}).format(meeting);
+            const schedule={...time,dayOffset:offset,date,label:(dayLabel?dayLabel+' · ':'')+time.label};
+            upcoming.push({...item,schedule,scheduleInfo:schedule,_nextClassOrder:offset*1440+time.startMinutes});break;
+        }
+        upcoming.sort((a,b)=>a._nextClassOrder-b._nextClassOrder||(a.name||a.subject||'').localeCompare(b.name||b.subject||''));
         return typeof limit === 'number' ? upcoming.slice(0, limit) : upcoming;
     }
 
@@ -385,7 +450,8 @@
         }
 
         const now = new Date();
-        const nowMinutes = (now.getHours() * 60) + now.getMinutes();
+        const clock = schoolClock(now);
+        const nowMinutes = (clock.getUTCHours() * 60) + clock.getUTCMinutes();
 
         const normalized = deduplicatedClasses.map(item => {
             const sched = (item.scheduleInfo && typeof item.scheduleInfo === 'object')
@@ -415,6 +481,7 @@
         const firstIsOngoing = Boolean(
             normalized[0] &&
             normalized[0].schedule &&
+            (normalized[0].schedule.dayOffset || 0) === 0 &&
             typeof normalized[0].schedule.startMinutes === 'number' &&
             typeof normalized[0].schedule.endMinutes === 'number' &&
             nowMinutes >= normalized[0].schedule.startMinutes &&
@@ -547,6 +614,7 @@
 
             const card = document.createElement('div');
             card.className = 'home-dashboard-card home-dashboard-card--combined';
+            card.dataset.expansionContainerId = container.id || '';
 
             const heading = document.createElement('h3');
             heading.className = 'home-dashboard-panel-title home-dashboard-panel-heading';
@@ -605,16 +673,8 @@
                 const moreBtn = document.createElement('button');
                 moreBtn.type = 'button';
                 moreBtn.className = 'home-dashboard-more-btn';
-                moreBtn.dataset.extraCount = extraCount;
                 moreBtn.innerHTML = `<span>+${extraCount} more</span><i class="fa-solid fa-chevron-down"></i>`;
-
-                moreBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const isShowing = card.classList.toggle('is-showing-all-pending');
-                    moreBtn.innerHTML = isShowing 
-                        ? `<span>Show less</span><i class="fa-solid fa-chevron-up"></i>` 
-                        : `<span>+${extraCount} more</span><i class="fa-solid fa-chevron-down"></i>`;
-                });
+                bindMoreButton(moreBtn, container, card, 'is-showing-all-pending', 'pending', extraCount);
 
                 card.appendChild(moreBtn);
             }
@@ -625,6 +685,7 @@
 
         const card = document.createElement('div');
         card.className = 'home-dashboard-card home-dashboard-card--combined';
+        card.dataset.expansionContainerId = container.id || '';
 
         const heading = document.createElement('h3');
         heading.className = 'home-dashboard-panel-title home-dashboard-panel-heading';
@@ -737,16 +798,9 @@
                 const moreBtn = document.createElement('button');
                 moreBtn.type = 'button';
                 moreBtn.className = 'home-dashboard-more-btn';
-                moreBtn.dataset.extraCount = extraCount;
                 moreBtn.innerHTML = `<span>+${extraCount} more</span><i class="fa-solid fa-chevron-down"></i>`;
-
-                moreBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const isShowing = actList.classList.toggle('is-showing-all');
-                    moreBtn.innerHTML = isShowing 
-                        ? `<span>Show less</span><i class="fa-solid fa-chevron-up"></i>` 
-                        : `<span>+${extraCount} more</span><i class="fa-solid fa-chevron-down"></i>`;
-                });
+                const expansionKey = `activities:${group.subjectId || group.subjectName || group.subject || 'group'}`;
+                bindMoreButton(moreBtn, container, actList, 'is-showing-all', expansionKey, extraCount, 'self');
 
                 actList.appendChild(moreBtn);
             }
@@ -814,13 +868,16 @@
         });
 
         const seenUpcomingKeys = new Set();
-        const upcomingItems = rawUpcoming.filter(row => {
+        // Keep a local `upcoming` alias for older cached panel variants that use
+        // the shorter name while this renderer is replaced by the current asset.
+        const upcoming = rawUpcoming.filter(row => {
             if (!row || isSubmittedItem(row)) return false;
             const key = (row.id || '') + '_' + (row.subjectId || '') + '_' + (row.topicIdx || 0) + '_' + (row.tab || '') + '_' + (row.itemIdx || '') + '_' + (row.activity || row.title || '');
             if (seenOverdueKeys.has(key) || seenDueKeys.has(key) || seenUpcomingKeys.has(key)) return false;
             seenUpcomingKeys.add(key);
             return true;
         });
+        const upcomingItems = upcoming;
 
         const limit = opts.limit || 5;
 
@@ -846,6 +903,7 @@
 
         const card = document.createElement('div');
         card.className = 'home-dashboard-card home-dashboard-card--combined';
+        card.dataset.expansionContainerId = container.id || '';
 
         // ── Section 0: Overdue Submissions (ONLY appears if overdue items exist) ──
         if (overdueItems.length > 0) {
@@ -894,13 +952,7 @@
                 moreBtn.type = 'button';
                 moreBtn.className = 'home-dashboard-more-btn';
                 moreBtn.innerHTML = `<span>+${extraCount} more</span><i class="fa-solid fa-chevron-down"></i>`;
-                moreBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const isShowing = card.classList.toggle('is-showing-all-overdue');
-                    moreBtn.innerHTML = isShowing 
-                        ? `<span>Show less</span><i class="fa-solid fa-chevron-up"></i>` 
-                        : `<span>+${extraCount} more</span><i class="fa-solid fa-chevron-down"></i>`;
-                });
+                bindMoreButton(moreBtn, container, card, 'is-showing-all-overdue', 'overdue', extraCount);
                 card.appendChild(moreBtn);
             }
         }
@@ -953,13 +1005,7 @@
                 moreBtn.type = 'button';
                 moreBtn.className = 'home-dashboard-more-btn';
                 moreBtn.innerHTML = `<span>+${extraCount} more</span><i class="fa-solid fa-chevron-down"></i>`;
-                moreBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const isShowing = card.classList.toggle('is-showing-all-due');
-                    moreBtn.innerHTML = isShowing 
-                        ? `<span>Show less</span><i class="fa-solid fa-chevron-up"></i>` 
-                        : `<span>+${extraCount} more</span><i class="fa-solid fa-chevron-down"></i>`;
-                });
+                bindMoreButton(moreBtn, container, card, 'is-showing-all-due', 'due', extraCount);
                 card.appendChild(moreBtn);
             }
         } else {
@@ -1020,13 +1066,7 @@
                 moreBtn.type = 'button';
                 moreBtn.className = 'home-dashboard-more-btn';
                 moreBtn.innerHTML = `<span>+${extraCount} more</span><i class="fa-solid fa-chevron-down"></i>`;
-                moreBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const isShowing = card.classList.toggle('is-showing-all-upcoming');
-                    moreBtn.innerHTML = isShowing 
-                        ? `<span>Show less</span><i class="fa-solid fa-chevron-up"></i>` 
-                        : `<span>+${extraCount} more</span><i class="fa-solid fa-chevron-down"></i>`;
-                });
+                bindMoreButton(moreBtn, container, card, 'is-showing-all-upcoming', 'upcoming', extraCount);
                 card.appendChild(moreBtn);
             }
         } else {
@@ -1607,6 +1647,7 @@
 
     // ─── EXPOSE API ───────────────────────────────────────────────────────────
     global.SigmaPanels = {
+        assessmentDeadline: assessmentDeadline,
         formatClockValue: formatClockValue,
         clockValueToMinutes: clockValueToMinutes,
         parseClassSchedule: parseClassSchedule,
@@ -1624,4 +1665,17 @@
         STRAND_ICONS: STRAND_ICONS
     };
 
+    let panelRefreshTimer;
+    function refreshConnectedPanels() {
+        clearTimeout(panelRefreshTimer);
+        panelRefreshTimer=setTimeout(()=>{
+            if(document.hidden)return;
+            global.invalidateAssessmentRowsCache?.();
+            global.syncStudentEnrolledClassrooms?.(true);
+            global.renderStudentHomeDashboardPanels?.();
+            global.renderTeacherHomeDashboardPanels?.();
+        },0);
+    }
+    for(const event of ['sigma:academic-snapshot-updated','sigma:assigned-classrooms-updated','sigma:submission-files-updated','sigma:release-config-updated','sigma:teacher-portal-ready','focus'])global.addEventListener(event,refreshConnectedPanels);
+    setInterval(refreshConnectedPanels,60000);
 })(window);

@@ -63,7 +63,7 @@
             body: JSON.stringify({ action: 'verify_recaptcha', token }) });
     }
     async function challenge(host, onVerified, onInvalid) {
-        const run = {};
+        const run = { tokenVersion: 0, verified: false };
         challenges.set(host, run);
         const isCurrent = () => challenges.get(host) === run;
         host.replaceChildren();
@@ -86,15 +86,19 @@
             const sdk = await loadSdk(config);
             if (!isCurrent()) return;
             let widgetId;
+            run.sdk = sdk;
             const complete = async token => {
                 if (!isCurrent()) return;
+                const tokenVersion = ++run.tokenVersion;
                 try {
                     status.textContent = 'Verifying...';
                     const result = await verifyToken(token);
-                    if (!isCurrent()) return;
+                    if (!isCurrent() || tokenVersion !== run.tokenVersion) return;
+                    run.verified = true;
                     status.textContent = 'Verification successful';
                     onVerified(result);
                 } catch (error) {
+                    if (!isCurrent() || tokenVersion !== run.tokenVersion) return;
                     fail(error);
                     if (isCurrent() && widgetId !== undefined) sdk.reset(widgetId);
                 }
@@ -116,8 +120,15 @@
             } else {
                 status.textContent = 'Complete verification to continue';
                 widgetId = sdk.render(mount, { sitekey: config.site_key, callback: complete,
-                    'expired-callback': () => fail(new Error('Verification expired. Please try again.')),
-                    'error-callback': () => fail(new Error(`Google rejected or could not load the ${config.version} widget. Check the site key, key type, and allowed domain in the reCAPTCHA console, then reset the test.`)) });
+                    'expired-callback': () => {
+                        if (!isCurrent() || run.verified) return;
+                        run.tokenVersion++;
+                        status.textContent = 'Check the box to continue.';
+                        if (widgetId !== undefined) sdk.reset(widgetId);
+                        onInvalid?.({ code: 'verification_expired', silent: true });
+                    },
+                    'error-callback': () => fail(new Error(`Google rejected or could not load the ${config.version} widget. Check the site key, key type, and allowed domain in the reCAPTCHA console, then try again.`)) });
+                run.widgetId = widgetId;
             }
         } catch (error) { fail(error); }
     }
@@ -125,5 +136,5 @@
         const threshold = Number(policy.loginIdAttempts) || 3;
         return policy.recaptchaEnabled !== false && (invalidAttempts >= threshold || passwordAttempts >= threshold);
     }
-    window.SigmaRecaptcha = { apiUrl, getConfig, challenge, isChallengeRequired, cancel: host => challenges.delete(host) };
+    window.SigmaRecaptcha = { apiUrl, getConfig, challenge, isChallengeRequired, cancel: host => { const run = challenges.get(host); challenges.delete(host); if (run?.widgetId !== undefined) { try { run.sdk?.reset(run.widgetId); } catch (_) {} } host?.replaceChildren(); } };
 })();

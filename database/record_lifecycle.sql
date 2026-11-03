@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS ai_logs (
     is_deleted TINYINT(1) NOT NULL DEFAULT 0,
     deleted_at DATETIME NULL,
     deleted_by VARCHAR(50) NULL,
-    INDEX idx_ai_log_user (user_id, feature)
+    INDEX idx_ai_log_user (user_id, feature),
+    INDEX idx_ai_log_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS ai_insight_cards (
     id CHAR(64) PRIMARY KEY,

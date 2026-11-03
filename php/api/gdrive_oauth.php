@@ -42,7 +42,7 @@ try {
     $settings=loadServiceSettings();$oauth=$settings['google_drive']['oauth']??[];
     if ($action==='status' && ($_SERVER['REQUEST_METHOD']??'GET')==='GET') {
         require_once __DIR__.'/../includes/material_storage.php';sigmaEnsureMaterialUploads($db);
-        $pending=(int)$db->query('SELECT COUNT(*) FROM material_uploads WHERE synced_at IS NULL AND is_superseded=0')->fetchColumn();
+        $pending=(int)$db->query("SELECT COUNT(*) FROM material_uploads WHERE synced_at IS NULL AND is_superseded=0 AND asset_kind<>'staged_submission'")->fetchColumn();
         driveOAuthOut(['success'=>true,'configured'=>!empty($oauth['client_id']),'connected'=>!empty($oauth['refresh_token']),
             'redirect_uri'=>sigmaDriveOAuthRedirect(),'pending_files'=>$pending]);
     }

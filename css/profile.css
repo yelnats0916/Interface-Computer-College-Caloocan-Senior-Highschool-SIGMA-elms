@@ -252,6 +252,14 @@
 /* User Profile Banner Avatar Wrap */
 #user-profile-picture-trigger {
     position: relative;
+    width: 112px !important;
+    height: 112px !important;
+    min-width: 112px !important;
+    min-height: 112px !important;
+    max-width: 112px !important;
+    max-height: 112px !important;
+    flex: 0 0 112px !important;
+    aspect-ratio: 1 / 1 !important;
     border-radius: 9999px;
     background-color: #e2e8f0 !important;
     display: flex;
@@ -267,6 +275,11 @@
     transform: none !important;
     opacity: 1 !important;
     z-index: 10 !important;
+    margin-bottom: -48px !important;
+}
+
+#user-profile-picture-trigger #user-avatar-placeholder {
+    font-size: 44px !important;
 }
 
 #user-profile-picture-trigger:hover {
@@ -661,11 +674,14 @@
 
     /* 4. Scaled-Down Profile Avatar Circle */
     #user-profile-picture-trigger {
-        width: clamp(80px, 20vw, 90px) !important;
-        height: clamp(80px, 20vw, 90px) !important;
-        min-width: clamp(80px, 20vw, 90px) !important;
-        min-height: clamp(80px, 20vw, 90px) !important;
-        margin-bottom: -36px !important;
+        width: 112px !important;
+        height: 112px !important;
+        min-width: 112px !important;
+        min-height: 112px !important;
+        max-width: 112px !important;
+        max-height: 112px !important;
+        flex: 0 0 112px !important;
+        margin-bottom: -48px !important;
         border-width: 3.5px !important;
         border-color: #ffffff !important;
         box-shadow: 0 0 0 3px #ffffff, 0 4px 14px rgba(0, 0, 0, 0.14) !important;
@@ -675,7 +691,7 @@
     }
 
     #user-profile-picture-trigger #user-avatar-placeholder {
-        font-size: clamp(30px, 7.5vw, 36px) !important;
+        font-size: 44px !important;
     }
 
     /* 5. Scaled-Down Typography & Meta Info */
@@ -1062,11 +1078,11 @@
     }
     :is(#user-profile-picture-overlay, #profile-picture-overlay) h3 { font-size:18px !important; }
     :is(#user-profile-generated-avatars, #school-profile-generated-avatars) {
-        grid-template-columns:repeat(auto-fill, 48px) !important;
+        grid-template-columns:repeat(auto-fill, 56px) !important;
         gap:12px !important;
         padding:12px !important;
     }
-    :is(#user-profile-generated-avatars, #school-profile-generated-avatars) > button { width:48px !important; height:48px !important; }
+    :is(#user-profile-generated-avatars, #school-profile-generated-avatars) > button { width:56px !important; height:56px !important; }
     :is(#user-profile-picture-overlay, #profile-picture-overlay) button[title="Close picture chooser"] { display:none !important; }
     :is(#user-profile-picture-overlay, #profile-picture-overlay) button[aria-label="Back"] { display:flex !important; }
 }

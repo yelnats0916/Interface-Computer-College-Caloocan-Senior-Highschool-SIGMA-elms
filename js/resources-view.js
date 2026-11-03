@@ -18,6 +18,46 @@
     let _currentViewMode = localStorage.getItem('sigma_resources_view_mode') || 'table'; // 'table' (default) | 'grid'
     let _activeAuthorFilter = null; // null: all resources | string: specific author (e.g. current admin or other instructor)
     let _activeSchoolYearFilter = null;
+    let archiveResources = [], archiveYears = [], archiveOwner = '', archivePending = false, archiveLoadedAt = 0, archiveError = '';
+    const archiveResourceIds = new Set();
+    function renderArchiveStatus(section) {
+        let status = section.querySelector('#resource-archive-status');
+        if (!status) { status = document.createElement('div'); status.id = 'resource-archive-status'; status.setAttribute('role','status'); section.prepend(status); }
+        status.replaceChildren();
+        status.hidden = !archiveError && !archivePending;
+        status.className = 'px-4 py-3 text-xs text-black';
+        if (archiveError) {
+            status.append(document.createTextNode(archiveError + ' '));
+            const retry = document.createElement('button'); retry.type = 'button'; retry.textContent = 'Retry'; retry.className = 'underline font-semibold';
+            retry.onclick = () => { archiveLoadedAt = 0; loadArchiveResources(); }; status.append(retry);
+        } else if (archivePending) status.textContent = 'Loading archived-year resources...';
+    }
+    async function loadArchiveResources() {
+        const viewer = resourceViewer(), owner = String(viewer.user.id || viewer.user.uid || '');
+        if (!owner || !window.SigmaDatabase?.request) return;
+        if (archiveOwner !== owner) {
+            archiveOwner = owner; archiveResources = []; archiveYears = []; archiveResourceIds.clear(); archiveLoadedAt = 0; archiveError = '';
+        }
+        if (archivePending || Date.now() - archiveLoadedAt < 30000) return;
+        archivePending = true;
+        const section = document.getElementById('resources-view'); if (section) renderArchiveStatus(section);
+        try {
+            const result = await window.SigmaDatabase.request('school_year_resources', {autoReconnect:false});
+            if (archiveOwner !== owner || String(resourceViewer().user.id || resourceViewer().user.uid || '') !== owner) return;
+            archiveResources = result.records || []; archiveYears = result.schoolYears || [];
+            archiveResourceIds.clear(); archiveResources.forEach(item => archiveResourceIds.add(item.id));
+            archiveError = '';
+        } catch (error) {
+            if (archiveOwner === owner) archiveError = error.message || 'Archived resources could not be loaded.';
+        } finally {
+            archivePending = false;
+            if (archiveOwner !== owner) { archiveLoadedAt = 0; loadArchiveResources(); }
+            else {
+                archiveLoadedAt = Date.now();
+                if (section && !section.classList.contains('hidden')) renderResourcesView();
+            }
+        }
+    }
     function resourceActiveSchoolYear() {
         const year = window.getActiveSchoolYearRecord?.() || {};
         return year.yearStart && year.yearEnd ? `${year.yearStart}-${year.yearEnd}` : String(year.name || year.schoolYear || new Date().getFullYear() + '-' + (new Date().getFullYear() + 1));
@@ -35,7 +75,7 @@
     const resourceIsSubmission = item => item.isStudentSubmission || /^(sub-|indiv-)/.test(String(item.id));
     const resourceCanUpload = item => {
         const viewer = resourceViewer();
-        return !viewer.student && !resourceIsSubmission(item) && (!viewer.teacher || resourceIsOwned(item,viewer.user));
+        return !item.readOnly && !viewer.student && !resourceIsSubmission(item) && (!viewer.teacher || resourceIsOwned(item,viewer.user));
     };
     function resourceIsOwned(item, user) {
         const id = String(user.uid || user.id || user.studentNumber || user.lrn || '');
@@ -45,6 +85,8 @@
         return Boolean(name && name !== 'instructor' && formatFirstLastName(item.author || item.uploadedBy || '').toLowerCase() === name);
     }
     function resourceInViewerClass(item, viewer) {
+        // This in-memory catalog has already been scoped to the signed-in actor by the server.
+        if (archiveResourceIds.has(item.id)) return true;
         const norm = value => String(value || '').toLowerCase().replace(/^(card-|subj-|gen-)/,'').replace(/[^a-z0-9]/g,'');
         const subjects = [item.subjectCode,item.subject].filter(Boolean).map(norm);
         if (viewer.teacher) {
@@ -763,9 +805,9 @@
 
         // Combine direct uploads with real uploaded materials from Add/Edit Topics & Materials
         const realSubjectMats = getRealSubjectMaterials();
-        const combined = [...userUploads];
+        const combined = [...userUploads, ...archiveResources];
         realSubjectMats.forEach(mat => {
-            if (!combined.some(c => c.id === mat.id || (c.title === mat.title && c.subject === mat.subject))) {
+            if (!combined.some(c => c.id === mat.id || (c.title === mat.title && c.subject === mat.subject && c.schoolYear === mat.schoolYear && c.sectionId === mat.sectionId))) {
                 combined.push(mat);
             }
         });
@@ -809,9 +851,10 @@
 
         // 2. Load stored school year records
         try {
-            const raw = localStorage.getItem('sigma_school_year_records') || localStorage.getItem('sigma-school-years');
+            const raw = localStorage.getItem('sigma_school_year_records') || localStorage.getItem('sigma-school-years') || '[]';
             if (raw) {
-                const parsed = JSON.parse(raw);
+                const cached = JSON.parse(raw);
+                const parsed = [...(Array.isArray(cached) ? cached : []), ...archiveYears];
                 if (Array.isArray(parsed)) {
                     parsed.forEach(r => {
                         if (!r || r.isDeleted) return;
@@ -819,12 +862,12 @@
                         const yEnd = Number(r.yearEnd) || (yStart ? yStart + 1 : null);
                         const sy = (yStart && yEnd) ? `${yStart}-${yEnd}` : (r.name || r.id);
                         if (sy) {
-                            const isAct = r.status === 'Active' || (activeRecord && (activeRecord.id === r.id || String(activeRecord.yearStart) === String(r.yearStart)));
+                            const isAct = r.status === 'Active';
                             const rawStatus = String(r.status || '').trim();
                             // Only past years or explicitly archived statuses are Archived
                             const isExplicitArchived = rawStatus.toLowerCase().includes('archive') || rawStatus.toLowerCase().includes('complete');
                             const isPastYear = yStart && yStart < activeStart;
-                            const isArchived = !isAct && (isExplicitArchived || isPastYear);
+                            const isArchived = !isAct && isExplicitArchived;
                             // Future years (e.g. 2027-2028) are Upcoming / Inactive (not yet active)
                             const isUpcoming = !isAct && !isArchived;
 
@@ -868,7 +911,7 @@
 
         // 4. Default fallbacks if empty
         const activeLabel=resourceActiveSchoolYear();
-        if (!yearsMap.has(activeLabel)) {
+        if (yearsMap.size === 0) {
             yearsMap.set(activeLabel, {
                 sy: activeLabel,
                 label: `S.Y. ${activeLabel}`,
@@ -904,25 +947,23 @@
 
     function buildSchoolYearSelectorHtml() {
         const years = getAvailableSchoolYears();
-        const activeYear = years.find(year => year.status === 'Active') || { sy: resourceActiveSchoolYear(), label: `S.Y. ${resourceActiveSchoolYear()}` };
-        _activeSchoolYearFilter ||= activeYear.sy;
+        _activeSchoolYearFilter ||= years.find(year => year.status === 'Active')?.sy || years[0]?.sy || 'all';
+        const choices = [{sy:'all',label:'All School Years',status:''},
+            ...(years.some(year => year.isArchived) ? [{sy:'archive',label:'All Archived Years',status:''}] : []), ...years];
         return `
             <div class="relative shrink-0" id="resource-sy-selector-wrap">
-                <button type="button" id="btn-resource-sy-toggle" class="sigma-btn sigma-btn-white sigma-btn-md gap-2.5 shrink-0" aria-expanded="false" aria-controls="resource-sy-dropdown" aria-haspopup="true" title="Active School Year">
+                <button type="button" id="btn-resource-sy-toggle" class="sigma-btn sigma-btn-white sigma-btn-md gap-2.5 shrink-0" aria-expanded="false" aria-controls="resource-sy-dropdown" aria-haspopup="true" title="Choose School Year">
                     <i class="fa-solid fa-calendar-check text-[#15803d] text-xs" aria-hidden="true"></i>
-                    <span id="resource-sy-current-label" class="text-xs font-semibold text-black">${escapeHtml(activeYear.label)}</span>
+                    <span id="resource-sy-current-label" class="text-xs font-semibold text-black">${escapeHtml(getSelectedSchoolYearLabel())}</span>
                     <i class="fa-solid fa-chevron-down resource-sy-chevron" aria-hidden="true"></i>
                 </button>
-                <div id="resource-sy-dropdown" class="hidden absolute right-0 top-full mt-1.5 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 font-['Inter']">
-                    <div class="px-3.5 py-1.5 border-b border-slate-100 text-xs font-bold text-black">Active School Year</div>
-                    <button type="button" class="btn-select-sy w-full text-left px-3.5 py-2 text-xs flex items-center gap-2.5 cursor-pointer" data-sy="${escapeHtml(activeYear.sy)}" aria-pressed="true">
-                        <i class="fa-solid fa-calendar-check text-[#15803d]" aria-hidden="true"></i>
-                        <span>${escapeHtml(activeYear.label)}</span>
-                        <span class="ml-auto text-[#15803d]">Active</span>
-                    </button>
+                <div id="resource-sy-dropdown" class="hidden absolute right-0 top-full mt-1.5 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 font-['Inter']" style="max-height:320px;overflow-y:auto">
+                    <div class="px-3.5 py-1.5 border-b border-slate-100 text-xs font-bold text-black">School Years</div>
+                    ${choices.map(year => `<button type="button" class="btn-select-sy w-full text-left px-3.5 py-2 text-xs flex items-center gap-2.5 cursor-pointer" data-sy="${escapeHtml(year.sy)}" aria-pressed="${_activeSchoolYearFilter === year.sy}">
+                        <span>${escapeHtml(year.label)}</span><span class="ml-auto">${escapeHtml(year.status)}</span>
+                    </button>`).join('')}
                 </div>
-            </div>
-        `;
+            </div>`;
     }
 
     function bindSchoolYearDropdownEvents(section) {
@@ -1661,12 +1702,15 @@
     function renderResourcesView() {
         const section = document.getElementById('resources-view');
         if (!section) return;
+        loadArchiveResources();
         _activeSchoolYearFilter ||= resourceActiveSchoolYear();
         if (resourceViewer().student) {
             ownUploadsOnly = true;
             studentSubmissionsOnly = true;
             _activeAuthorFilter = null;
-            window.setPortalHeader?.('Resources', 'My Uploads');
+            if (!section.classList.contains('hidden') && section.style.display !== 'none') {
+                window.setPortalHeader?.('Resources', 'My Uploads');
+            }
         }
 
         section.removeAttribute('data-sigma-skeleton-active');
@@ -2421,6 +2465,7 @@
         `;
 
         // Event Bindings
+        renderArchiveStatus(section);
         bindEvents(section);
 
         // Keep page strictly pinned to top on render/tab navigation
@@ -3225,6 +3270,14 @@
     }
 
     window.renderResourcesView = renderResourcesView;
+    window.addEventListener('sigma:school-year-changed', () => {
+        archiveLoadedAt = 0;
+        loadArchiveResources();
+    });
+    window.addEventListener('sigma:database-session-ready', () => {
+        const section = document.getElementById('resources-view');
+        if (section && !section.classList.contains('hidden')) loadArchiveResources();
+    });
     window.refreshResourcesView = function (query = null) {
         if (query !== null) {
             _searchQuery = query;

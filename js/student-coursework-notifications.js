@@ -30,7 +30,7 @@
                     target: { subjectId: row.subjectId, topicIdx: row.topicIdx, tab: 'assessments', itemIdx: row.unifiedIdx, materialTitle: row.activity }
                 });
                 // Establish a grade baseline on first use, without announcing historical scores.
-                if (previous && score !== null && score !== old?.score) send('submission-graded', 'Submission Graded', `${row.activity} has been graded.`);
+                // Grade events are created with the committed database score, even while this student is offline.
                 if (dueSoon && !reminded) send('due-reminder', 'Upcoming Due Date', `${row.activity} is due within 24 hours.`);
             }
             localStorage.setItem(key, JSON.stringify(next));

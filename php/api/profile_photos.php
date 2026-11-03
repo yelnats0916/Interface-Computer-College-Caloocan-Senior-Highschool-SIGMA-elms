@@ -23,19 +23,46 @@ try {
     if (!$own && !$manage) photoReply(['success'=>false,'error'=>'You cannot edit this profile.'],403);
     if ($method==='POST') {
         if ($role==='student' && ($permissions['studentBio'] ?? true)!==true) photoReply(['success'=>false,'error'=>'Profile editing is disabled for this account.'],403);
-        $photo=(string)($input['photo'] ?? '');
-        if (!preg_match('~^data:image/(webp|jpeg);base64,([A-Za-z0-9+/=]+)$~D',$photo,$parts) || strlen($photo)>90000) photoReply(['success'=>false,'error'=>'Use a compressed 256 by 256 profile image.'],422);
-        $bytes=base64_decode($parts[2],true); $info=$bytes!==false?@getimagesizefromstring($bytes):false;
-        if (!$info || $info[0]!==256 || $info[1]!==256 || !in_array($info['mime'],['image/webp','image/jpeg'],true)) photoReply(['success'=>false,'error'=>'Use a 256 by 256 WebP or JPEG image.'],422);
-        $pdo->beginTransaction();
-        $pdo->prepare('INSERT IGNORE INTO user_profile_photos(photo_id,user_id,photo_url) VALUES(?,?,?)')->execute([hash('sha256',$id.'|'.$photo),$id,$photo]);
-        $pdo->prepare('UPDATE users SET avatar=? WHERE id=?')->execute([$photo,$id]);
-        $pdo->prepare('INSERT INTO audit_logs(user_id,action) VALUES(?,?)')->execute([$actor['id'],'Updated profile photo for account '.$id]);
-        $pdo->commit();
+        $action = (string)($input['action'] ?? 'save');
+        if ($action === 'remove') {
+            $pdo->beginTransaction();
+            $pdo->prepare('UPDATE users SET avatar=NULL WHERE id=?')->execute([$id]);
+            $pdo->prepare('INSERT INTO audit_logs(user_id,action) VALUES(?,?)')->execute([$actor['id'],'Removed profile photo for account '.$id]);
+            $pdo->commit();
+            $target['avatar']=null;
+        } elseif ($action === 'delete') {
+            $photo=(string)($input['photo'] ?? '');
+            if ($photo === '' || strlen($photo)>90000) photoReply(['success'=>false,'error'=>'The selected profile photo is invalid.'],422);
+            $photoId=hash('sha256',$id.'|'.$photo);
+            $isActivePhoto=!empty($target['avatar']) && hash_equals((string)$target['avatar'],$photo);
+            $pdo->beginTransaction();
+            $delete=$pdo->prepare('DELETE FROM user_profile_photos WHERE user_id=? AND photo_id=?');
+            $delete->execute([$id,$photoId]);
+            if ($isActivePhoto) {
+                $pdo->prepare('UPDATE users SET avatar=NULL WHERE id=?')->execute([$id]);
+                $target['avatar']=null;
+            }
+            if ($delete->rowCount()>0 || $isActivePhoto) {
+                $pdo->prepare('INSERT INTO audit_logs(user_id,action) VALUES(?,?)')->execute([$actor['id'],'Deleted profile photo for account '.$id]);
+            }
+            $pdo->commit();
+        } else {
+            $photo=(string)($input['photo'] ?? '');
+            if (!preg_match('~^data:image/(webp|jpeg);base64,([A-Za-z0-9+/=]+)$~D',$photo,$parts) || strlen($photo)>90000) photoReply(['success'=>false,'error'=>'Use a compressed 256 by 256 profile image.'],422);
+            $bytes=base64_decode($parts[2],true); $info=$bytes!==false?@getimagesizefromstring($bytes):false;
+            if (!$info || $info[0]!==256 || $info[1]!==256 || !in_array($info['mime'],['image/webp','image/jpeg'],true)) photoReply(['success'=>false,'error'=>'Use a 256 by 256 WebP or JPEG image.'],422);
+            $pdo->beginTransaction();
+            if (!array_key_exists('trackUpload',$input) || $input['trackUpload'] !== false) {
+                $pdo->prepare('INSERT IGNORE INTO user_profile_photos(photo_id,user_id,photo_url) VALUES(?,?,?)')->execute([hash('sha256',$id.'|'.$photo),$id,$photo]);
+            }
+            $pdo->prepare('UPDATE users SET avatar=? WHERE id=?')->execute([$photo,$id]);
+            $target['avatar']=$photo;
+            $pdo->prepare('INSERT INTO audit_logs(user_id,action) VALUES(?,?)')->execute([$actor['id'],'Updated profile photo for account '.$id]);
+            $pdo->commit();
+        }
     } elseif ($method!=='GET') photoReply(['success'=>false,'error'=>'Method not allowed.'],405);
     $query=$pdo->prepare('SELECT photo_url FROM user_profile_photos WHERE user_id=? ORDER BY created_at DESC LIMIT 12');$query->execute([$id]);$history=$query->fetchAll(PDO::FETCH_COLUMN);
-    if (!$history && !empty($target['avatar'])) $history=[$target['avatar']];
-    photoReply(['success'=>true,'photos'=>$history]);
+    photoReply(['success'=>true,'photos'=>$history,'avatar'=>$target['avatar'] ?? null]);
 } catch (Throwable $error) {
     if ($pdo && $pdo->inTransaction()) $pdo->rollBack();
     photoReply(['success'=>false,'error'=>'Profile photo could not be saved. Please try again.'],500);

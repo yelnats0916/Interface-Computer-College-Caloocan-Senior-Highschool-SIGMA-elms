@@ -2,6 +2,7 @@
 require_once dirname(__DIR__) . '/includes/data_provenance.php';
 require_once dirname(__DIR__) . '/includes/record_creation_numbers.php';
 require_once dirname(__DIR__) . '/includes/school_year_policy.php';
+require_once dirname(__DIR__) . '/includes/school_year_lifecycle.php';
 /**
  * SIGMA ELMS — School Year Management REST API
  * 
@@ -40,6 +41,8 @@ if (!$pdo) {
     jsonResponse(['success' => false, 'error' => 'Database connection unavailable', 'records' => []], 503);
 }
 
+sigmaEnsureActiveSemesterColumn($pdo);
+
 function rowToRecord(array $row): array {
     global $pdo;
     $removalReason = sigmaSchoolYearRemovalReason($pdo, $row);
@@ -58,6 +61,7 @@ function rowToRecord(array $row): array {
         'q3End'           => $row['q3_end'] ?: '',
         'q4Start'         => $row['q4_start'] ?: '',
         'q4End'           => $row['q4_end'] ?: '',
+        'activeSemester'  => (int)($row['active_semester'] ?? 1) === 2 ? 2 : 1,
         'status'          => (string) ($row['status'] ?: 'Inactive'),
         'gdriveFolderId'  => (string) ($row['gdrive_folder_id'] ?? ''),
         'gdriveFolderUrl' => (string) ($row['gdrive_folder_url'] ?? ''),
@@ -72,6 +76,13 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 try {
     if ($method === 'GET') {
+        if (($_GET['action']??'')==='preview') {
+            if (academicRole($databaseActor)!=='masteradmin') jsonResponse(['success'=>false,'error'=>'Master Administrator access required.'],403);
+            $find=$pdo->prepare('SELECT * FROM school_years WHERE id=? AND is_deleted=0');$find->execute([(string)($_GET['id']??'')]);
+            $year=$find->fetch(PDO::FETCH_ASSOC);if(!$year)throw new DomainException('School year not found.');
+            $sections=array_filter($pdo->query('SELECT school_year FROM sections WHERE is_deleted=0')->fetchAll(PDO::FETCH_ASSOC),fn($row)=>sigmaSchoolYearReferenceMatches($row['school_year'],$year));
+            jsonResponse(['success'=>true,'record'=>rowToRecord($year),'sectionsCount'=>count($sections)]);
+        }
         $role = preg_replace('/[\s_-]+/', '', strtolower($databaseActor['role'] ?? ''));
         $where = in_array($role,['admin','masteradmin','administrator'],true) ? '' : 'WHERE is_deleted = 0';
         $stmt = $pdo->prepare("SELECT * FROM school_years $where ORDER BY year_start DESC");
@@ -103,56 +114,59 @@ try {
 
         $action = $payload['action'] ?? 'save';
 
-        // ── Action: ACTIVATE ───────────────────────────────────────
-        if ($action === 'activate') {
-            $recordId = (string) ($payload['id'] ?? '');
-            if (!$recordId) {
-                jsonResponse(['success' => false, 'error' => 'Missing record ID to activate'], 400);
+        if ($action === 'set_active_semester') {
+            $recordId = trim((string)($payload['id'] ?? ''));
+            $semester = filter_var($payload['semester'] ?? null, FILTER_VALIDATE_INT);
+            if ($recordId === '' || !in_array($semester, [1, 2], true)) {
+                throw new InvalidArgumentException('Choose a school year and either the 1st or 2nd semester.');
             }
-
+            if ((int)$pdo->query("SELECT GET_LOCK('sigma_school_year_write', 10)")->fetchColumn() !== 1) {
+                jsonResponse(['success'=>false, 'error'=>'School-year records are being updated. Please try again.'], 409);
+            }
             $pdo->beginTransaction();
-            $target = $pdo->prepare('SELECT id FROM school_years WHERE id = ? AND is_deleted = 0 FOR UPDATE');
+            $target = $pdo->prepare('SELECT * FROM school_years WHERE id=? AND is_deleted=0 FOR UPDATE');
             $target->execute([$recordId]);
-            if (!$target->fetchColumn()) throw new DomainException('School year not found. Refresh the list and try again.');
-            // Deactivate others
-            $pdo->exec("UPDATE school_years SET status = 'Inactive' WHERE status = 'Active'");
-            // Activate target
-            $stmt = $pdo->prepare("UPDATE school_years SET status = 'Active', archived_at = NULL WHERE id = ?");
-            $stmt->execute([$recordId]);
+            $year = $target->fetch(PDO::FETCH_ASSOC);
+            if (!$year) throw new DomainException('School year not found.');
+            if (($year['status'] ?? '') === 'Completed (Archived)') {
+                throw new DomainException('Archived school years are read-only. Reactivate the year before changing its active semester.');
+            }
+            $pdo->prepare('UPDATE school_years SET active_semester=? WHERE id=?')->execute([$semester, $recordId]);
+            sigmaRecordActivity($pdo, (string)$databaseActor['id'], 'Changed Active Semester', 'System', 'School year '.$year['year_start'].'-'.$year['year_end'].' · semester '.$semester);
             $pdo->commit();
-
-            jsonResponse(['success' => true, 'message' => 'School year activated successfully']);
+            $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
+            $saved = $pdo->prepare('SELECT * FROM school_years WHERE id=?');
+            $saved->execute([$recordId]);
+            jsonResponse(['success'=>true, 'record'=>rowToRecord($saved->fetch(PDO::FETCH_ASSOC))]);
         }
 
-        // ── Action: ARCHIVE ────────────────────────────────────────
-        if ($action === 'archive') {
-            $recordId = (string) ($payload['id'] ?? '');
-            $activateNextId = !empty($payload['activateNextId']) ? (string) $payload['activateNextId'] : null;
-
-            if (!$recordId) {
-                jsonResponse(['success' => false, 'error' => 'Missing record ID to archive'], 400);
-            }
-
+        // Archival transitions have one server-authoritative transaction.
+        if (in_array($action, ['archive', 'reactivate'], true)) {
+            if (academicRole($databaseActor) !== 'masteradmin') jsonResponse(['success'=>false,'error'=>'Only Master Administrators can archive or reactivate school years.'],403);
+            $recordId=trim((string)($payload['id']??''));
+            if ($recordId==='') throw new InvalidArgumentException('Choose a school year.');
+            sigmaEnsureSchoolYearArchives($pdo);
+            sigmaLockSchoolYearWrites($pdo);
             $pdo->beginTransaction();
-            $target = $pdo->prepare('SELECT id FROM school_years WHERE id = ? AND is_deleted = 0 FOR UPDATE');
-            $target->execute([$recordId]);
-            if (!$target->fetchColumn()) throw new DomainException('School year not found. Refresh the list and try again.');
-            if ($activateNextId) {
-                if ($activateNextId === $recordId) throw new InvalidArgumentException('Choose a different school year to activate.');
-                $target->execute([$activateNextId]);
-                if (!$target->fetchColumn()) throw new DomainException('The next school year is unavailable. Refresh the list and try again.');
-                $pdo->exec("UPDATE school_years SET status = 'Inactive' WHERE status = 'Active'");
-            }
-            $stmt = $pdo->prepare("UPDATE school_years SET status = 'Completed (Archived)', archived_at = NOW() WHERE id = ?");
-            $stmt->execute([$recordId]);
-
-            if ($activateNextId) {
-                $stmt2 = $pdo->prepare("UPDATE school_years SET status = 'Active', archived_at = NULL WHERE id = ?");
-                $stmt2->execute([$activateNextId]);
-            }
+            if(!is_string($payload['expectedStatus']??null))throw new InvalidArgumentException('Review the school-year confirmation before continuing.');
+            $result=sigmaTransitionSchoolYear($pdo,$databaseActor,$recordId,$action,$payload['expectedStatus']);
             $pdo->commit();
-
-            jsonResponse(['success' => true, 'message' => 'School year archived successfully']);
+            $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
+            jsonResponse($result);
+        }
+        if ($action === 'activate') {
+            sigmaLockSchoolYearWrites($pdo);
+            $pdo->beginTransaction();
+            $target=$pdo->prepare('SELECT * FROM school_years WHERE id=? AND is_deleted=0 FOR UPDATE');
+            $target->execute([(string)($payload['id']??'')]);$year=$target->fetch(PDO::FETCH_ASSOC);
+            if (!$year) throw new DomainException('School year not found.');
+            if ($year['status']==='Completed (Archived)') throw new DomainException('Use Reactivate Year to return its archived sections to Draft.');
+            $pdo->exec("UPDATE school_years SET status='Inactive' WHERE status='Active'");
+            $pdo->prepare("UPDATE school_years SET status='Active',archived_at=NULL WHERE id=?")->execute([$year['id']]);
+            sigmaRecordActivity($pdo,(string)$databaseActor['id'],'Activated School Year','System','School year '.$year['year_start'].'-'.$year['year_end']);
+            $pdo->commit();
+            $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
+            jsonResponse(['success'=>true,'message'=>'School year activated.']);
         }
 
         // ── Action: DELETE (Soft) ──────────────────────────────────
@@ -267,6 +281,11 @@ try {
             $creating = !$find->fetchColumn();
         }
         $previous = sigmaCheckSchoolYearConflict($pdo, $record, $id, $creating);
+        if (($previous && $status !== $previous['status']) || ($creating && $status === 'Completed (Archived)')) {
+            throw new DomainException('Use Archive Year, Reactivate Year, or Set as Active to change a school-year status.');
+        }
+        if ($previous && $previous['status'] === 'Completed (Archived)') throw new DomainException('Archived years are read-only. Reactivate the year before editing it.');
+
 
         // If this record is being saved as Active, ensure no other record is Active
         if ($status === 'Active') {

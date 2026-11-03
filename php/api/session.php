@@ -55,11 +55,12 @@ try {
     $result=sigmaCheckLoginCredentials($pdo,$login,$password,sigmaPasswordLockoutLimit(loadServiceSettings()));
     if(!$result['success'])sessionReply($result,$result['code']==='password_required'?400:401);
     $user=$result['user'];
-    if(sigmaMaintenanceRestricted($user))sessionReply(['success'=>false,'code'=>'system_maintenance','error'=>sigmaMaintenanceState(sigmaMaintenanceConfig())['message']],423);
+    $loginTransaction=sigmaBeginAllowedLogin($pdo,$user);
     // Device type does not change account authentication or permissions.
     $token = bin2hex(random_bytes(32));
     $pdo->prepare('DELETE FROM application_login_challenges WHERE expires_at<UTC_TIMESTAMP() OR user_id=?')->execute([$user['id']]);
     $pdo->prepare('INSERT INTO application_login_challenges(token_hash,user_id,expires_at) VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 5 MINUTE))')->execute([hash('sha256',$token),$user['id']]);
+    if($loginTransaction)$pdo->commit();
     sessionReply(['success'=>true,'user'=>sigmaPublicUser($user),'challenge'=>$token]);
 } catch (JsonException $error) { sessionReply(['success'=>false,'error'=>'Invalid JSON.'],400); }
 catch (Throwable $error) { error_log('SIGMA session error: '.$error->getMessage()); sessionReply(['success'=>false,'error'=>'Sign-in could not be completed. Please try again.'],503); }

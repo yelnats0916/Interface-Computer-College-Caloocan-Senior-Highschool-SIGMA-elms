@@ -79,8 +79,10 @@ function authorizeServiceVault(array $input): string {
     }
     $db->prepare('DELETE FROM service_vault_login_attempts WHERE client_hash = ?')->execute([$client]);
     $token = bin2hex(random_bytes(32));
+    $loginTransaction=sigmaBeginAllowedLogin($db,$user);
     $db->prepare('DELETE FROM service_vault_sessions WHERE expires_at < UTC_TIMESTAMP()')->execute();
     $db->prepare('INSERT INTO service_vault_sessions (token_hash, user_id, expires_at) VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 15 MINUTE))')->execute([hash('sha256', $token), $user['id']]);
+    if($loginTransaction)$db->commit();
     recordServiceVaultVerification($db, $id, 'success', (string)($input['panel'] ?? ''));
     if(in_array($scope,['recovery','backups'],true)&&isset($input['recoveryTab'])){
         $tab=(string)$input['recoveryTab'];$name=serviceRecoveryRefreshCookie($tab);

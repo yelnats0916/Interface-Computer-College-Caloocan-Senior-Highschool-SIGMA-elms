@@ -55,20 +55,24 @@
     function capFrames(){
         document.querySelectorAll('iframe[src]').forEach(frame=>{const old=frame.getAttribute('src'),next=youtubeUrl(old);if(next!==old)frame.setAttribute('src',next);});
     }
-    async function uploadSubmission(files){
-        await refresh(true);assertFiles(files,true);
+    async function uploadSubmission(files,onProgress){
+        if(files.some(file=>!uploads.has(file)))await refresh();assertFiles(files,true);
         if(!batches.has(files))batches.set(files,crypto.randomUUID());const batch=batches.get(files),result=[];
+        const total=files.reduce((sum,file)=>sum+file.size,0);let completed=0;
+        const report=(loaded,file,confirmed=false)=>onProgress?.({loaded,total,fileName:file.name,percent:confirmed?100:Math.min(99,Math.floor(loaded/Math.max(1,total)*100))});
         for(const file of files){
             const saved=uploads.get(file);
-            if(saved?.batch===batch){result.push(saved.payload);continue;}
+            if(saved?.batch===batch){result.push(saved.payload);completed+=file.size;report(completed,file);continue;}
             const form=new FormData();form.append('file',file,file.name);form.append('category','submissions');form.append('submission_batch_id',batch);
-            const response=await window.SigmaDatabase.fetch(new URL('upload.php',window.SigmaDatabase.url('material_limits')).href,{method:'POST',body:form,signal:AbortSignal.timeout(240000)});
+            report(completed,file);
+            const response=await window.SigmaDatabase.fetch(new URL('upload.php',window.SigmaDatabase.url('material_limits')).href,{method:'POST',body:form,foreground:true,signal:AbortSignal.timeout(240000),onUploadProgress:typeof onProgress==='function'?event=>{if(event.lengthComputable)report(completed+file.size*Math.min(1,event.loaded/Math.max(1,event.total)),file);}:undefined});
             let data;try{data=await response.json();}catch(_){throw new Error('The upload server is unavailable. Your submission has not been sent.');}
             if(!response.ok||!data.success)throw new Error(data.error||'Your submission file could not be uploaded.');
             if(data.warning)window.showToast?.(data.warning,'warning');
             const payload={name:file.name,fileName:file.name,size:file.size,type:file.name.split('.').pop().toLowerCase(),url:data.url};
-            uploads.set(file,{batch,payload});result.push(payload);
+            uploads.set(file,{batch,payload});result.push(payload);completed+=file.size;report(completed,file);
         }
+        if(files.length)report(completed,files[files.length-1],true);
         return result;
     }
     window.SigmaMaterialLimits={get:()=>structuredClone(limits),refresh,save,assertFiles,youtubeUrl,uploadSubmission};

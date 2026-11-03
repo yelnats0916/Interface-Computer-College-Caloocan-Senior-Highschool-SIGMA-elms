@@ -100,6 +100,7 @@
         }
         function setView(history) {
             inHistory = history;
+            panel.classList.toggle('sigma-chat-history-open', history);
             messages.hidden = history; composer.hidden = history; historyView.hidden = !history;
             historyButton.setAttribute('aria-pressed', String(history));
         }

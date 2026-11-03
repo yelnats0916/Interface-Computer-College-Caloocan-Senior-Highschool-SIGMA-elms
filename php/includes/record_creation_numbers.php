@@ -59,6 +59,29 @@ function sigmaAssignCreationNumbers(PDO $db, string $collection, array $records)
     }
 }
 
+/** Read existing sequence values without taking a write lock on routine list requests. */
+function sigmaCreationNumbersForRecords(PDO $db, string $collection, array $records): array {
+    if (!preg_match('/^[a-z_]{1,64}$/D', $collection)) throw new InvalidArgumentException('Invalid record collection.');
+    $ids = array_values(array_unique(array_filter(array_map(
+        static fn($record) => trim((string)($record['id'] ?? '')),
+        $records
+    ), static fn($id) => $id !== '')));
+    if (!$ids) return [];
+
+    sigmaCreationNumberSchema($db);
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $query = $db->prepare("SELECT record_id,creation_number FROM record_creation_numbers WHERE collection=? AND record_id IN ($placeholders)");
+    $query->execute(array_merge([$collection], $ids));
+    $numbers = [];
+    foreach ($query->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $numbers[(string)$row['record_id']] = (int)$row['creation_number'];
+    }
+
+    // Assign only records that have not received their immutable display number yet.
+    if (count($numbers) !== count($ids)) return sigmaAssignCreationNumbers($db, $collection, $records);
+    return $numbers;
+}
+
 function sigmaTableCreationNumber(PDO $db, string $table, string $id): ?int {
     if (!in_array($table, ['users','subjects','sections','school_years','quizzes','ai_logs','ai_insight_cards','audit_logs','record_lifecycle_events'], true)) {
         throw new InvalidArgumentException('Unsupported record collection.');

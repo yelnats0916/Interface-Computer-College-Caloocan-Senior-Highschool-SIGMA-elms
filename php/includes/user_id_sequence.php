@@ -6,8 +6,10 @@ function sigmaUserIdPrefix(string $role, string $branchCode = '01'): string {
 }
 function sigmaNextUserId(PDO $db, string $prefix, bool $reserve = false): string {
     if (!preg_match('/^[0-9]{6}$/D',$prefix)) throw new InvalidArgumentException('Invalid account prefix.');
-    $query=$db->prepare('SELECT COALESCE(MAX(CAST(SUBSTRING(id,7) AS UNSIGNED)),0) FROM users WHERE id REGEXP ?');
-    $query->execute(['^'.$prefix.'[0-9]+$']); $highest=(int)$query->fetchColumn();
+    // Use the primary-key prefix range before checking numeric suffixes. REGEXP
+    // alone scans every account, including unrelated roles, branches and years.
+    $query=$db->prepare('SELECT COALESCE(MAX(CAST(SUBSTRING(id,7) AS UNSIGNED)),0) FROM users WHERE id LIKE ? AND id REGEXP ?');
+    $query->execute([$prefix.'%', '^'.$prefix.'[0-9]+$']); $highest=(int)$query->fetchColumn();
     if (!$reserve) {
         $seq=$db->prepare('SELECT last_number FROM user_id_sequences WHERE prefix=?');$seq->execute([$prefix]);
         return $prefix.(max($highest,(int)$seq->fetchColumn())+1);

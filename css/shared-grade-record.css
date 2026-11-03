@@ -493,6 +493,7 @@ html body #admin-gradebook-workspace-content .shared-grade-record .record-review
 .record-share-confirm #record-share-confirm-description{white-space:pre-line}
 
 .record-live-sync-status{font-size:12px;line-height:18px;color:#b91c1c;margin:0 0 16px}.record-live-sync-status[hidden]{display:none!important}
+.record-semester-progress{display:block;margin-top:4px;font-size:11px;line-height:15px;font-weight:400;color:#64748b;white-space:normal}
 
 html body #admin-gradebook-workspace-content .shared-grade-record .record-main table tbody td.record-revised-grade,
 html body #admin-gradebook-workspace-content .shared-grade-record .record-mobile-grade-card dd.record-revised-grade{background:#fffbeb!important}

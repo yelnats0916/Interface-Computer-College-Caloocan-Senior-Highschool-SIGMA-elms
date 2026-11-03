@@ -93,3 +93,43 @@ function aiFeatureRequestKeys(array $services, string $feature): array {
     if (!$key) throw new RuntimeException('Configure a default API key for this AI feature first.');
     return ['primary' => $key, 'fallback' => $routing['allow_fallback'] ? $find($provider === 'gemini' ? 'groq' : 'gemini') : null];
 }
+
+/** Analytics can rotate through every saved key after the selected key and provider are throttled. */
+function aiFeatureRequestKeyChain(array $services, string $feature): array {
+    if (!in_array($feature, aiRoutingFeatures(), true)) throw new InvalidArgumentException('Unsupported AI feature.');
+    $routing = aiRoutingConfig($services);
+    $primaryProvider = $routing['features'][$feature];
+    $fallbackProvider = $primaryProvider === 'gemini' ? 'groq' : 'gemini';
+    $pool = array_values(array_filter($services['ai_vault'] ?? [], fn($key) =>
+        in_array($key['provider'] ?? '', ['gemini', 'groq'], true) && !empty($key['api_key']) && !empty($key['model'])));
+
+    if (!$pool) {
+        foreach (['gemini', 'groq'] as $provider) {
+            if (empty($services[$provider]['api_key']) || empty($services[$provider]['model'])) continue;
+            $pool[] = ['id' => 'key_' . $provider . '_init', 'provider' => $provider,
+                'api_key' => $services[$provider]['api_key'], 'model' => $services[$provider]['model'], 'label' => 'API Key'];
+        }
+    }
+
+    $providerKeys = function (string $provider) use ($pool, $routing): array {
+        $keys = array_values(array_filter($pool, fn($key) => ($key['provider'] ?? '') === $provider));
+        $defaultId = $routing['defaults'][$provider] ?? '';
+        usort($keys, fn($a, $b) => ((string)($b['id'] ?? '') === $defaultId) <=> ((string)($a['id'] ?? '') === $defaultId));
+        return $keys;
+    };
+    $ordered = [];
+    $seen = [];
+    $append = function (array $key) use (&$ordered, &$seen): void {
+        $fingerprint = hash('sha256', (string)$key['provider'] . "\0" . (string)$key['api_key']);
+        if (isset($seen[$fingerprint])) return;
+        $seen[$fingerprint] = true;
+        $ordered[] = $key;
+    };
+    $primaryKeys = $providerKeys($primaryProvider);
+    if (!$primaryKeys) throw new RuntimeException('Configure a default API key for this AI feature first.');
+    $append($primaryKeys[0]);
+    $fallbackKeys = $routing['allow_fallback'] ? $providerKeys($fallbackProvider) : [];
+    foreach ($fallbackKeys as $key) $append($key);
+    foreach (array_slice($primaryKeys, 1) as $key) $append($key);
+    return $ordered;
+}

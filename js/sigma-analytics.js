@@ -132,7 +132,7 @@
     ];
 
     // Permissions limit available cards; each administrator chooses which to show.
-    const DEFAULT_ACTIVE_METRIC_IDS = ['metric-health', 'metric-ai', 'metric-storage', 'metric-security'];
+    const DEFAULT_ACTIVE_METRIC_IDS = ['metric-ai', 'metric-storage', 'metric-security'];
     const METRIC_PERMISSION_KEYS = {
         'metric-health': 'metricHealth', 'metric-ai': 'metricAi',
         'metric-storage': 'metricStorage', 'metric-security': 'metricSecurity',
@@ -152,7 +152,11 @@
     function getActiveMetricIds() {
         const {key, allowed} = metricPreferenceContext();
         try {
-            const raw = key ? localStorage.getItem(key) : null;
+            let raw = key ? localStorage.getItem(key) : null;
+            if (key && !localStorage.getItem(key + ':health-opt-in-v342')) {
+                if (raw !== null) { const saved=JSON.parse(raw); if(Array.isArray(saved)){ raw=JSON.stringify(saved.filter(id=>id!=='metric-health'));localStorage.setItem(key,raw); } }
+                localStorage.setItem(key + ':health-opt-in-v342','1');
+            }
             if (raw !== null) {
                 const ids = JSON.parse(raw);
                 if (Array.isArray(ids)) return [...new Set(ids)].filter(id => allowed.includes(id));
@@ -160,11 +164,41 @@
         } catch (_) {}
         return DEFAULT_ACTIVE_METRIC_IDS.filter(id => allowed.includes(id));
     }
+    let metricPreferenceOwner = '', metricPreferenceTask = null, metricPreferenceRevision = 0, metricSaveQueue = Promise.resolve();
+    async function metricPreferenceRequest(input) {
+        const response=await window.SigmaDatabase.fetch(new URL('php/api/dashboard_preferences.php',location.href).href,{
+            method:input?'POST':'GET',credentials:'include',headers:{'Content-Type':'application/json'},
+            ...(input?{body:JSON.stringify(input)}:{}),foreground:!!input,autoReconnect:false,signal:AbortSignal.timeout(15000)
+        });
+        const result=await response.json();if(!response.ok||!result.success)throw new Error(result.error||'Could not save dashboard preferences.');return result;
+    }
+    function persistMetricPreferences(ids) {
+        const owner=metricPreferenceContext().key;
+        metricSaveQueue=metricSaveQueue.catch(()=>{}).then(async()=>{
+            if(owner!==metricPreferenceContext().key)return;
+            await metricPreferenceRequest({metrics:ids});
+            const status=document.getElementById('metrics-config-save-status');if(status)status.textContent='Saved to your account.';
+        }).catch(error=>{const status=document.getElementById('metrics-config-save-status');if(status)status.textContent=error.message;window.showToast?.(error.message,'error');});
+    }
+    function loadMetricPreferences() {
+        if(!/admin\.html$/i.test(location.pathname)||!window.SigmaDatabase)return;
+        const {key}=metricPreferenceContext();if(!key||metricPreferenceOwner===key||metricPreferenceTask)return;
+        const version=metricPreferenceRevision;
+        metricPreferenceTask=metricPreferenceRequest().then(result=>{
+            if(key!==metricPreferenceContext().key||version!==metricPreferenceRevision)return;
+            metricPreferenceOwner=key;
+            if(Array.isArray(result.metrics))localStorage.setItem(key,JSON.stringify(result.metrics));
+            else persistMetricPreferences(getActiveMetricIds());
+            renderAdminPocketCards();populateConfigOptions();
+        }).catch(()=>{metricPreferenceOwner='';}).finally(()=>{metricPreferenceTask=null;});
+    }
+    window.addEventListener('sigma:database-session-ready',loadMetricPreferences);
     function saveActiveMetricIds(ids) {
         const {key, allowed} = metricPreferenceContext();
         if (!key) return false;
         try {
-            localStorage.setItem(key, JSON.stringify([...new Set(ids)].filter(id => allowed.includes(id))));
+            const selected=[...new Set(ids)].filter(id => allowed.includes(id));
+            localStorage.setItem(key, JSON.stringify(selected));metricPreferenceRevision++;persistMetricPreferences(selected);
             return true;
         } catch (error) {
             console.error('Failed to save active metrics', error);
@@ -226,7 +260,7 @@
         if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); button.querySelector('i')?.classList.add('fa-spin'); }
         try {
             if (id === 'metric-health' || id === 'metric-database') await window.refreshLiveSystemMetrics?.();
-            else if (id === 'metric-ai') await window.SigmaAiDatabase?.reloadLogs();
+            else if (id === 'metric-ai') await (window.SigmaAiDatabase?.reloadMetricUsage?.() || window.SigmaAiDatabase?.reloadUsage?.() || window.SigmaAiDatabase?.reloadLogs());
             else if (id === 'metric-storage') await window.loadGoogleDriveFolderUsage?.();
             else if (id === 'metric-security') { await window.SigmaAuthenticationLogs?.refresh(); window.syncSecurityMetric?.(); }
             else if (id === 'metric-grading') window.syncGradingMetric?.();
@@ -508,6 +542,7 @@
     }
 
     function renderAdminPocketCards() {
+        loadMetricPreferences();
         const container = document.getElementById('dashboard-metrics-container');
         if (!container) return;
 
@@ -564,7 +599,7 @@
                     <p class="text-xs text-black-fade mt-1">Choose the cards shown on your dashboard.</p>
                 </div>
                 <div class="p-6 sm:p-8 overflow-y-auto flex-1 space-y-3 custom-scrollbar" id="metrics-config-options-list" style="flex:1 1 0%;min-height:0"></div>
-                <div class="px-6 sm:px-8 pb-3 text-xs text-black-fade" id="metrics-config-save-status" role="status" aria-live="polite">Changes save automatically on this browser.</div>
+                <div class="px-6 sm:px-8 pb-3 text-xs text-black-fade" id="metrics-config-save-status" role="status" aria-live="polite">Changes save automatically to your account.</div>
                 <div class="sigma-modal-footer flex items-center justify-between shrink-0 bg-slate-50 border-t border-slate-100">
                     <button type="button" id="btn-reset-metrics-config" class="sigma-btn sigma-btn-white sigma-modal-btn">Reset to Default</button>
                     <button type="button" id="btn-done-metrics-config" class="sigma-btn sigma-btn-primary sigma-modal-btn">Done</button>
@@ -591,7 +626,7 @@
         }
         renderAdminPocketCards();
         populateConfigOptions();
-        if (status) status.textContent = 'Saved automatically on this browser.';
+        if (status) status.textContent = 'Saving to your account…';
     }
     function populateConfigOptions() {
         const list = document.getElementById('metrics-config-options-list');
@@ -928,7 +963,7 @@
             } else {
                 headerEl.innerHTML = `
                     <span class="sigma-rail-header__title pocket-rail-header__title">${title}</span>
-                    <button type="button" class="sigma-analyze-button" title="Refresh insights" aria-label="Refresh insights"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></button>
+                    <button type="button" class="sigma-analyze-button" title="Generate today’s daily insight" aria-label="Generate today’s daily insight"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></button>
                     <button type="button" class="sigma-insight-search-toggle" title="Search insights" aria-label="Search insights"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
                 `;
             }
@@ -1009,7 +1044,7 @@
                 }
             } else {
                 container.setAttribute('aria-busy', 'false');
-                container.innerHTML = userCards.slice(0, 4).map(renderSigmaGradeMonitoringCardHtml).join('');
+                container.innerHTML = userCards.map(renderSigmaGradeMonitoringCardHtml).join('');
             }
         }
 
@@ -1018,7 +1053,7 @@
         let moreBtn = container.querySelector('.sigma-rail-more-btn, .pocket-rail-more-btn');
 
         const totalCardCount = isAdmin ? (adminActiveItems ? adminActiveItems.length : getActiveMetricIds().length) : userCards.length;
-        const hasMoreThan4 = totalCardCount > 4;
+        const hasMoreThan4 = isAdmin && totalCardCount > 4;
 
         if (hasMoreThan4) {
             if (!moreBtn) {
@@ -1570,6 +1605,8 @@
 
     function getEffectiveTeacher() {
         if (isCurrentPageTeacherPortal()) {
+            const authenticated = window.SigmaDatabase?.currentUser?.();
+            if (/^teacher$/i.test(authenticated?.role || authenticated?.type || '')) return authenticated;
             let currentTeacher = null;
             try {
                 if (typeof window.getLoggedInTeacherUser === 'function') {
@@ -1646,246 +1683,171 @@
         return teacherUsers;
     };
 
+    const isDeployedGradeSection = section => Boolean(section && !section.isDeleted && !section.is_deleted && ['deployed','published','active'].includes(String(section.status || '').trim().toLowerCase()));
+    const isPublishedGradeSubject = subject => {
+        const normalize = value => String(value || '').trim().toLowerCase();
+        const catalog = window.getStoredJson?.('sigma-admin-subjects', []) || [];
+        return catalog.some(record => !record.isDeleted && !record.is_deleted && ['published','active'].includes(normalize(record.status)) && [record.id,record.code,record.name,record.title].some(value => value && normalize(value) === normalize(subject)));
+    };
+
     // Query all subjects and sections connected to a specific teacher's account
     window.getTeacherAssignedSubjectsAndSections = function (teacher) {
         if (!teacher) teacher = getEffectiveTeacher();
         if (!teacher) return [];
 
-        const cleanStr = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-
-        const teacherId = String(teacher.uid || teacher.id || teacher.employeeId || '').toLowerCase().trim();
-        const teacherEmail = String(teacher.email || '').toLowerCase().trim();
-        const teacherFullName = cleanStr(teacher.fullName || teacher.name || `${teacher.firstName || ''} ${teacher.lastName || ''}`);
-        const teacherRevName = cleanStr(`${teacher.lastName || ''} ${teacher.firstName || ''}`);
-        const teacherFirst = cleanStr(teacher.firstName || '');
-        const teacherLast = cleanStr(teacher.lastName || '');
-
-        const isNameMatch = (targetName) => {
-            if (!targetName) return false;
-            if (typeof window.isUserNameMatch === 'function') {
-                return window.isUserNameMatch(targetName, teacher);
-            }
-            const tNorm = cleanStr(targetName);
-            if (!tNorm) return false;
-            if (['teacher', 'adviser', 'instructor', 'faculty', 'none', 'n a', 'tba', 'unassigned', 'staff'].includes(tNorm)) return false;
-            if (teacherFullName && (tNorm === teacherFullName || tNorm === teacherRevName)) return true;
-            if (teacherFullName && (tNorm.includes(teacherFullName) || teacherFullName.includes(tNorm))) return true;
-            if (teacherFirst && teacherLast && teacherFirst.length >= 2 && teacherLast.length >= 2) {
-                const words = new Set(tNorm.split(' '));
-                if (words.has(teacherFirst) && words.has(teacherLast)) return true;
-            }
-            return false;
-        };
-
-        const getSafeList = (val) => {
-            if (!val) return [];
-            if (Array.isArray(val)) return val;
-            if (typeof val === 'string') {
+        const cleanStr = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        const cleanId = value => String(value || '').replace(/^\s*(?:id\s*:\s*|#)/i, '').trim().toLowerCase();
+        const asList = value => {
+            if (value === undefined || value === null || value === '') return [];
+            if (Array.isArray(value)) return value;
+            if (typeof value === 'string') {
+                const trimmed = value.trim();
+                if (!trimmed) return [];
                 try {
-                    const parsed = JSON.parse(val);
+                    const parsed = JSON.parse(trimmed);
                     if (Array.isArray(parsed)) return parsed;
                     if (parsed && typeof parsed === 'object') return [parsed];
-                } catch (e) {}
-                return val.split(',').map(s => s.trim()).filter(Boolean);
+                } catch (_) {}
+                return trimmed.split(',').map(item => item.trim()).filter(Boolean);
             }
-            if (typeof val === 'object') return [val];
-            return [];
+            return typeof value === 'object' ? [value] : [];
+        };
+        const nameAliases = person => {
+            if (!person) return [];
+            const entry = typeof person === 'object' ? person : { name: person };
+            const first = String(entry.firstName || entry.first_name || '').trim();
+            const middle = String(entry.middleName || entry.middle_name || '').trim();
+            const last = String(entry.lastName || entry.last_name || '').trim();
+            const values = [
+                entry.fullName, entry.full_name, entry.name,
+                [first, middle, last].filter(Boolean).join(' '),
+                [first, last].filter(Boolean).join(' '),
+                [last, first, middle].filter(Boolean).join(' '),
+                [last, first].filter(Boolean).join(' ')
+            ];
+            return [...new Set(values.map(cleanStr).filter(Boolean))];
+        };
+        const teacherIds = new Set([teacher.id, teacher.uid, teacher.employeeId, teacher.employee_id, teacher.userId, teacher.user_id].map(cleanId).filter(Boolean));
+        const teacherEmails = new Set([teacher.email, teacher.teacherEmail].map(value => String(value || '').trim().toLowerCase()).filter(Boolean));
+        const teacherNames = new Set(nameAliases(teacher));
+        const matchesTeacher = person => {
+            if (!person) return false;
+            const entry = typeof person === 'object' ? person : { name: person };
+            const ids = new Set([entry.id, entry.uid, entry.employeeId, entry.employee_id, entry.userId, entry.user_id].map(cleanId).filter(Boolean));
+            const emails = new Set([entry.email, entry.teacherEmail].map(value => String(value || '').trim().toLowerCase()).filter(Boolean));
+            if ([...ids].some(id => teacherIds.has(id))) return true;
+            if ([...emails].some(email => teacherEmails.has(email))) return true;
+            // If both records carry different account identifiers, names must not override that conflict.
+            if ((ids.size && teacherIds.size) || (emails.size && teacherEmails.size)) return false;
+            return nameAliases(person).some(name => teacherNames.has(name));
         };
 
-        const combinedSections = [];
-        const seenSecKeys = new Set();
-        ['sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections'].forEach(key => {
-            let list = [];
-            try {
-                if (typeof window.getStoredJson === 'function') {
-                    list = window.getStoredJson(key, []);
-                } else {
-                    list = JSON.parse(localStorage.getItem(key) || '[]');
-                }
-            } catch (e) { list = []; }
-            if (Array.isArray(list)) {
-                list.forEach(sec => {
-                    if (!sec) return;
-                    const sId = String(sec.id || '');
-                    const sName = String(sec.name || sec.sectionName || '').trim().toLowerCase();
-                    const sSubj = String(sec.subject || sec.assignedSubject || (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects[0]) || '').trim().toLowerCase();
-                    const uniqueSecKey = `${sId}::${sName}::${sSubj}`;
-                    if (!seenSecKeys.has(uniqueSecKey)) {
-                        seenSecKeys.add(uniqueSecKey);
-                        combinedSections.push(sec);
-                    }
-                });
-            }
-        });
+        const liveClassrooms = window.SigmaAssignedClassrooms;
+        const liveAssignments = Boolean(liveClassrooms?.isReady?.());
+        // Teacher portals must wait for their server-authorized section catalog instead of displaying stale browser copies.
+        if (liveClassrooms && !liveAssignments) return [];
+        let sectionRecords = [];
+        try {
+            sectionRecords = liveAssignments
+                ? (liveClassrooms.records('sigma-admin-sections') || [])
+                : (window.getStoredJson?.('sigma-admin-sections', []) || []);
+        } catch (_) { sectionRecords = []; }
+        if (!Array.isArray(sectionRecords)) return [];
 
+        const subjectCatalog = window.getStoredJson?.('sigma-admin-subjects', []) || [];
+        const resolveSubjectName = reference => {
+            const item = reference && typeof reference === 'object' ? reference : { name: reference };
+            const raw = item.name || item.title || item.subject || item.subjectName || item.code || item.id || '';
+            const normalized = cleanStr(raw);
+            if (!normalized) return '';
+            const matched = subjectCatalog.find(record => record && !record.isDeleted && !record.is_deleted &&
+                [record.id, record.code, record.name, record.title].some(value => cleanStr(value) === normalized));
+            if (matched) {
+                if (!liveAssignments && !['published', 'active'].includes(String(matched.status || '').trim().toLowerCase())) return '';
+                return String(matched.name || matched.title || raw).trim();
+            }
+            return liveAssignments ? String(raw).trim() : '';
+        };
         const results = [];
-        const seenKeys = new Set();
+        const seenAssignments = new Map();
 
-        const assignedSectionIds = new Set(
-            (Array.isArray(teacher.assignedSections) ? teacher.assignedSections : [])
-                .concat(Array.isArray(teacher.sections) ? teacher.sections : [])
-                .concat(Array.isArray(teacher.enrolledSections) ? teacher.enrolledSections : [])
-                .concat(teacher.section ? [teacher.section] : [])
-                .map(s => cleanStr(typeof s === 'object' ? (s.id || s.name || s.sectionName) : s))
-                .filter(Boolean)
-        );
+        sectionRecords.forEach(sec => {
+            if (!isDeployedGradeSection(sec)) return;
+            const teacherEntries = [
+                ...asList(sec.teachers), ...asList(sec.assignedTeachers),
+                ...asList(sec.coTeachers), ...asList(sec.instructors)
+            ];
+            const matchedEntry = teacherEntries.find(matchesTeacher) || null;
+            const primaryTeacher = sec.teacher && typeof sec.teacher === 'object'
+                ? { ...sec.teacher, id: sec.teacher.id || sec.teacherUid || sec.teacherId, email: sec.teacher.email || sec.teacherEmail }
+                : { id: sec.teacherUid || sec.teacherId, email: sec.teacherEmail, name: sec.teacher };
+            const adviser = sec.adviser && typeof sec.adviser === 'object'
+                ? { ...sec.adviser, id: sec.adviser.id || sec.adviserId || sec.adviserUid, email: sec.adviser.email || sec.adviserEmail }
+                : { id: sec.adviserId || sec.adviserUid, email: sec.adviserEmail, name: sec.adviser };
+            const otherTeachers = [
+                primaryTeacher, adviser, sec.leadTeacher, sec.lead,
+                sec.coTeacher, sec.coteacher, sec.instructor, sec.faculty
+            ].filter(Boolean);
+            const matchedOther = otherTeachers.find(matchesTeacher) || null;
+            if (!matchedEntry && !matchedOther) return;
 
-        if (Array.isArray(combinedSections)) {
-            combinedSections.forEach(sec => {
-                if (!sec || sec.status === 'Archived') return;
-                const secId = String(sec.id || '').toLowerCase().trim();
-                const secName = String(sec.name || sec.sectionName || '').trim();
-                const secNameClean = cleanStr(secName);
+            const sectionName = String(sec.name || sec.sectionName || '').trim();
+            if (!sectionName) return;
+            const grade = String(sec.grade || sec.gradeLevel || sec.grade_level || 'Grade 11');
+            const sectionSubjectRefs = [
+                sec.subject, sec.assignedSubject, sec.subjectName,
+                ...asList(sec.assignedSubjects), ...asList(sec.subjects)
+            ].filter(Boolean);
+            const teacherSubjectRefs = matchedEntry && typeof matchedEntry === 'object'
+                ? [matchedEntry.subject, ...asList(matchedEntry.assignedSubjects), ...asList(matchedEntry.subjects)].filter(Boolean)
+                : [];
+            const subjectRefs = teacherSubjectRefs.length ? teacherSubjectRefs : sectionSubjectRefs;
+            const subjects = [...new Set(subjectRefs.map(resolveSubjectName).filter(Boolean))];
+            if (!subjects.length) return;
 
-                let matched = false;
-                let teacherRole = 'Teacher';
-                let assignedSubject = sec.subject || sec.assignedSubject || (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects[0]) || sec.subjectName || 'Core Subject';
+            const isAdviser = (matchedEntry && String(matchedEntry.role || '').trim().toLowerCase() === 'adviser')
+                || matchesTeacher(adviser)
+                || String(sec.role || sec.teacherRole || '').trim().toLowerCase() === 'adviser';
+            const role = isAdviser ? 'Adviser' : 'Teacher';
 
-                // Check via canonical isSectionAssignedToTeacher
-                if (typeof window.isSectionAssignedToTeacher === 'function') {
-                    matched = window.isSectionAssignedToTeacher(sec, teacher);
+            subjects.forEach(subject => {
+                const itemKey = `${cleanStr(sectionName)}::${cleanStr(subject)}`;
+                const existing = seenAssignments.get(itemKey);
+                if (existing) {
+                    if (role === 'Adviser') existing.role = role;
+                    return;
                 }
-
-                // 1. Check sec.teachers array (Primary source from Admin Section Modal table)
-                const secTeachers = getSafeList(sec.teachers)
-                    .concat(getSafeList(sec.assignedTeachers))
-                    .concat(getSafeList(sec.coTeachers))
-                    .concat(getSafeList(sec.instructors));
-
-                const hasExplicitRoster = secTeachers.length > 0 || Boolean(sec.teacher) || Boolean(sec.adviser) || Boolean(sec.leadTeacher) || Boolean(sec.coTeacher);
-
-                if (secTeachers.length > 0) {
-                    for (const t of secTeachers) {
-                        if (!t) continue;
-                        if (typeof t === 'string') {
-                            if (isNameMatch(t)) {
-                                matched = true;
-                                if (sec.adviser && isNameMatch(sec.adviser)) {
-                                    teacherRole = 'Adviser';
-                                } else {
-                                    teacherRole = sec.role || 'Teacher';
-                                }
-                                break;
-                            }
-                        } else if (typeof t === 'object') {
-                            const tId = String(t.uid || t.id || t.employeeId || '').toLowerCase().trim();
-                            const tEm = String(t.email || '').toLowerCase().trim();
-                            const tNm = t.fullName || t.name || `${t.firstName || ''} ${t.lastName || ''}`;
-
-                            const isMatch = (teacherId && tId && tId === teacherId) ||
-                                (teacherEmail && tEm && tEm === teacherEmail) ||
-                                isNameMatch(tNm);
-
-                            if (isMatch) {
-                                matched = true;
-                                if (t.subject) assignedSubject = t.subject;
-                                teacherRole = (t.role === 'Adviser' || (sec.adviser && (isNameMatch(sec.adviser) || (sec.adviserId && String(sec.adviserId).toLowerCase().trim() === teacherId))))
-                                    ? 'Adviser'
-                                    : 'Teacher';
-                                break;
-                            }
-                        }
-                    }
+                let quarters = [1, 2];
+                if (typeof window.getSubjectAvailableQuarters === 'function') {
+                    quarters = window.getSubjectAvailableQuarters(subject);
+                } else {
+                    const semester = String(sec.semester || sec.term || '').toLowerCase();
+                    if (semester.includes('2') || semester.includes('second') || semester.includes('2nd')) quarters = [3, 4];
                 }
-
-                // 2. Check sec.adviser / sec.adviserId / sec.adviserEmail / sec.leadTeacher
-                if (!matched) {
-                    const advId = String(sec.adviserId || sec.adviserUid || '').toLowerCase().trim();
-                    const advEmail = String(sec.adviserEmail || '').toLowerCase().trim();
-                    if ((advId && teacherId && advId === teacherId) ||
-                        (advEmail && teacherEmail && advEmail === teacherEmail) ||
-                        (sec.adviser && isNameMatch(typeof sec.adviser === 'object' ? (sec.adviser.name || sec.adviser.fullName) : sec.adviser)) ||
-                        (sec.leadTeacher && isNameMatch(typeof sec.leadTeacher === 'object' ? (sec.leadTeacher.name || sec.leadTeacher.fullName) : sec.leadTeacher)) ||
-                        (sec.lead && isNameMatch(typeof sec.lead === 'object' ? (sec.lead.name || sec.lead.fullName) : sec.lead))) {
-                        matched = true;
-                        teacherRole = (sec.adviser && isNameMatch(typeof sec.adviser === 'object' ? (sec.adviser.name || sec.adviser.fullName) : sec.adviser)) ? 'Adviser' : 'Teacher';
-                    }
-                }
-
-                // 3. Check sec.teacher / sec.teacherUid / sec.teacherEmail
-                if (!matched) {
-                    const secTeacherUid = String(sec.teacherUid || sec.teacherId || '').toLowerCase().trim();
-                    const secTeacherEmail = String(sec.teacherEmail || '').toLowerCase().trim();
-                    if ((teacherId && secTeacherUid && secTeacherUid === teacherId) ||
-                        (teacherEmail && secTeacherEmail && secTeacherEmail === teacherEmail) ||
-                        (sec.teacher && isNameMatch(typeof sec.teacher === 'object' ? (sec.teacher.name || sec.teacher.fullName) : sec.teacher))) {
-                        matched = true;
-                        teacherRole = ((sec.adviser && (isNameMatch(sec.adviser) || (sec.adviserId && String(sec.adviserId).toLowerCase().trim() === teacherId))) || sec.role === 'Adviser')
-                            ? 'Adviser'
-                            : 'Teacher';
-                    }
-                }
-
-                // 4. Fallback ONLY if section has no teacher roster defined at all
-                if (!matched && !hasExplicitRoster) {
-                    if (secId && (assignedSectionIds.has(cleanStr(secId)) || assignedSectionIds.has(secId))) {
-                        matched = true;
-                        teacherRole = 'Teacher';
-                    }
-                }
-
-                if (matched) {
-                    const displaySecName = sec.name || sec.sectionName || 'Unnamed Section';
-                    const secGrade = sec.grade || sec.gradeLevel || 'Grade 11';
-                    const displaySubject = String(sec.subject || sec.assignedSubject || (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects[0]) || (Array.isArray(sec.subjects) && sec.subjects[0]) || assignedSubject || sec.name || 'Core Subject').trim();
-                    if (!displaySubject) return;
-
-                        // Determine subject available quarters
-                        let quarters = [1, 2];
-                        if (typeof window.getSubjectAvailableQuarters === 'function') {
-                            quarters = window.getSubjectAvailableQuarters(displaySubject);
-                        } else {
-                            const sem = String(sec.semester || sec.term || '').toLowerCase();
-                            if (sem.includes('2') || sem.includes('second') || sem.includes('sem 2') || sem.includes('2nd')) {
-                                quarters = [3, 4];
-                            } else {
-                                quarters = [1, 2];
-                            }
-                        }
-
-                        // STRICT DEDUPLICATION: Key by sectionName and subject
-                        const itemKey = `${cleanStr(displaySecName)}::${cleanStr(displaySubject)}`;
-                        const existingIdx = results.findIndex(r => `${cleanStr(r.sectionName)}::${cleanStr(r.subject)}` === itemKey);
-
-                        if (existingIdx !== -1) {
-                            if (teacherRole === 'Adviser') {
-                                results[existingIdx].role = 'Adviser';
-                            }
-                        } else {
-                            seenKeys.add(itemKey);
-                            results.push({
-                                id: sec.id ? `${sec.id}-${displaySubject.replace(/\s+/g, '_')}` : `sec-${sec.code || displaySecName}-${displaySubject.replace(/\s+/g, '_')}`,
-                                sectionName: displaySecName,
-                                grade: secGrade,
-                                subject: displaySubject,
-                                role: teacherRole, // 'Adviser' or 'Teacher'
-                                semester: quarters.includes(3) || quarters.includes(4) ? '2nd Semester' : '1st Semester',
-                                quarters: quarters, // [1, 2] or [3, 4]
-                                room: sec.room || 'Room 101',
-                                schedule: sec.schedule || (sec.startTime && sec.endTime ? `${sec.daysFormatted || ''} ${sec.startTime} - ${sec.endTime}` : 'Regular Schedule'),
-                                rawSection: sec
-                            });
-                        }
-                    }
-                });
-            }
-
-
+                const item = {
+                    id: sec.id ? `${sec.id}-${subject.replace(/\s+/g, '_')}` : `sec-${sec.code || sectionName}-${subject.replace(/\s+/g, '_')}`,
+                    sectionName,
+                    grade,
+                    subject,
+                    role,
+                    semester: quarters.includes(3) || quarters.includes(4) ? '2nd Semester' : '1st Semester',
+                    quarters,
+                    room: sec.room || 'Room 101',
+                    schedule: sec.schedule || (sec.startTime && sec.endTime ? `${sec.daysFormatted || ''} ${sec.startTime} - ${sec.endTime}` : 'Regular Schedule'),
+                    rawSection: sec
+                };
+                seenAssignments.set(itemKey, item);
+                results.push(item);
+            });
+        });
 
         results.sort((a, b) => {
-            const subjA = String(a.subject || a.name || '').trim();
-            const subjB = String(b.subject || b.name || '').trim();
-            const cmp = subjA.localeCompare(subjB, undefined, { sensitivity: 'base', numeric: true });
-            if (cmp !== 0) return cmp;
-            const secA = String(a.sectionName || a.section || '').trim();
-            const secB = String(b.sectionName || b.section || '').trim();
-            return secA.localeCompare(secB, undefined, { sensitivity: 'base', numeric: true });
+            const subjectCompare = String(a.subject || '').localeCompare(String(b.subject || ''), undefined, { sensitivity: 'base', numeric: true });
+            return subjectCompare || String(a.sectionName || '').localeCompare(String(b.sectionName || ''), undefined, { sensitivity: 'base', numeric: true });
         });
-
         window._lastAssignedSubjectSections = results;
         return results;
     };
-
     function getGradesStorageKey(isTeacher = null) {
         if (isTeacher === null) {
             isTeacher = (window.sigmaGradesState && window.sigmaGradesState.isTeacherPage) || isCurrentPageTeacherPortal();
@@ -2384,6 +2346,18 @@
         `;
     };
 
+    const refreshOpenFacultyDirectory = () => {
+        const modal = document.getElementById('admin-teacher-selection-modal');
+        const list = document.getElementById('admin-teacher-modal-list');
+        if (!modal || modal.classList.contains('hidden') || !list) return;
+        const input = document.getElementById('admin-teacher-search-input');
+        const query = input?.value || '';
+        const hasSearched = Boolean(query.trim() || list.querySelector('.faculty-directory-row'));
+        window.renderAdminTeacherModalList(query, hasSearched);
+    };
+    ['sigma:section-catalog-loaded', 'sigma:section-deployed'].forEach(eventName => {
+        window.addEventListener(eventName, refreshOpenFacultyDirectory);
+    });
     window.selectAdminGradebookTeacher = function (teacherId) {
         const teachers = window.getAdminTeacherList();
         const clean = String(teacherId || '').toLowerCase().trim();
@@ -2811,15 +2785,18 @@
         const normalize=value=>String(value||'').trim().toLowerCase();
         const ids=[teacher.id,teacher.uid,teacher.email].filter(Boolean).map(normalize);
         const name=normalize(teacher.fullName||teacher.name||[teacher.firstName,teacher.middleName,teacher.lastName].filter(Boolean).join(' '));
-        const records=['sigma-admin-sections','sigma-sections-list','sigma-admin-sections-v1','sigma-sections'].flatMap(key=>{try{const rows=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(rows)?rows:[];}catch(_){return [];}});
+        const records=window.SigmaAssignedClassrooms?.isReady()
+            ? [...(window.SigmaAssignedClassrooms.records('sigma-advisory-sections')||[]),...window.SigmaAssignedClassrooms.records('sigma-admin-sections')]
+            : ['sigma-admin-sections','sigma-sections-list','sigma-admin-sections-v1','sigma-sections'].flatMap(key=>{try{const rows=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(rows)?rows:[];}catch(_){return [];}});
         const found=new Map();
         records.forEach(section=>{
-            if(section.status==='Archived')return;
-            const adviser=section.adviser;
-            const assignedIds=[section.adviserId,section.adviserUid,section.adviserEmail,adviser?.id,adviser?.uid,adviser?.email].filter(Boolean).map(normalize);
+            if(!isDeployedGradeSection(section))return;
+            const rosterAdviser=(section.teachers||[]).find(person=>person.isAdviser===true||person.isAdvisor===true||/^(adviser|advisor)$/i.test(person.role||''));
+            const adviser=section.adviser||rosterAdviser;
+            const assignedIds=[section.adviserId,section.adviser_id,section.adviserUid,section.adviserEmail,adviser?.id,adviser?.uid,adviser?.email].filter(Boolean).map(normalize);
             const assignedName=normalize(typeof adviser==='string'?adviser:adviser?.fullName||adviser?.name||section.adviserName);
             const matches=assignedIds.length?assignedIds.some(id=>ids.includes(id)):Boolean(name&&assignedName===name);
-            if(matches)found.set(normalize(section.name||section.sectionName),section);
+            if(matches)found.set(String(section.id||[section.name||section.sectionName,section.subject].join(':')),section);
         });
         return [...found.values()];
     };
@@ -2846,7 +2823,7 @@
         if (!isCurrentPageTeacherPortal() && window.sigmaGradesState.activeTab !== 'analytics') return;
         const assignments=window.getTeacherAssignedSubjectsAndSections(getEffectiveTeacher())||[];
         const advisoryRecords=getAdvisorySectionRecords();
-        const sections=advisoryRecords.map(section=>section.name||section.sectionName);
+        const sections=[...new Set(advisoryRecords.map(section=>section.name||section.sectionName))];
         const container=document.getElementById('admin-analytics-workspace-content');
         if(!sections.length||!container)return;
         if(!window.sigmaGradesState.teacherAdvisoryView){
@@ -2877,10 +2854,12 @@
             tools.append(backButton);
         }
         page.querySelectorAll(':scope > section').forEach(section=>section.remove());
-        const subjects=advisoryRecords.flatMap(section=>{
-            const names=[...(section.assignedSubjects||[]),...(section.subjects||[]),...(section.teachers||[]).map(row=>row.subject||row.assignedSubject),...assignments.filter(row=>row.sectionName===(section.name||section.sectionName)).map(row=>row.subject)];
-            return [...new Set(names.map(value=>typeof value==='object'?value.subject||value.name:value).filter(Boolean))].map(subject=>({subject,sectionName:section.name||section.sectionName,grade:section.grade||section.gradeLevel}));
+        const subjectCandidates=advisoryRecords.flatMap(section=>{
+            const names=[section.subject,...(section.assignedSubjects||[]),...(section.subjects||[])];
+            const live=window.SigmaAssignedClassrooms?.isReady?.();
+            return [...new Set(names.map(value=>typeof value==='object'?value.subject||value.name:value).filter(subject=>subject && (live || isPublishedGradeSubject(subject))))].map(subject=>({subject,sectionName:section.name||section.sectionName,grade:section.grade||section.gradeLevel}));
         });
+        const subjects=[...new Map(subjectCandidates.map(item=>[`${String(item.sectionName).toLowerCase()}:${String(item.subject).toLowerCase()}`,item])).values()];
         window._advisoryReviewSubjects=subjects;
         const body=document.createElement('div');body.className='teacher-class-overview-body';
         body.innerHTML=`<div class="teacher-class-panels">${subjects.map((item,index)=>`<article class="teacher-class-panel"><header><span class="teacher-class-panel-icon"><i class="${getAnalyticsSubjectIcon(item.subject)}" aria-hidden="true"></i></span><div><h3>${escapeHtml(item.subject)}</h3><p>${escapeHtml(item.sectionName)}</p></div></header><div class="teacher-class-panel-students"><strong>${(window.getStudentsForSection?.(item.sectionName)||[]).length}</strong><span>Students</span></div><p class="teacher-student-grade-empty">Awaiting Submitted Grades</p><button type="button" class="sigma-btn sigma-btn-primary sigma-btn-md" onclick="window.openAdvisorySubjectReview(${index})"><span>Review Grades</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></article>`).join('')||'<div class="teacher-grades-empty"><h3>No Subjects Assigned Yet</h3></div>'}</div><aside class="teacher-class-grade-list"><header><h3>General Average</h3>${window.renderSharedQuarterDropdown([1,2,3,4],window.sigmaGradesState.activeQuarter||1,q=>`window.sigmaGradesState.activeQuarter=${q};window.openTeacherAdvisoryClass()`)}</header>${sections.map(section=>(window.getStudentsForSection?.(section)||[]).map(student=>`<div class="teacher-student-grade-entry"><div><strong>${escapeHtml(student.fullName||student.name||'Student')}</strong><p>${escapeHtml(section)} · Incomplete</p></div><span class="teacher-quarter-grade-empty">-</span></div>`).join('')).join('')||'<p class="teacher-student-grade-empty">No Students Assigned Yet</p>'}</aside>`;
@@ -2897,6 +2876,7 @@
             const students=window.getStudentsForSection?.(item.sectionName)||[];
             const quarter=Number(window.sigmaGradesState.activeQuarter)||1;
             let submitted=0;
+            let publishedCount=0;
             let revised=false;
             try{
                 const year=window.getActiveSchoolYearRecord?.()||{};
@@ -2910,13 +2890,15 @@
                 const values=rows=>JSON.stringify((rows||[]).map(row=>[String(row.id),row.grade]).sort());
                 revised=Boolean(record&&publishedRecord&&values(record.rows)!==values(publishedRecord.rows));
                 submitted=students.filter(student=>record?.rows?.some(row=>[student.id,student.uid,student.lrn,student.studentNumber].filter(Boolean).map(String).includes(String(row.id))&&Number.isFinite(row.grade))).length;
+                const studentIds=student=>[student?.id,student?.uid,student?.lrn,student?.studentNumber].filter(value=>value!=null&&String(value).trim()).map(String);
+                publishedCount=students.filter(student=>publishedRecord?.rows?.some(row=>[row?.id,...(Array.isArray(row?.studentIds)?row.studentIds:[])].filter(value=>value!=null).map(String).some(id=>studentIds(student).includes(id))&&Number.isFinite(Number(row?.grade))&&row?.grade!=null&&String(row.grade).trim()!=='')).length;
             }catch(_){}
             const summary=panel.querySelector('.teacher-class-panel-students');
             summary.replaceChildren();
             const label=document.createElement('span');label.textContent='Grades Submitted';
             const count=document.createElement('strong');count.textContent=`${submitted}/${students.length}`;
             summary.append(label,count);summary.title=`Quarter ${quarter}: ${submitted} of ${students.length} student grades submitted`;
-            const published=students.length>0&&students.every(student=>Number.isFinite(window.getPublishedSubjectGrade?.(student,item.subject,item.sectionName,quarter)));
+            const published=students.length>0&&publishedCount===students.length;
             const ready=students.length>0&&submitted===students.length;
             const status=panel.querySelector('.teacher-student-grade-empty');
             if(status){
@@ -2928,11 +2910,16 @@
         });
         const averageList=body.querySelector('.teacher-class-grade-list');
         averageList.querySelector('.sigma-quarter-dropdown')?.remove();
+        const averageHeading=averageList.querySelector('header h3');
+        averageHeading.textContent='Average of Completed Quarters';
+        averageHeading.title='Averages only quarters with published grades in every applicable subject. Incomplete quarters are excluded.';
         const advisoryStudents=sections.flatMap(section=>(window.getStudentsForSection?.(section)||[]).map(student=>({student,section})));
+        let allAveragesFinal=advisoryStudents.length>0;
         averageList.querySelectorAll('.teacher-student-grade-entry').forEach((entry,index)=>{
             const {student,section}=advisoryStudents[index];
             const required=subjects.filter(item=>item.sectionName===section);
             const completed=[];
+            let requiredQuarterCount=0;
             const names=['1st Quarter','2nd Quarter','3rd Quarter','4th Quarter'];
             for(const quarter of [1,2,3,4]){
                 const active=required.filter(item=>{
@@ -2940,15 +2927,19 @@
                     return !Array.isArray(quarters)||!quarters.length||quarters.some(value=>Number(String(value).replace(/^q/i,''))===quarter);
                 });
                 if(!active.length)continue;
+                requiredQuarterCount++;
                 const grades=active.map(item=>window.getPublishedSubjectGrade?.(student,item.subject,section,quarter)??null);
                 if(grades.every(Number.isFinite))completed.push({quarter,average:grades.reduce((sum,value)=>sum+value,0)/grades.length});
             }
             const score=entry.lastElementChild;
+            const final=requiredQuarterCount>0&&completed.length===requiredQuarterCount;
+            allAveragesFinal=allAveragesFinal&&final;
             score.textContent=completed.length?(completed.reduce((sum,item)=>sum+item.average,0)/completed.length).toFixed(2):'-';
             if(completed.length)score.style.color='#15803d';
             const status=entry.querySelector('p');
             if(status)status.textContent=completed.length?completed.map(item=>names[item.quarter-1]).join(', '):'Incomplete';
         });
+        if(allAveragesFinal)averageHeading.textContent='Final General Average';
         body.querySelectorAll('button[onclick^="window.openAdvisorySubjectReview"] i').forEach(icon=>icon.remove());
         body.querySelectorAll('.teacher-class-grade-list .teacher-student-grade-entry').forEach((entry, idx)=>{
             const info=entry.firstElementChild;
@@ -2972,7 +2963,6 @@
         const item=window._advisoryReviewSubjects?.[index];
         if(!item||!getAdvisorySectionRecords().some(section=>(section.name||section.sectionName)===item.sectionName))return;
         Object.assign(window.sigmaGradesState,{selectedSubjectSection:item,selectedSubject:item.subject,selectedSection:item.sectionName});
-        window.switchAdminGradesTab('gradebook');
         history.replaceState({...history.state,type:'tab',subTab:'analytics',teacherGradesView:'advisory',recordMode:null},'',isCurrentPageTeacherPortal()?'#grades:analytics':'#school-grades:analytics');
         window.openSharedGradeRecord?.({mode:'review'});
         const host=document.getElementById('admin-gradebook-workspace-content');
@@ -3003,7 +2993,7 @@
     window.addEventListener('sigma:grades-submitted',refreshVisibleAdvisoryGrades);
     window.addEventListener('sigma:grades-published',refreshVisibleAdvisoryGrades);
     window.addEventListener('storage',event=>{
-        if(['sigma-submitted-quarter-grades-v1','sigma-published-quarter-grades-v1','sigma-admin-sections','sigma-sections-list','sigma-admin-sections-v1','sigma-sections'].includes(event.key))refreshVisibleAdvisoryGrades();
+        if(['sigma-submitted-quarter-grades-v1','sigma-published-quarter-grades-v1','sigma-admin-subjects','sigma-admin-sections','sigma-sections-list','sigma-admin-sections-v1','sigma-sections'].includes(event.key))refreshVisibleAdvisoryGrades();
     });
     window.backToTeacherGradeClasses = function () {
         window.sigmaGradesState.teacherAdvisoryView=false;
@@ -3192,6 +3182,7 @@
             students = [];
         }
 
+        students = window.sortGradingStudents(students);
         const totalStudentsCount = students.length || 0;
 
         const studentQuarterGrades=new Map(students.map(student=>[student,[null,null,null,null]]));
@@ -3306,7 +3297,7 @@
             aiMessage = `Class average is currently at ${classGwa.toFixed(1)}. Intensive intervention recommended for ${subSec.subject} (${subSec.sectionName}) to ensure all learners meet DepEd DO 8 standards before quarter end.`;
         }
 
-        aiMessage = classGwa == null ? 'No grades recorded yet.' : `${activeQuarterLabel}: Class average ${classGwa.toFixed(1)} across ${gradesForDist.length} graded students. Component scores: WW ${activeQMetric.avgWw ?? '--'}%, PT ${activeQMetric.avgPt ?? '--'}%, QA ${activeQMetric.avgQa ?? '--'}%.`;
+        aiMessage = classGwa == null ? 'No grades recorded yet.' : 'Loading grade insights...';
         const topSectionHtml = (typeof window.renderSharedAnalyticsTopSectionHtml === 'function')
             ? window.renderSharedAnalyticsTopSectionHtml({
                 gwa: classGwa,
@@ -3499,6 +3490,7 @@
             quarters: quarterMetrics.map(row => ({ quarter: row.quarter, average: row.avgOverall, gradedStudents: row.studentFinalGrades.length,
                 writtenWorkPercent: row.avgWw, performanceTaskPercent: row.avgPt, quarterlyAssessmentPercent: row.avgQa }))
         });
+        else window.refreshClassGradeReport?.(workspaceContainer.querySelector('[data-ai-insight-body]'), { subject: subSec.subject, section: subSec.sectionName });
         if (!isTeacher) {
             const root=workspaceContainer.querySelector('.teacher-grades-analytics');
             const components=[...root.querySelectorAll('h3')].find(title=>title.textContent==='Component Performance');
@@ -3672,13 +3664,14 @@
         const open = trigger => {
             returnFocus = trigger;
             if (!window.matchMedia('(max-width: 767px)').matches) return;
+            ensureChart();
             panel.classList.add('is-open');
             panel.querySelector('section').setAttribute('role', 'dialog');
             panel.querySelector('section').setAttribute('aria-modal', 'true');
             trigger?.setAttribute('aria-expanded', 'true');
             panel.querySelector('summary').focus();
         };
-        const render = () => {
+        const renderChart = () => {
             const student = { ...students[0], section: subSec.sectionName };
             const categories = [{ key: 'ww', label: 'Written Work' }, { key: 'pt', label: 'Performance Tasks' }, { key: 'qa', label: 'Quarterly Assessment' }];
             const html = categories.map(({ key, label }) => {
@@ -3707,6 +3700,9 @@
                 : '<span class="student-breakdown-missing">-</span>';
             panel.querySelector('[data-breakdown-content]').innerHTML = `<div class="student-breakdown-chart">${html}</div><footer><span>Quarter Grade: ${displayGrade(grade)}</span></footer>`;
         };
+        const render = () => window.withGradebookReadCache ? window.withGradebookReadCache(renderChart) : renderChart();
+        let chartReady = false;
+        const ensureChart = () => { if (!chartReady) { chartReady = true; render(); } };
         rows.forEach((row, index) => {
             if (!students[index]) return;
             const identity = row.querySelector('.teacher-quarter-student-name');
@@ -3758,7 +3754,17 @@
             }
         });
         renderQuarterMenu();
-        render();
+        // Bars are ordinary HTML, not network requests. Defer off-screen charts so
+        // the class table and its controls paint before calculating every student.
+        if (window.matchMedia('(max-width: 767px)').matches) {
+            panel.querySelector('[data-breakdown-content]').textContent = '';
+        } else if (typeof IntersectionObserver === 'function') {
+            const observer = new IntersectionObserver(entries => {
+                if (!panel.isConnected) { observer.disconnect(); return; }
+                if (entries.some(entry => entry.isIntersecting)) { ensureChart(); observer.disconnect(); }
+            }, { rootMargin: '100px' });
+            observer.observe(panel);
+        } else ensureChart();
     }
 
     window.openAdminGradebookWeightModal = function () {
@@ -4742,7 +4748,7 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
             if (!window.syncClassroomGradebookHeader()) window.setNavContext?.('Grades');
         }
         const currentHash = window.location.hash || '';
-        if (currentHash.startsWith('#grades') || currentHash.startsWith('#school-grades') || currentHash === '#nav-school-grades' || currentHash === '#analytics' || currentHash === '#gradebooks' || currentHash === '#gradebook') {
+        if (!currentHash.endsWith(':share-record') && (currentHash.startsWith('#grades') || currentHash.startsWith('#school-grades') || currentHash === '#nav-school-grades' || currentHash === '#analytics' || currentHash === '#gradebooks' || currentHash === '#gradebook')) {
             const basePrefix = isTeacher ? '#grades' : '#school-grades';
             const targetHash = `${basePrefix}:${tabId}`;
             if (window.location.hash !== targetHash) {
@@ -5076,7 +5082,7 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
                             <button id="grades-submit-export-btn" type="button" class="grades-submit-export-btn"
                                 aria-expanded="false" aria-controls="grades-submit-export-menu"
                                 onclick="window.toggleGradesSubmitExportMenu()">
-                                <span>Share &amp; Export</span>
+                                <span>Share &amp; Import/Export</span>
                                 <span class="manage-dropdown-icon-spin-box" aria-hidden="true">
                                     <i class="manage-icon-plus fa-solid fa-plus"></i>
                                     <i class="manage-icon-chevron fa-solid fa-chevron-down"></i>
@@ -5084,6 +5090,7 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
                             </button>
                             <div id="grades-submit-export-menu" class="grades-submit-export-menu hidden" aria-label="Share and export options">
                                 <button type="button" onclick="window.closeGradesSubmitExportMenu(); window.openSharedGradeRecord()"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i><span>Share Grades</span></button>
+                                <button type="button" onclick="window.closeGradesSubmitExportMenu(); window.openGradebookImportForm()"><i class="fa-solid fa-file-import" aria-hidden="true"></i><span>Import Excel</span></button>
                                 <button type="button" onclick="window.closeGradesSubmitExportMenu(); window.openGradebookExportForm()"><i class="fa-solid fa-file-excel" aria-hidden="true"></i><span>Export Excel</span></button>
                             </div>
                         </div>
@@ -5184,8 +5191,8 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
 
         window.updateAdminSharedNavbarUI();
         if (state.activeTab === 'gradebook') {
-            window.renderAdminGradebookWorkspace();
-            window.restoreSharedGradeRecordRoute?.();
+            if (window.location.hash.endsWith(':share-record')) window.restoreSharedGradeRecordRoute?.();
+            else window.renderAdminGradebookWorkspace();
         } else {
             window.renderAdminAnalyticsWorkspace();
         }
@@ -5198,18 +5205,89 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
             ? window.withGradebookReadCache(run) : run();
     };
 
+    const pendingGradebookRecords = new Map();
+    const gradebookRecordScope = () => {
+        const state = window.sigmaGradesState || {}, selected = state.selectedSubjectSection || {};
+        return [selected.subject || state.selectedSubject, selected.sectionName || state.selectedSection];
+    };
+    const gradebookClassesReady = () => !isCurrentPageTeacherPortal() || !window.SigmaAssignedClassrooms || window.SigmaAssignedClassrooms.isReady();
+    const gradebookRecordsReady = scope => gradebookClassesReady() && window.SigmaAcademicRecords?.getAssessmentRecord?.(scope[0], scope[1], '__gradebook__', '__gradebook__')?.ready;
     const renderGradebookWorkspaceRaw = window.renderAdminGradebookWorkspace;
     if (typeof renderGradebookWorkspaceRaw === 'function') {
         window.renderAdminGradebookWorkspace = function (...args) {
+            // Snapshot and score events must not replace an open share/review page.
+            // Only the share page's explicit calculation may render its source gradebook.
+            if (!args[0]?.recordSnapshot && /^#(?:school-)?grades:gradebook:share-record$/.test(location.hash)) {
+                if (!document.querySelector('#admin-gradebook-workspace-content .shared-grade-record')) window.restoreSharedGradeRecordRoute?.();
+                return;
+            }
+            const scope = gradebookRecordScope(), records = window.SigmaAcademicRecords;
+            const host = document.getElementById('admin-gradebook-workspace-content');
+            if (host && scope.every(Boolean) && records?.getAssessmentRecord && !gradebookRecordsReady(scope)) {
+                // Never run the legacy per-cell storage search while the first server read is pending.
+                // Navigation can paint the gradebook immediately even on a slow connection.
+                const key = JSON.stringify(scope);
+                window.SigmaContentLoading.render(host, { page: true, label: 'Loading grades' });
+                host.firstElementChild?.setAttribute('data-gradebook-awaiting-records', '');
+                if (!pendingGradebookRecords.has(key)) {
+                    const pending = Promise.all([
+                        gradebookClassesReady() ? null : window.SigmaAssignedClassrooms.refresh(),
+                        records.getAssessmentRecord(scope[0], scope[1], '__gradebook__', '__gradebook__')?.ready ? null : records.refresh(true)
+                    ]).then(() => {
+                        if (JSON.stringify(gradebookRecordScope()) !== key || !host.querySelector('[data-gradebook-awaiting-records]')) return;
+                        if (!gradebookRecordsReady(scope)) throw new Error('This gradebook is unavailable for your current account.');
+                        window.renderAdminGradebookWorkspace(...args);
+                    }).catch(() => {
+                        if (JSON.stringify(gradebookRecordScope()) !== key || !host.querySelector('[data-gradebook-awaiting-records]')) return;
+                        window.renderSigmaLoadStatus(host, 'Unable to load grades. Please try again.', () => window.renderAdminGradebookWorkspace(...args));
+                    }).finally(() => pendingGradebookRecords.delete(key));
+                    pendingGradebookRecords.set(key, pending);
+                }
+                return;
+            }
             const run = () => renderGradebookWorkspaceRaw.apply(this, args);
             return typeof window.withGradebookReadCache === 'function'
                 ? window.withGradebookReadCache(run) : run();
         };
     }
 
+    let overviewPaint = 0;
+    function gradesOverviewWaiting() {
+        return isCurrentPageTeacherPortal() && (
+            (window.SigmaAssignedClassrooms && !window.SigmaAssignedClassrooms.isReady()) ||
+            (window.SigmaAcademicRecords?.getPerformanceSnapshot && !window.SigmaAcademicRecords.getPerformanceSnapshot().ready) ||
+            (window.SigmaGradeSync?.getSharedRecords && !window.SigmaGradeSync.getSharedRecords().ready));
+    }
+    function awaitGradesOverview() {
+        const host = document.getElementById('admin-analytics-workspace-content');
+        if (!host || window.sigmaGradesState.activeTab !== 'analytics') return;
+        window.SigmaGradeContentLoading.wait(host, () => window.renderAdminAnalyticsWorkspace());
+        host.firstElementChild?.setAttribute('data-grades-overview-loading', '');
+    }
+    // Coalesce the several class/snapshot events emitted by one database response.
+    function queueGradesOverview() {
+        const host = document.getElementById('admin-analytics-workspace-content');
+        if (overviewPaint || window.sigmaGradesState?.activeTab !== 'analytics' || !host || host.closest('.hidden')) return;
+        overviewPaint = requestAnimationFrame(() => {
+            overviewPaint = 0;
+            if (!gradesOverviewWaiting()) window.renderAdminAnalyticsWorkspace();
+        });
+    }
+    window.addEventListener('sigma:assigned-classrooms-updated', queueGradesOverview);
+    window.addEventListener('sigma:academic-snapshot-updated', queueGradesOverview);
+    window.addEventListener('sigma:grades-published', queueGradesOverview);
+    window.addEventListener('sigma:grades-submitted', queueGradesOverview);
+    const advisoryWorkspaceRaw = window.openTeacherAdvisoryClass;
+    window.openTeacherAdvisoryClass = function (...args) {
+        if (gradesOverviewWaiting()) { window.sigmaGradesState.teacherAdvisoryView = true; awaitGradesOverview(); return; }
+        const run = () => advisoryWorkspaceRaw.apply(this, args);
+        return window.withGradebookReadCache ? window.withGradebookReadCache(run) : run();
+    };
+
     const renderAnalyticsWorkspaceRaw = window.renderAdminAnalyticsWorkspace;
     if (typeof renderAnalyticsWorkspaceRaw === 'function') {
         window.renderAdminAnalyticsWorkspace = function (...args) {
+            if (gradesOverviewWaiting()) { awaitGradesOverview(); return; }
             const run = () => renderAnalyticsWorkspaceRaw.apply(this, args);
             return typeof window.withGradebookReadCache === 'function'
                 ? window.withGradebookReadCache(run) : run();

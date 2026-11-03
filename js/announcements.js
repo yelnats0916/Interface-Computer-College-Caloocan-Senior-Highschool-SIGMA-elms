@@ -305,15 +305,17 @@
 
     function isPostCommentsEnabled(post) {
         if (!post) return false;
-        if (typeof post.commentsEnabled === 'boolean') return post.commentsEnabled;
-        // Only teacher posts have comments
-        if (post.authorRole !== 'teacher' && post.authorRole !== 'faculty') {
-            return false;
-        }
-
         const sec = post.sectionName || post.audience || post.audienceLabel || '';
         const subj = post.subject || '';
         const key = post.classroomKey || (sec && subj ? `${sec}::${subj}` : '');
+
+        // A classroom-wide setting takes precedence over older per-post flags so
+        // enabling Student Comment also opens existing class announcements.
+        const classroomMode = window.getClassroomCommentMode?.(sec, subj, key);
+        if (classroomMode) return classroomMode === 'enabled';
+        if (typeof post.commentsEnabled === 'boolean') return post.commentsEnabled;
+        // Only teacher posts have comments
+        if (post.authorRole !== 'teacher' && post.authorRole !== 'faculty') return false;
 
         // 1. Try unified teacher function with section, subject, and key
         if (typeof window.isClassroomSectionCommentsEnabled === 'function') {
@@ -341,6 +343,24 @@
 
         return false;
     }
+
+    window.getClassroomCommentMode = function (secName, subjName, classroomKey) {
+        const modes = window.SigmaClassroomCommentSettings || {};
+        const normalizedSection = value => normSecToken(value).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const normalizedSubject = value => normSubjToken(value).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const section = secName || String(classroomKey || '').split('::')[0] || '';
+        const subject = subjName || String(classroomKey || '').split('::').slice(1).join('::') || '';
+        const wantedSection = normalizedSection(section);
+        const wantedSubject = normalizedSubject(subject);
+        if (!wantedSection || !wantedSubject) return null;
+        for (const [key, value] of Object.entries(modes)) {
+            const split = String(key).split('::');
+            if (split.length < 2) continue;
+            if (normalizedSection(split[0]) !== wantedSection || normalizedSubject(split.slice(1).join('::')) !== wantedSubject) continue;
+            return value === true || value === 'enabled' ? 'enabled' : 'disabled';
+        }
+        return null;
+    };
 
     function getStudentsForCurrentSection() {
         const adminSections = getStoredJson('sigma-admin-sections', []);
@@ -423,21 +443,31 @@
 
     let editingPostId = null;
     let originalEditingPostState = null;
+    let composerSubmitting = false;
     let postToDeleteId = null;
 
     function getComposerStateSnapshot() {
         const titleInput = document.getElementById('sigma-composer-input-title');
         const bodyInput = document.getElementById('sigma-composer-input-body');
+        // Browsers leave <br>, empty blocks, and formatting spans in an untouched
+        // or cleared contenteditable. These are placeholders, not draft content.
+        const bodyHasText = (bodyInput?.textContent || '').replace(/[\u200B\uFEFF]/g, '').trim().length > 0;
+        const studentIds = [...new Set((selectedStudentIds || []).map(String))].sort();
+        const rosterIds = getStudentsForCurrentSection().map(student => String(student.id)).sort();
+        const allStudents = rosterIds.length > 0 && studentIds.length === rosterIds.length && studentIds.every((id, index) => id === rosterIds[index]);
+        const academicEnabled = document.getElementById('announcement-academic-enabled')?.checked === true;
         return JSON.stringify({
             title: (titleInput?.value || '').trim(),
-            body: (bodyInput?.innerHTML || '').trim(),
+            body: bodyHasText ? (bodyInput?.innerHTML || '').trim() : '',
             audience: activeAudience || 'everyone',
+            subject: activeSubject || '',
+            classroomKey: activeClassroomKey || '',
             priority: activePriority || 'normal',
             commentsEnabled: document.getElementById('sigma-composer-allow-comments')?.checked === true,
             images: (attachedImages || []).map(img => img.dataUrl || img.name),
             file: attachedFile ? (attachedFile.dataUrl || attachedFile.name) : null,
-            academicEvent: [...document.querySelectorAll('.academic-event-fields input')].map(input => input.type === 'checkbox' ? input.checked : input.value),
-            students: (selectedStudentIds || []).slice().sort()
+            academicEvent: academicEnabled ? [...document.querySelectorAll('#sigma-composer-modal-backdrop .academic-event-fields input')].map(input => input.type === 'checkbox' ? input.checked : input.value) : null,
+            students: allStudents ? [] : studentIds
         });
     }
 
@@ -474,6 +504,7 @@
         }
 
         if (submitBtn) {
+            isValid = isValid && !composerSubmitting;
             submitBtn.disabled = !isValid;
             submitBtn.style.opacity = isValid ? '1' : '0.5';
             submitBtn.style.cursor = isValid ? 'pointer' : 'not-allowed';
@@ -483,6 +514,7 @@
 
     // Detect user role & profile from DOM / URL / localStorage
     function detectContext() {
+        const composerOpen = document.getElementById('sigma-composer-modal-backdrop')?.classList.contains('active');
         const path = window.location.pathname.toLowerCase();
         let authUser = {};
         try {
@@ -554,7 +586,7 @@
                 avatar: tAvatar
             };
             const assigned = getTeacherAssignedSections();
-            if (assigned.length > 0) {
+            if (!composerOpen && assigned.length > 0) {
                 const firstSec = assigned[0];
                 const secRoom = getSectionRoom(firstSec);
                 const cleanSecName = stripRoomFromLabel(firstSec.name, secRoom) || firstSec.name;
@@ -563,7 +595,7 @@
                 const rawLabel = firstSec.subject ? `${fullLabel} • ${firstSec.subject}` : fullLabel;
                 activeAudienceLabel = stripRoomFromLabel(rawLabel, secRoom) || rawLabel;
                 activeAudienceIcon = 'fa-graduation-cap';
-            } else {
+            } else if (!composerOpen) {
                 activeAudience = '';
                 activeAudienceLabel = 'No Section Assigned';
                 activeAudienceIcon = 'fa-graduation-cap';
@@ -598,9 +630,11 @@
                 role: 'admin',
                 avatar: aAvatar
             };
-            activeAudience = 'everyone';
-            activeAudienceLabel = 'Everyone';
-            activeAudienceIcon = 'fa-users';
+            if (!composerOpen) {
+                activeAudience = 'everyone';
+                activeAudienceLabel = 'Everyone';
+                activeAudienceIcon = 'fa-users';
+            }
         }
     }
 
@@ -611,6 +645,7 @@
     // Storage Helpers
     function getStoredAnnouncements() {
         if (usesServerAnnouncements() && !serverFeedReady) return [];
+        if (usesServerAnnouncements()) return JSON.parse(JSON.stringify(serverPosts));
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
             let parsed = [];
@@ -960,29 +995,51 @@
     let serverActorId = '';
     let serverFeedReady = false;
     let serverFeedLoading = null;
+    let serverFeedVersion = 0;
+    const sharedMediaUrls = new Map();
     const usesServerAnnouncements = () => Boolean(window.SigmaDatabase?.fetch);
     async function announcementRequest(data) {
-        const response = await window.SigmaDatabase.fetch('php/api/announcements.php', data === undefined ? {} : {
+        const response = await window.SigmaDatabase.fetch('php/api/announcements.php', data === undefined ? { foreground: true, cache: 'no-store' } : {
+            foreground: true,
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
         });
         const result = await window.SigmaDatabase.readJson(response);
         if (!response.ok || !result.success) throw new Error(result.error || 'Unable to save announcements.');
+        if (result.commentModes && typeof result.commentModes === 'object') {
+            const nextModes = result.commentModes;
+            const changed = JSON.stringify(window.SigmaClassroomCommentSettings || {}) !== JSON.stringify(nextModes);
+            window.SigmaClassroomCommentSettings = nextModes;
+            try {
+                const key = 'sigma-room-comment-mode-v1';
+                const cached = JSON.parse(localStorage.getItem(key) || '{}');
+                localStorage.setItem(key, JSON.stringify({ ...cached, ...nextModes }));
+            } catch (_) {}
+            if (changed) {
+                window.dispatchEvent(new CustomEvent('sigma:classroom-comment-mode-changed', { detail: { source: 'server' } }));
+                window.applyClassroomSettingsUI?.();
+            }
+        }
         return result.records || [];
     }
     async function announcementSharedMedia(post) {
         const shared = { ...post };
         async function upload(url, index) {
-            if (!url || /^\/?uploads\//.test(url)) return url;
+            if (!url) return url;
+            const sourceUrl = url;
+            if (sharedMediaUrls.has(sourceUrl)) return sharedMediaUrls.get(sourceUrl);
             if (url.startsWith('idb:')) url = await getMediaBlob(url.slice(4));
             if (!url) throw new Error('An announcement attachment is missing from this browser.');
+            if (/^\/?uploads\//.test(url)) return url;
             if (!url.startsWith('data:') && !url.startsWith('blob:')) throw new Error('This announcement attachment cannot be shared.');
             const blob = await (await fetch(url)).blob();
             const ext = ({'image/jpeg':'jpg','image/png':'png','image/gif':'gif','image/webp':'webp','video/mp4':'mp4','video/webm':'webm','video/quicktime':'mov'})[blob.type];
             if (!ext) throw new Error('Use a supported image or video attachment.');
             const form = new FormData();form.append('file',blob,`${post.id}-${index}.${ext}`);form.append('category','announcements');
-            const response = await window.SigmaDatabase.fetch('php/api/upload.php',{method:'POST',body:form});
+            const response = await window.SigmaDatabase.fetch('php/api/upload.php',{method:'POST',body:form,foreground:true,timeoutMs:150000});
             const result = await window.SigmaDatabase.readJson(response);
             if (!response.ok || !result.success || !result.url) throw new Error(result.error || 'Unable to upload announcement attachment.');
+            sharedMediaUrls.set(sourceUrl, result.url);
+            if (sharedMediaUrls.size > MAX_ATTACHED_PHOTOS) sharedMediaUrls.delete(sharedMediaUrls.keys().next().value);
             return result.url;
         }
         const urls = Array.isArray(post.mediaUrls) && post.mediaUrls.length ? post.mediaUrls : post.mediaUrl ? [post.mediaUrl] : [];
@@ -994,11 +1051,12 @@
     function installServerAnnouncements(records) {
         serverPosts = JSON.parse(JSON.stringify(records));
         window._sigmaAnnouncementsMemoryStore = records;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); } catch (_) { /* The confirmed server feed remains available in memory. */ }
         serverFeedReady = true;
     }
     async function reloadServerAnnouncements() {
         if (!usesServerAnnouncements()) return;
+        if (composerSubmitting) return;
         const actor = getCommentActor();const id = String(actor.uid || actor.id || '');
         if (!id) return;
         if (serverFeedLoading) return serverFeedLoading;
@@ -1009,27 +1067,63 @@
                 serverActorId=id;serverFeedReady=false;serverPosts=[];
                 window._sigmaAnnouncementsMemoryStore=[];localStorage.setItem(STORAGE_KEY,'[]');
             }
+            const version = serverFeedVersion;
             let records=await announcementRequest();
+            if (version !== serverFeedVersion || composerSubmitting) return;
+            // Display the authorized feed before attempting legacy attachment recovery.
+            const changed = !serverFeedReady || JSON.stringify(serverPosts)!==JSON.stringify(records);
+            installServerAnnouncements(records);
+            if (changed) {
+                refreshAllFeeds();
+                if(activeDialogPostId)renderPostDialogContent(activeDialogPostId);
+            }
             // Only the signed-in author's own browser posts may be transferred.
             if(!legacy.length){try{legacy=JSON.parse(localStorage.getItem('sigma-announcements-own-backup-'+id)||'[]');}catch(_){}}
             const own=legacy.filter(post=>String(post.authorId||'')===id && !records.some(record=>record.id===post.id));
             for(const post of own) {
+                if (version !== serverFeedVersion) return;
                 try {
                     const shared=await announcementSharedMedia(post);
                     records=await announcementRequest({action:'save',id:post.id,post:shared,import:true});
                 } catch(error) { console.warn('[Announcements] Saved post transfer:',error.message); }
             }
-            const changed = !serverFeedReady || JSON.stringify(serverPosts)!==JSON.stringify(records);
-            installServerAnnouncements(records);
-            if(changed) {
+            if (own.length && version === serverFeedVersion) {
+                installServerAnnouncements(records);
                 refreshAllFeeds();
                 if(activeDialogPostId)renderPostDialogContent(activeDialogPostId);
             }
         })().finally(()=>{serverFeedLoading=null;});
         return serverFeedLoading;
     }
-    async function saveServerAnnouncements(posts) {
-        if (!serverFeedReady) await reloadServerAnnouncements();
+
+    async function setClassroomCommentMode(section, subject, enabled) {
+        if (!usesServerAnnouncements()) throw new Error('Connect to the server to change classroom comment settings.');
+        const records = await announcementRequest({
+            action: 'set_classroom_comment_mode',
+            section: String(section || '').trim(),
+            subject: String(subject || '').trim(),
+            enabled: enabled === true
+        });
+        installServerAnnouncements(records);
+        refreshAllFeeds();
+        if (activeDialogPostId) renderPostDialogContent(activeDialogPostId);
+        window.applyClassroomSettingsUI?.();
+        return true;
+    }
+    async function saveServerAnnouncements(posts, changedPostId) {
+        if (!serverFeedReady && !changedPostId) await reloadServerAnnouncements();
+        // A composer submits one post; unrelated feed changes must never become deletions.
+        if (changedPostId) {
+            const post = posts.find(item => item.id === changedPostId);
+            if (!post) throw new Error('This announcement is no longer available. Refresh and try again.');
+            const shared = await announcementSharedMedia(post);
+            serverFeedVersion++;
+            try {
+                const records = await announcementRequest({ operations: [{ action: 'save', id: post.id, post: shared, revision: post.revision || 0 }] });
+                installServerAnnouncements(records);
+                return records;
+            } finally { serverFeedVersion++; }
+        }
         const operations=[];
         const postFields=post=>JSON.stringify([post.title,post.body,post.audience,post.subject,post.targetStudentIds,post.priority,post.commentsEnabled,post.mediaUrl,post.mediaUrls,post.academicEvent]);
         for(const post of posts) {
@@ -1049,16 +1143,22 @@
         if(!operations.length)return posts;
         if(operations.length>50)throw new Error('Too many announcement changes. Refresh and try again.');
         try {
+            serverFeedVersion++;
             const records=await announcementRequest({operations});installServerAnnouncements(records);return records;
         } catch(error) {
             await reloadServerAnnouncements().catch(()=>{});throw error;
-        }
+        } finally { serverFeedVersion++; }
     }
-    async function saveStoredAnnouncements(posts) {
+    async function saveStoredAnnouncements(posts, changedPostId) {
         if (!Array.isArray(posts)) return;
         let previous = [];
         try { previous = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch (_) {}
-        if (usesServerAnnouncements()) posts = await saveServerAnnouncements(posts);
+        if (usesServerAnnouncements()) {
+            posts = await saveServerAnnouncements(posts, changedPostId);
+            window.notifyAcademicEventChanges?.(posts, previous);
+            window.dispatchEvent(new CustomEvent('sigma:academic-calendar-changed'));
+            return;
+        }
         window._sigmaAnnouncementsMemoryStore = [...posts];
 
         // Process any large media (e.g. videos or raw image data URLs)
@@ -1157,28 +1257,29 @@
         window.dispatchEvent(new CustomEvent('sigma:academic-calendar-changed'));
     }
 
-    function getExpandedPosts() {
-        try {
-            return new Set(JSON.parse(sessionStorage.getItem('sigma-expanded-announcements') || '[]'));
-        } catch (e) {
-            return new Set();
+    // Expand only the feed the user clicked, for this page visit. Ignore the
+    // legacy session preference when reloading or opening another feed.
+    const expandedPostsByFeed = new Map();
+    let expandedPostsUrl = window.location.href;
+    function getExpandedPosts(feedId) {
+        if (expandedPostsUrl !== window.location.href) {
+            expandedPostsByFeed.clear();
+            expandedPostsUrl = window.location.href;
         }
+        if (!expandedPostsByFeed.has(feedId)) expandedPostsByFeed.set(feedId, new Set());
+        return expandedPostsByFeed.get(feedId);
     }
 
-    function saveExpandedPost(postId) {
-        try {
-            const set = getExpandedPosts();
-            set.add(postId);
-            sessionStorage.setItem('sigma-expanded-announcements', JSON.stringify([...set]));
-        } catch (e) {}
-    }
-
-    function removeExpandedPost(postId) {
-        try {
-            const set = getExpandedPosts();
-            set.delete(postId);
-            sessionStorage.setItem('sigma-expanded-announcements', JSON.stringify([...set]));
-        } catch (e) {}
+    function resetExpandedPosts() {
+        expandedPostsByFeed.clear();
+        expandedPostsUrl = window.location.href;
+        document.querySelectorAll('[data-announcement-body]').forEach(body => {
+            const preview = body.querySelector('.sigma-card-body-preview');
+            const full = body.querySelector('.sigma-card-body-full');
+            if (preview) preview.style.display = 'inline';
+            if (full) full.style.display = 'none';
+            body.querySelectorAll('.sigma-card-see-more-btn').forEach(button => button.setAttribute('aria-expanded', 'false'));
+        });
     }
 
     function getMaxVideoLimitMB() {
@@ -1252,6 +1353,7 @@
 
     // Active attempt close composer reference for discard confirmations
     let currentAttemptCloseComposer = null;
+    let composerEventsController = null;
 
     // Build the Composer Modal DOM dynamically if not present (Admin & Teacher only)
     function ensureComposerModalDOM() {
@@ -1270,6 +1372,8 @@
         }
         const existing = document.getElementById('sigma-composer-modal-backdrop');
         if (existing) existing.remove();
+        composerEventsController?.abort();
+        document.querySelectorAll('#sigma-student-picker-backdrop, #sigma-discard-dialog-backdrop').forEach(node => node.remove());
 
         const isTeacher = currentRole === 'teacher';
 
@@ -1404,16 +1508,16 @@
         </div>
 
         <!-- Discard Confirmation Dialog Panel -->
-        <div id="sigma-discard-dialog-backdrop" class="sigma-discard-dialog-backdrop">
+        <div id="sigma-discard-dialog-backdrop" class="sigma-discard-dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="sigma-discard-title">
             <div class="sigma-discard-dialog">
                 <div class="sigma-discard-icon-circle">
                     <i class="fa-solid fa-trash-can"></i>
                 </div>
-                <h4 class="sigma-discard-dialog-title">Discard Announcement?</h4>
+                <h4 id="sigma-discard-title" class="sigma-discard-dialog-title">Discard Announcement?</h4>
                 <p class="sigma-discard-dialog-desc">You have unsaved changes in your announcement. If you leave now, everything you typed will be lost.</p>
                 <div class="sigma-discard-dialog-actions">
-                    <button type="button" class="sigma-discard-btn-cancel" id="sigma-discard-btn-cancel">Keep Editing</button>
-                    <button type="button" class="sigma-discard-btn-confirm" id="sigma-discard-btn-confirm">Discard</button>
+                    <button type="button" class="sigma-btn sigma-btn-white sigma-btn-md sigma-discard-btn-cancel" id="sigma-discard-btn-cancel">Keep Editing</button>
+                    <button type="button" class="sigma-btn sigma-btn-primary sigma-btn-md sigma-discard-btn-confirm" id="sigma-discard-btn-confirm">Discard</button>
                 </div>
             </div>
         </div>
@@ -1536,6 +1640,8 @@
 
     // Bind all Interactive Events for the Composer
     function bindComposerEvents() {
+        composerEventsController = new AbortController();
+        const composerEventOptions = { signal: composerEventsController.signal };
         const backdrop = document.getElementById('sigma-composer-modal-backdrop');
         const closeBtn = document.getElementById('sigma-composer-btn-close');
         const submitBtn = document.getElementById('sigma-composer-btn-submit');
@@ -1567,11 +1673,15 @@
         const btnDiscardConfirm = document.getElementById('sigma-discard-btn-confirm');
 
         function openDiscardDialog() {
-            if (discardBackdrop) discardBackdrop.classList.add('active');
+            if (discardBackdrop) {
+                discardBackdrop.classList.add('active');
+                btnDiscardCancel?.focus();
+            }
         }
 
         function closeDiscardDialog() {
             if (discardBackdrop) discardBackdrop.classList.remove('active');
+            closeBtn?.focus();
         }
 
         if (btnDiscardCancel) {
@@ -1600,60 +1710,9 @@
         }
 
         function attemptCloseComposer() {
-            const executeDiscard = () => {
-                const titleInput = document.getElementById('sigma-composer-input-title');
-                const bodyInput = document.getElementById('sigma-composer-input-body');
-                if (titleInput) titleInput.value = '';
-                if (bodyInput) bodyInput.innerHTML = '';
-                attachedImages = [];
-                attachedFile = null;
-                renderAttachmentPreview();
-                closeComposerModal();
-            };
-
-            if (editingPostId && originalEditingPostState && typeof getComposerStateSnapshot === 'function') {
-                const hasChanges = getComposerStateSnapshot() !== originalEditingPostState;
-                if (hasChanges) {
-                    if (typeof window.openAskingPanel === 'function') {
-                        window.openAskingPanel({
-                            title: 'Discard Changes?',
-                            message: 'You have unsaved changes in your announcement. If you leave now, your changes will be discarded.',
-                            type: 'warning',
-                            icon: 'fa-solid fa-triangle-exclamation text-amber-500',
-                            confirmText: 'Discard',
-                            cancelText: 'Keep Editing',
-                            showCancel: true,
-                            onConfirm: executeDiscard
-                        });
-                    } else {
-                        openDiscardDialog();
-                    }
-                    return;
-                }
-                closeComposerModal();
-                return;
-            }
-
-            const title = (document.getElementById('sigma-composer-input-title')?.value || '').trim();
-            const body = (document.getElementById('sigma-composer-input-body')?.innerText || '').trim();
-            const hasMedia = (Array.isArray(attachedImages) && attachedImages.length > 0) || attachedFile !== null;
-            const hasChanges = title.length > 0 || body.length > 0 || hasMedia;
-
-            if (hasChanges) {
-                if (typeof window.openAskingPanel === 'function') {
-                    window.openAskingPanel({
-                        title: 'Discard Announcement?',
-                        message: 'You have unsaved changes in your announcement. If you leave now, everything you typed will be lost.',
-                        type: 'warning',
-                        icon: 'fa-solid fa-triangle-exclamation text-amber-500',
-                        confirmText: 'Discard',
-                        cancelText: 'Keep Editing',
-                        showCancel: true,
-                        onConfirm: executeDiscard
-                    });
-                } else {
-                    openDiscardDialog();
-                }
+            if (composerSubmitting) return;
+            if (originalEditingPostState && getComposerStateSnapshot() !== originalEditingPostState) {
+                openDiscardDialog();
                 return;
             }
             closeComposerModal();
@@ -1698,7 +1757,7 @@
                     attemptCloseComposer();
                 }
             }
-        });
+        }, composerEventOptions);
 
         // Student Picker Buttons
         if (pillStudents) {
@@ -1967,7 +2026,7 @@
             if (document.activeElement === bodyInput) {
                 updateToolbarActiveStates();
             }
-        });
+        }, composerEventOptions);
 
         function applyTextFormatting(formatType) {
             if (!bodyInput) return;
@@ -2076,7 +2135,7 @@
         document.addEventListener('click', () => {
             if (menuAudience) menuAudience.classList.remove('show');
             if (menuPriority) menuPriority.classList.remove('show');
-        });
+        }, composerEventOptions);
 
         // Reposition on window resize if open
         window.addEventListener('resize', () => {
@@ -2086,7 +2145,7 @@
             if (menuPriority && menuPriority.classList.contains('show') && pillPriority) {
                 positionComposerDropdown(menuPriority, pillPriority);
             }
-        });
+        }, composerEventOptions);
 
         // Photo / Video picker triggers (Guaranteed cross-platform trigger for mobile & desktop)
         function triggerPhotoPicker(e) {
@@ -2234,6 +2293,7 @@
 
         // Submit Post
         submitBtn.addEventListener('click', () => {
+            if (composerSubmitting) return;
             const title = (titleInput?.value || '').trim();
             const rawHtml = bodyInput ? bodyInput.innerHTML.trim() : '';
             const plainText = bodyInput ? bodyInput.innerText.trim() : '';
@@ -2266,7 +2326,9 @@
                 return;
             }
 
+            composerSubmitting = true;
             submitBtn.disabled = true;
+            const wasEditing = Boolean(editingPostId);
             const origContent = submitBtn.innerHTML;
             submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-sm mr-2"></i><span>' + (editingPostId ? 'Saving changes...' : 'Posting...') + '</span>';
 
@@ -2289,14 +2351,18 @@
 
                     if (isVideo) {
                         mediaType = 'video';
-                        const vidMediaId = `ann_vid_${activePostId}`;
-                        await storeMediaBlob(vidMediaId, attachedFile.dataUrl);
-                        mediaUrl = `idb:${vidMediaId}`;
-                        mediaUrls = [`idb:${vidMediaId}`];
+                        if (usesServerAnnouncements() || /^\/?uploads\//.test(attachedFile.dataUrl)) {
+                            mediaUrl = attachedFile.dataUrl;
+                        } else {
+                            const vidMediaId = `ann_vid_${activePostId}`;
+                            await storeMediaBlob(vidMediaId, attachedFile.dataUrl);
+                            mediaUrl = `idb:${vidMediaId}`;
+                        }
+                        mediaUrls = [mediaUrl];
                     } else if (attachedImages.length > 0) {
                         mediaType = attachedImages.length === 1 ? 'image' : 'images';
                         mediaUrls = await Promise.all(attachedImages.map(async (img, idx) => {
-                            if (typeof img.dataUrl === 'string' && img.dataUrl.startsWith('idb:')) {
+                            if (usesServerAnnouncements() || (typeof img.dataUrl === 'string' && /^(idb:|\/?uploads\/)/.test(img.dataUrl))) {
                                 return img.dataUrl;
                             }
                             const imgMediaId = `ann_img_${activePostId}_${idx}`;
@@ -2387,13 +2453,14 @@
                         posts.unshift(newPost);
                     }
 
-                    await saveStoredAnnouncements(posts);
+                    await saveStoredAnnouncements(posts, activePostId);
                     closeComposerModal();
                     currentActiveTab = 'all';
                     refreshAllFeeds();
+                    if (activeDialogPostId) renderPostDialogContent(activeDialogPostId);
                     showToastNotice({
-                        title: editingPostId ? 'Announcement Updated' : 'Announcement Posted',
-                        message: editingPostId ? 'Your changes have been saved successfully.' : 'Your announcement has been posted successfully.',
+                        title: wasEditing ? 'Announcement Updated' : 'Announcement Posted',
+                        message: wasEditing ? 'Your changes have been saved successfully.' : 'Your announcement has been posted successfully.',
                         type: 'success'
                     });
                 } catch (err) {
@@ -2405,8 +2472,11 @@
                     });
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = origContent;
+                } finally {
+                    composerSubmitting = false;
+                    validateInputs();
                 }
-            }, 50);
+            }, 0);
         });
     }
 
@@ -2638,7 +2708,7 @@
     }
 
     function openComposerModal(postIdToEdit = null, preselectedAudience = null, preselectedSubject = null) {
-        if (usesServerAnnouncements() && !serverFeedReady) {
+        if (postIdToEdit && usesServerAnnouncements() && !serverFeedReady) {
             reloadServerAnnouncements().then(()=>openComposerModal(postIdToEdit,preselectedAudience,preselectedSubject))
                 .catch(error=>showToastNotice({title:'Announcements unavailable',message:error.message,type:'error'}));
             return;
@@ -2830,14 +2900,6 @@
             commentsInput.checked = commentPost ? isPostCommentsEnabled(commentPost) : false;
             commentsInput.disabled = !canManageComments;
         }
-        if (postIdToEdit) {
-            originalEditingPostState = getComposerStateSnapshot();
-        } else {
-            originalEditingPostState = null;
-        }
-
-        validateInputs();
-
         const studentsContainer = document.getElementById('sigma-composer-pill-students-container');
         if (studentsContainer) {
             studentsContainer.style.display = currentRole === 'teacher' ? 'block' : 'none';
@@ -2909,6 +2971,11 @@
         renderAudienceDropdown();
         renderPriorityDropdown();
 
+        // Capture the settled defaults after sanitizing and rendering the editor.
+        validateInputs();
+        originalEditingPostState = getComposerStateSnapshot();
+        validateInputs();
+
         const backdrop = document.getElementById('sigma-composer-modal-backdrop');
         const modal = backdrop ? backdrop.querySelector('.sigma-composer-modal') : null;
         const isMobileOrTablet = window.innerWidth <= 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -2957,6 +3024,7 @@
     function closeComposerModal() {
         const backdrop = document.getElementById('sigma-composer-modal-backdrop');
         if (backdrop) backdrop.classList.remove('active');
+        document.getElementById('sigma-discard-dialog-backdrop')?.classList.remove('active');
         document.body.classList.remove('sigma-composer-open');
         document.documentElement.classList.remove('sigma-composer-open');
         document.body.style.overflow = '';
@@ -3831,7 +3899,7 @@
             <!-- Post Body: Text with 'See more...' and 'See less' buttons -->
             ${(() => {
                 if (!fullBody) return '';
-                const isExpanded = getExpandedPosts().has(post.id);
+                const isExpanded = getExpandedPosts(targetContainerId).has(String(post.id));
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = fullBody;
                 const plainText = tempDiv.textContent || tempDiv.innerText || fullBody;
@@ -3842,7 +3910,9 @@
                     if (lastSpace > 160) {
                         shortText = shortText.slice(0, lastSpace);
                     }
-                    return `<div class="sigma-card-post-body" id="sigma-card-body-${post.id}"><span id="sigma-body-preview-${post.id}" style="${isExpanded ? 'display: none;' : ''}">${escapeHtml(shortText)}... <button type="button" class="sigma-card-see-more-btn" onclick="window.SigmaAnnouncements.toggleSeeMore('${post.id}', this)">See more...</button></span><span id="sigma-body-full-${post.id}" style="${isExpanded ? 'display: block;' : 'display: none;'}">${formatAnnouncementRichText(fullBody)} <button type="button" class="sigma-card-see-more-btn" onclick="window.SigmaAnnouncements.toggleSeeLess('${post.id}', this)">See less</button></span></div>`;
+                    const bodyId = `sigma-card-body-${targetContainerId}-${post.id}`;
+                    const fullId = `sigma-body-full-${targetContainerId}-${post.id}`;
+                    return `<div class="sigma-card-post-body" id="${escapeHtml(bodyId)}" data-announcement-body="${escapeHtml(String(post.id))}"><span class="sigma-card-body-preview" style="${isExpanded ? 'display: none;' : ''}">${escapeHtml(shortText)}... <button type="button" class="sigma-card-see-more-btn" aria-expanded="${isExpanded}" aria-controls="${escapeHtml(fullId)}" onclick="window.SigmaAnnouncements.toggleSeeMore('${post.id}', this)">See more...</button></span><div class="sigma-card-body-full" id="${escapeHtml(fullId)}" style="${isExpanded ? 'display: block;' : 'display: none;'}">${formatAnnouncementRichText(fullBody)} <button type="button" class="sigma-card-see-more-btn" aria-expanded="${isExpanded}" aria-controls="${escapeHtml(fullId)}" onclick="window.SigmaAnnouncements.toggleSeeLess('${post.id}', this)">See less</button></div></div>`;
                 }
                 return `<div class="sigma-card-post-body">${formatAnnouncementRichText(fullBody)}</div>`;
             })()}
@@ -4272,24 +4342,31 @@
         }
     }
 
-    function toggleSeeMore(postId, btn) {
-        saveExpandedPost(postId);
-        const previewEl = document.getElementById(`sigma-body-preview-${postId}`);
-        const fullEl = document.getElementById(`sigma-body-full-${postId}`);
-        if (!previewEl || !fullEl) return;
+    function setAnnouncementBodyExpanded(postId, btn, expanded) {
+        const clickedBody = btn?.closest('.sigma-card-post-body');
+        const bodies = clickedBody ? [clickedBody] : [...document.querySelectorAll('[data-announcement-body]')]
+            .filter(body => body.dataset.announcementBody === String(postId));
+        // Change the clicked card synchronously, without expanding hidden feeds.
+        bodies.forEach(body => {
+            const previewEl = body.querySelector('.sigma-card-body-preview, [id^="sigma-body-preview-"]');
+            const fullEl = body.querySelector('.sigma-card-body-full, [id^="sigma-body-full-"]');
+            if (!previewEl || !fullEl) return;
+            previewEl.style.display = expanded ? 'none' : 'inline';
+            fullEl.style.display = expanded ? 'block' : 'none';
+            body.querySelectorAll('.sigma-card-see-more-btn').forEach(button => button.setAttribute('aria-expanded', String(expanded)));
+            const feedId = body.id.slice('sigma-card-body-'.length, -(String(postId).length + 1));
+            const posts = getExpandedPosts(feedId);
+            if (expanded) posts.add(String(postId));
+            else posts.delete(String(postId));
+        });
+    }
 
-        previewEl.style.display = 'none';
-        fullEl.style.display = 'inline';
+    function toggleSeeMore(postId, btn) {
+        setAnnouncementBodyExpanded(postId, btn, true);
     }
 
     function toggleSeeLess(postId, btn) {
-        removeExpandedPost(postId);
-        const previewEl = document.getElementById(`sigma-body-preview-${postId}`);
-        const fullEl = document.getElementById(`sigma-body-full-${postId}`);
-        if (!previewEl || !fullEl) return;
-
-        fullEl.style.display = 'none';
-        previewEl.style.display = 'inline';
+        setAnnouncementBodyExpanded(postId, btn, false);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -5528,6 +5605,7 @@
     }
 
     function resetToDefaultTab(forceRefresh = true) {
+        resetExpandedPosts();
         currentActiveTab = 'all';
         syncTabButtonsUI('all');
         if (forceRefresh) {
@@ -5658,6 +5736,7 @@
 
     // Reset to Announcements when navigating history back/forward to Home/Dashboard
     function handleHistoryHomeNav() {
+        resetExpandedPosts();
         const hash = (window.location.hash || '').toLowerCase();
         if (!hash || hash === '#' || hash === '#dashboard' || hash === '#home' || hash === '#nav-dashboard' || hash === '#nav-home') {
             resetToDefaultTab(true);
@@ -5736,6 +5815,7 @@
         startReply: startReply,
         cancelReply: cancelReply,
         refresh: refreshAllFeeds,
+        setClassroomCommentMode: setClassroomCommentMode,
         resetToDefaultTab: resetToDefaultTab,
         resetToDefault: resetToDefaultTab,
         getActiveRoomSectionName: getActiveRoomSectionName,
@@ -5799,7 +5879,7 @@
         window.addEventListener('sigma:database-session-ready',reload);
         window.addEventListener('pageshow',reload);
         document.addEventListener('visibilitychange',()=>{if(!document.hidden)reload();});
-        setInterval(()=>{if(!document.hidden)reload();},15000);
+        setInterval(()=>{if(!document.hidden)reload();},5000);
         const protect=operation=>(...args)=>Promise.resolve(operation(...args)).catch(error=>showToastNotice({title:'Announcement not saved',message:error.message,type:'error'}));
         window.SigmaAnnouncements.toggleLike=protect(toggleLike);
         window.SigmaAnnouncements.toggleCommentLike=protect(toggleCommentLike);

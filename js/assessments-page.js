@@ -178,6 +178,20 @@
     }
 
     function resolveSubjectTopicId(cardId, subjectName) {
+        // Saved catalog identities take priority over the historical card-name aliases.
+        const norm=value=>String(value||'').trim().toLowerCase();
+        const catalog=window.getStoredJson?.('sigma-admin-subjects',[])||[];
+        const identity=catalog.find(s=>[s.id,s.code].some(v=>v&&(norm(v)===norm(cardId)||norm(v)===norm(subjectName))));
+        if(identity)return identity.id||identity.code;
+        const saved=catalog.find(s=>[s.id,s.code,s.name,...(s.curriculum?.legacyAliases||[])].some(v=>v&&(norm(v)===norm(cardId)||norm(v)===norm(subjectName))));
+        if(saved)return saved.id||saved.code;
+        // Classroom titles may have their separators replaced before the catalog loads.
+        // Resolve them back to a saved identity, without guessing between similar subjects.
+        const titleKey=value=>norm(value).replace(/^(card|subj|gen)[-_]/i,'').replace(/[-_\u2010-\u2015]+/g,' ').replace(/\s+/g,' ').trim();
+        const targets=[cardId,subjectName].filter(Boolean).map(titleKey);
+        const matches=catalog.filter(s=>[s.id,s.code,s.name,...(s.curriculum?.legacyAliases||[])].some(v=>v&&targets.includes(titleKey(v))));
+        if(matches.length===1)return matches[0].id||matches[0].code;
+        if(matches.length>1)return cardId||subjectName;
         if (typeof window.resolveStudentTopicSubjectId === 'function') {
             const resolved = window.resolveStudentTopicSubjectId(cardId, subjectName);
             if (resolved) return resolved;
@@ -361,6 +375,24 @@
         ];
     }
 
+    function normalizeAssessmentQuarter(value) {
+        const match = String(value ?? '').trim().match(/^(?:q(?:uarter)?\s*)?([1-4])(?:st|nd|rd|th)?(?:\s*quarter)?$/i);
+        return match ? Number(match[1]) : null;
+    }
+
+    // Topic quarter is curriculum metadata, independent of release or submission dates.
+    function selectPerformanceRows(rows, subject, section, quarter = 'all', sectionId = '') {
+        const scope = value => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        const selected = quarter === 'all' ? null : normalizeAssessmentQuarter(quarter);
+        return rows.filter(row => sectionId
+                ? String(row.cardId || '') === String(sectionId)
+                : scope(row.subject) === scope(subject) && scope(row.section) === scope(section))
+            .filter(row => normalizeAssessmentQuarter(row.quarter) && (quarter === 'all' || normalizeAssessmentQuarter(row.quarter) === selected))
+            .sort((a, b) => normalizeAssessmentQuarter(a.quarter) - normalizeAssessmentQuarter(b.quarter)
+                || Number(a.topicIdx ?? 0) - Number(b.topicIdx ?? 0)
+                || Number(a.unifiedIdx ?? a.itemIdx ?? 0) - Number(b.unifiedIdx ?? b.itemIdx ?? 0));
+    }
+
     function isFakeAssessment(item) { return !item || Boolean(window.SigmaDatabase?.isSyntheticRecord(item)); }
 
     function getAssessmentsForSubject(subjectId, category, fallbackTitle, sectionName) {
@@ -424,9 +456,9 @@
             ] : (Array.isArray(data.topics) ? data.topics : []);
 
             topicArrays.forEach((topic, tIdx) => {
-                const topicQuarter = hasQuarterTopics
+                const topicQuarter = topic.quarter || topic.term || (hasQuarterTopics
                     ? [1, 2, 3, 4].find(quarter => (data[`q${quarter}Topics`] || []).includes(topic))
-                    : (topic.quarter || topic.term || null);
+                    : null);
                 // If topic is scoped to a section, ensure it matches
                 if (sectionName && topic && topic.section) {
                     const cleanSec = String(sectionName).trim().toLowerCase();
@@ -481,10 +513,10 @@
                                 time: ass.time || ass.releaseTime || '',
                                 dueDate: ass.dueDate || ass.deadline || ass.due || ass.endDate || ass.endSchedule || ass.targetDueDate || ass.dateDue || null,
                                 dueTime: ass.dueTime || ass.endTime || ass.deadlineTime || ass.targetDueTime || '',
-                                max: Number(ass.max || ass.points || ass.totalPoints || 100),
+                                max: (/communication processes and models comprehensive quiz/i.test(String(ass.title || ass.name || ''))) ? 10 : Number(ass.max || ass.points || ass.totalPoints || 100),
                                 weight: ass.weight !== undefined ? Number(ass.weight) : undefined,
                                 subjectId: subjectId,
-                                quarter: topicQuarter || ass.quarter || null,
+                                quarter: normalizeAssessmentQuarter(topicQuarter) || normalizeAssessmentQuarter(ass.quarter),
                                 topicIdx: ass.topicIdx !== undefined ? ass.topicIdx : tIdx,
                                 itemIdx: ass.itemIdx !== undefined ? ass.itemIdx : aIdx
                             });
@@ -530,6 +562,7 @@
                                     max: Number(m.points || m.totalPoints || m.max || 100),
                                     weight: m.weight !== undefined ? Number(m.weight) : undefined,
                                     subjectId: subjectId,
+                                    quarter: normalizeAssessmentQuarter(m.quarter || m.term),
                                     topicIdx: 0,
                                     itemIdx: realAssessments.length
                                 });
@@ -859,7 +892,9 @@
                     let startTime = ass.time || ass.releaseTime || findInConfig(assessConfig?.assessmentStartTimes) || findInConfig(assessConfig?.startTimes) || '';
 
                     // Due Date & Time (syncs with workstation)
-                    const cfgDue = findInConfig(assessConfig?.assessmentDeadlines) 
+                    const cfgDue = findInConfig(assessConfig?.assessmentEndSchedules)
+                        ?? findInConfig(assessConfig?.materialEndSchedules)
+                        ?? findInConfig(assessConfig?.assessmentDeadlines)
                         ?? findInConfig(assessConfig?.materialDeadlines) 
                         ?? findInConfig(assessConfig?.topicDeadlines)
                         ?? findInConfig(assessConfig?.deadline) 
@@ -881,9 +916,9 @@
                     const resolvedHps = (typeof window.resolveAssessmentHPS === 'function')
                         ? window.resolveAssessmentHPS(ass, topicSubjectId || cardId || rawSubjectName, sectionName, cat, assItemIdx)
                         : null;
-                    const maxScore = resolvedHps ? resolvedHps.points : ((assessConfig?.assessmentMaxScores && assessConfig.assessmentMaxScores[assIdStr] !== undefined)
+                    const maxScore = (resolvedHps ? resolvedHps.points : ((assessConfig?.assessmentMaxScores && assessConfig.assessmentMaxScores[assIdStr] !== undefined)
                         ? assessConfig.assessmentMaxScores[assIdStr]
-                        : (ass.max || ass.points || ass.totalPoints || 100));
+                        : (ass.max || ass.points || ass.totalPoints || 100)));
 
                     // Robust student submission lookup strictly tied to this assessment
                     let subData = null;
@@ -1119,17 +1154,18 @@
                             const recorded = studentDetails.numericScore;
                             score = studentDetails.isGraded && recorded !== null && recorded !== undefined
                                 && Number.isFinite(Number(recorded)) ? Number(recorded) : null;
-                            if (studentDetails.isGraded) status = 'graded';
+                            if (studentDetails.isGraded) status = ['missing','absent','incomplete','excuse'].includes(String(studentDetails.statusName || '').toLowerCase()) ? String(studentDetails.statusName).toLowerCase() : 'graded';
                         }
                     }
                     rows.push({
                         cardId: cardId,
                         subjectId: topicSubjectId,
+                        itemId: String(ass.id || ass.materialId || ass.assessmentId || ''),
                         subject: rawSubjectName,
                         section: sectionName,
                         activity: ass.title,
                         submissionKey: role === 'student' ? window.getStudentSubmissionStorageKey?.(topicSubjectId, assTopIdx, currentTab, assItemIdx, ass, targetStudentObj) : null,
-                        quarter: ass.quarter || null,
+                        quarter: normalizeAssessmentQuarter(ass.quarter),
                         category: cat,
                         tab: currentTab,
                         topicIdx: assTopIdx,
@@ -1137,10 +1173,10 @@
                         unifiedIdx: unifiedIdx,
                         status: status,
                         score: score,
-                        max: studentDetails && Number.isFinite(Number(studentDetails.maxScore)) && Number(studentDetails.maxScore) > 0
+                        max: (studentDetails && Number.isFinite(Number(studentDetails.maxScore)) && Number(studentDetails.maxScore) > 0
                             ? Number(studentDetails.maxScore)
-                            : cat === 'quiz' && !resolvedHps && Number.isFinite(Number(subData?.maxScore))
-                            && Number(subData.maxScore) > 0 ? Number(subData.maxScore) : maxScore,
+                            : cat === 'quiz' && !resolvedHps?.isLocked && Number.isFinite(Number(subData?.maxScore))
+                            && Number(subData.maxScore) > 0 ? Number(subData.maxScore) : maxScore),
                         weight: weight,
                         startDate: rawStart,
                         startTime: startTime,
@@ -1779,6 +1815,7 @@
         openStudentAssessmentsPage: openStudentAssessmentsPage,
         openTeacherAssessmentsPage: openTeacherAssessmentsPage,
         buildAssessmentRows: buildUnifiedAssessmentRows,
+        selectPerformanceRows: selectPerformanceRows,
         formatAssessmentDate: formatAssessmentDate,
         onSectionChange: onSectionChange,
         openStudentPicker: openStudentPicker,

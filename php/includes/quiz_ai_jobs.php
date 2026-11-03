@@ -42,18 +42,20 @@ function quizAiStartJob(array $input,array $actor): string {
             }
         }
         if(!function_exists('exec'))throw new RuntimeException('Background generation is unavailable on this server.');
-        $id=bin2hex(random_bytes(16));quizAiWriteJob($id,['ownerId'=>(string)$actor['id'],'createdAt'=>time(),'status'=>'pending','input'=>$input]);
-        $cli=PHP_BINARY;if(str_contains(strtolower(basename($cli)),'cgi')||str_contains(strtolower(basename($cli)),'fpm'))$cli=dirname($cli).'/php';
+        $cli=PHP_OS_FAMILY==='Windows'?PHP_BINDIR.DIRECTORY_SEPARATOR.'php.exe':PHP_BINARY;
+        if(str_contains(strtolower(basename($cli)),'cgi')||str_contains(strtolower(basename($cli)),'fpm'))$cli=dirname($cli).'/php';
         if(!is_executable($cli))throw new RuntimeException('The generation worker is unavailable.');
+        $id=bin2hex(random_bytes(16));quizAiWriteJob($id,['ownerId'=>(string)$actor['id'],'createdAt'=>time(),'status'=>'pending','input'=>$input]);
         $worker=dirname(__DIR__).'/workers/quiz_ai_worker.php';
-        $command=escapeshellarg($cli).' '.escapeshellarg($worker).' '.escapeshellarg($id).' > /dev/null 2>&1 < /dev/null &';
-        exec($command,$ignored,$status);if($status!==0)throw new RuntimeException('The generation worker could not start.');
+        if(PHP_OS_FAMILY==='Windows'){
+            $quote=fn($value)=>"'".str_replace("'","''",$value)."'";
+            $launch='Start-Process -FilePath '.$quote($cli).' -ArgumentList '.$quote('"'.$worker.'" '.$id).' -WindowStyle Hidden';
+            $command='powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command '.escapeshellarg($launch);
+        }else $command=escapeshellarg($cli).' '.escapeshellarg($worker).' '.escapeshellarg($id).' > /dev/null 2>&1 < /dev/null &';
+        exec($command,$ignored,$status);if($status!==0){
+            quizAiWriteJob($id,['ownerId'=>(string)$actor['id'],'createdAt'=>time(),'status'=>'failed','error'=>'The generation worker could not start.']);
+            throw new RuntimeException('The generation worker could not start.');
+        }
         return $id;
     }finally{flock($lock,LOCK_UN);fclose($lock);}
-}
-function quizAiProviderRequest(string $url,array $headers,array $body): array {
-    $ch=curl_init($url);curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>json_encode($body),CURLOPT_HTTPHEADER=>array_merge(['Content-Type: application/json'],$headers),CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>10,CURLOPT_TIMEOUT=>45,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_FOLLOWLOCATION=>false]);
-    $raw=curl_exec($ch);$code=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
-    if($raw===false||$code<200||$code>=300)throw new RuntimeException($code===429?'AI quota reached. Wait and try again.':'AI provider request failed. Check the saved key and model.');
-    return json_decode($raw,true)?:[];
 }

@@ -46,6 +46,24 @@ function attendanceAcademicContext(array $years,array $section,string $date,arra
     return $context;
 }
 
+/** Resolve browser name aliases only within the active, enrolled roster. */
+function attendanceRosterStudent(array $students,string $key): ?array {
+    $key=gradeNorm($key);
+    foreach($students as $student)if($key===gradeNorm($student['id']))return $student;
+    $matches=[];
+    foreach($students as $student){
+        $aliases=gradeNames($student);
+        $aliases[]='std-'.$student['id'];
+        $first=trim((string)($student['first_name']??''));$last=trim((string)($student['last_name']??''));
+        if($first!==''&&$last!==''){
+            $aliases[]=$last.', '.$first;
+            $aliases[]=$last.', '.trim($first.' '.($student['middle_name']??''));
+        }
+        if(in_array($key,array_map('gradeNorm',$aliases),true))$matches[]=$student;
+    }
+    return count($matches)===1?$matches[0]:null;
+}
+
 function attendanceSubmit(PDO $db,array $actor,array $input,bool $draft=false): array {
     if(academicRole($actor)!=='teacher'&&!academicAdmin($actor))throw new RuntimeException('Only an assigned teacher can submit attendance.');
     if(!academicAdmin($actor)&&!sigmaActorPermission($actor,'teacherAttendance'))throw new RuntimeException('Attendance access is disabled.');
@@ -56,14 +74,19 @@ function attendanceSubmit(PDO $db,array $actor,array $input,bool $draft=false): 
     if(!$parsed||$parsed->format('Y-m-d')!==$date||$date>academicDay())throw new InvalidArgumentException('Choose a valid attendance date.');
     if(!attendanceIsScheduled($section,$date))throw new InvalidArgumentException('Choose a scheduled class date for attendance.');
     $students=$db->query("SELECT * FROM users WHERE is_deleted=0 AND LOWER(status)='active' AND LOWER(role)='student'")->fetchAll(PDO::FETCH_ASSOC);
-    $statuses=[];$excuses=[];
+    $students=array_values(array_filter($students,fn($student)=>gradeStudent($section,$student)));
+    $statuses=[];$excuses=[];$ignoredEntries=0;
     foreach($input['statuses']??[] as $key=>$value){
-        $student=null;foreach($students as $candidate)if(gradeStudent($section,$candidate)&&gradeMatches((string)$key,$candidate)){$student=$candidate;break;}
-        if(!$student)throw new RuntimeException('An attendance entry is outside this section roster.');
+        $student=attendanceRosterStudent($students,(string)$key);
+        // Browser drafts can outlive a roster change. Ignore stale identities
+        // instead of rejecting every valid mark in the same attendance save.
+        if(!$student){$ignoredEntries++;continue;}
         $value=strtolower((string)$value);$value=['p'=>'present','a'=>'absent','l'=>'late','e'=>'excused','excuse'=>'excused'][$value]??$value;
         if(!in_array($value,['present','absent','late','excused',''],true))throw new InvalidArgumentException('Invalid attendance status.');
         if($value==='')continue;
-        $id=(string)$student['id'];$statuses[$id]=$value;
+        $id=(string)$student['id'];
+        if(isset($statuses[$id])&&$statuses[$id]!==$value)throw new InvalidArgumentException('Conflicting attendance marks for the same student.');
+        $statuses[$id]=$value;
         if(isset($input['excuses'][$key]))$excuses[$id]=$input['excuses'][$key];
     }
     if(!$draft&&!$statuses)throw new InvalidArgumentException('Record at least one student before submitting attendance.');
@@ -74,7 +97,7 @@ function attendanceSubmit(PDO $db,array $actor,array $input,bool $draft=false): 
     if($draft){$record['submitted']=false;$record['submittedAt']=null;$record['updatedAt']=gmdate('c');}
     academicWrite($db,$actor,$draft?'attendance_draft':'attendance',$subject,$section,$draft?(string)$actor['id']:'',$date,$record);
     if(!$draft)attendanceClearDraft($db,$actor,$subject,$section,$date);
-    return ['section'=>$section['name'],'subject'=>$subject['name'],'record'=>$record];
+    return ['section'=>$section['name'],'subject'=>$subject['name'],'record'=>$record,'ignoredEntries'=>$ignoredEntries];
 }
 
 function attendanceSnapshot(PDO $db,array $actor): array {
@@ -172,10 +195,12 @@ function attendanceClearDraft(PDO $db,array $actor,array $subject,array $section
 function attendanceSubmitMany(PDO $db,array $actor,array $input): array {
     $days=$input['days']??[];
     if(!is_array($days)||!count($days)||count($days)>366)throw new InvalidArgumentException('Choose 1 to 366 attendance dates.');
-    $records=[];ksort($days);
+    $records=[];$ignoredEntries=[];ksort($days);
     foreach($days as $date=>$day){
         if(!is_array($day))throw new InvalidArgumentException('Invalid attendance day.');
-        $records[$date]=attendanceSubmit($db,$actor,array_merge($input,$day,['date'=>(string)$date,'submitted'=>true]))['record'];
+        $saved=attendanceSubmit($db,$actor,array_merge($input,$day,['date'=>(string)$date,'submitted'=>true]));
+        $records[$date]=$saved['record'];
+        if(!empty($saved['ignoredEntries']))$ignoredEntries[$date]=(int)$saved['ignoredEntries'];
     }
-    return ['success'=>true,'records'=>$records];
+    return ['success'=>true,'records'=>$records,'ignoredEntries'=>$ignoredEntries];
 }
