@@ -8170,14 +8170,17 @@ function initTeacherPortal() {
             if (effectiveId) {
                 const quizInfo = findQuizInfo(subjectId, effectiveId, targetTitle, foundAss);
                 const autoHps = quizInfo.points;
-                const attachedQuestions = [quizInfo?.matchedQuiz?.questions, quizInfo?.matchedQuiz?.quizQuestions, quizInfo?.matchedQuiz?.items,
-                    foundAss?.questions, foundAss?.quizQuestions, foundAss?.rawItem?.questions, foundAss?.rawItem?.quizQuestions]
-                    .find(questions => Array.isArray(questions) && questions.length) || [];
-                for (const question of attachedQuestions) {
-                    const type = String(question?.type || question?.questionType || '').toLowerCase().replace(/[_-]+/g, ' ');
-                    if (/essay|paragraph/.test(type)) quizReviewTypes.essay = true;
-                    if (/enum/.test(type)) quizReviewTypes.enumeration = true;
-                    if (/short answer|identification/.test(type)) quizReviewTypes.shortAnswer = true;
+                const attachedQuestionLists = [quizInfo?.matchedQuiz?.questions, quizInfo?.matchedQuiz?.quizQuestions, quizInfo?.matchedQuiz?.items,
+                    foundAss?.questions, foundAss?.quizQuestions, foundAss?.items, foundAss?.rawItem?.questions,
+                    foundAss?.rawItem?.quizQuestions, foundAss?.rawItem?.items].filter(Array.isArray);
+                for (const questions of attachedQuestionLists) {
+                    for (const question of questions) {
+                        const type = String(question?.type || question?.questionType || question?.question_type || question?.kind || '')
+                            .toLowerCase().replace(/[_-]+/g, ' ');
+                        if (/essay|paragraph/.test(type)) quizReviewTypes.essay = true;
+                        if (/enum/.test(type)) quizReviewTypes.enumeration = true;
+                        if (/short\s*answer|identification/.test(type)) quizReviewTypes.shortAnswer = true;
+                    }
                 }
                 hasWrittenQuizQuestions = Object.values(quizReviewTypes).some(Boolean);
 
@@ -8217,12 +8220,14 @@ function initTeacherPortal() {
 
                 const draftEssay = readReleaseMapValue(draft.assessmentEssayGradingModes);
                 const savedEssay = readReleaseMapValue(saved?.assessmentEssayGradingModes);
+                const hasConfiguredEssayMode = draftEssay === 'manual' || draftEssay === 'auto'
+                    || savedEssay === 'manual' || savedEssay === 'auto';
                 if (draftEssay === 'manual' || draftEssay === 'auto') {
                     initEssayGradingMode = draftEssay;
                 } else if (savedEssay === 'manual' || savedEssay === 'auto') {
                     initEssayGradingMode = savedEssay;
                 } else {
-                    initEssayGradingMode = 'auto';
+                    initEssayGradingMode = hasWrittenQuizQuestions ? 'manual' : 'auto';
                 }
                 if (initEssayGradingMode && effectiveId) {
                     if (!draft.assessmentEssayGradingModes) draft.assessmentEssayGradingModes = {};
@@ -8230,17 +8235,20 @@ function initTeacherPortal() {
                 }
 
                 const savedReviewTypes = readReleaseMapValue(draft.assessmentManualReviewTypes) || readReleaseMapValue(saved?.assessmentManualReviewTypes) || null;
-                if (savedReviewTypes && typeof savedReviewTypes === 'object') {
+                if (hasConfiguredEssayMode && savedReviewTypes && typeof savedReviewTypes === 'object') {
                     initManualReviewEnumeration = Boolean(savedReviewTypes.enumeration);
                     initManualReviewShort = Boolean(savedReviewTypes.shortAnswer);
+                } else {
+                    initManualReviewEnumeration = quizReviewTypes.enumeration && initEssayGradingMode === 'manual';
+                    initManualReviewShort = quizReviewTypes.shortAnswer && initEssayGradingMode === 'manual';
                 }
 
                 if (!hasWrittenQuizQuestions) {
                     initEssayGradingMode = 'auto';
                     draft.assessmentEssayGradingModes[effectiveId] = 'auto';
                 }
-                initManualReviewEnumeration = quizReviewTypes.enumeration && initManualReviewEnumeration;
-                initManualReviewShort = quizReviewTypes.shortAnswer && initManualReviewShort;
+                initManualReviewEnumeration = hasWrittenQuizQuestions && quizReviewTypes.enumeration && initManualReviewEnumeration;
+                initManualReviewShort = hasWrittenQuizQuestions && quizReviewTypes.shortAnswer && initManualReviewShort;
 
                 if (draft.assessmentShowCorrectAnswers?.[effectiveId] !== undefined) {
                     initShowCorrectAnswers = Boolean(draft.assessmentShowCorrectAnswers[effectiveId]);
