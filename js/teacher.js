@@ -7539,6 +7539,7 @@ function initTeacherPortal() {
                 assessmentAutoSubmitOnExit: {},
                 assessmentGradingModes: {},
                 assessmentEssayGradingModes: {},
+                assessmentEssayGradingModeExplicit: {},
                 assessmentShowCorrectAnswers: {},
                 assessmentAiAssisted: {},
                 assessmentRubrics: {},
@@ -7561,6 +7562,7 @@ function initTeacherPortal() {
                 assessmentAutoSubmitOnExit: { ...(saved?.assessmentAutoSubmitOnExit || {}) },
                 assessmentGradingModes: { ...(saved?.assessmentGradingModes || {}) },
                 assessmentEssayGradingModes: { ...(saved?.assessmentEssayGradingModes || {}) },
+                assessmentEssayGradingModeExplicit: { ...(saved?.assessmentEssayGradingModeExplicit || {}) },
                 assessmentShowCorrectAnswers: { ...(saved?.assessmentShowCorrectAnswers || {}) },
                 assessmentAiAssisted: { ...(saved?.assessmentAiAssisted || {}) },
                 assessmentRubrics: { ...(saved?.assessmentRubrics || {}) },
@@ -7590,6 +7592,7 @@ function initTeacherPortal() {
         if (!draft.assessmentAutoSubmitOnExit) draft.assessmentAutoSubmitOnExit = isEditMode ? { ...(saved?.assessmentAutoSubmitOnExit || {}) } : {};
         if (!draft.assessmentGradingModes) draft.assessmentGradingModes = isEditMode ? { ...(saved?.assessmentGradingModes || {}) } : {};
         if (!draft.assessmentEssayGradingModes) draft.assessmentEssayGradingModes = isEditMode ? { ...(saved?.assessmentEssayGradingModes || {}) } : {};
+        if (!draft.assessmentEssayGradingModeExplicit) draft.assessmentEssayGradingModeExplicit = isEditMode ? { ...(saved?.assessmentEssayGradingModeExplicit || {}) } : {};
         if (!draft.assessmentShowCorrectAnswers) draft.assessmentShowCorrectAnswers = isEditMode ? { ...(saved?.assessmentShowCorrectAnswers || {}) } : {};
         if (!draft.assessmentAiAssisted) draft.assessmentAiAssisted = isEditMode ? { ...(saved?.assessmentAiAssisted || {}) } : {};
         if (!draft.assessmentRubrics) draft.assessmentRubrics = isEditMode ? { ...(saved?.assessmentRubrics || {}) } : {};
@@ -8220,11 +8223,14 @@ function initTeacherPortal() {
 
                 const draftEssay = readReleaseMapValue(draft.assessmentEssayGradingModes);
                 const savedEssay = readReleaseMapValue(saved?.assessmentEssayGradingModes);
-                const hasConfiguredEssayMode = draftEssay === 'manual' || draftEssay === 'auto'
-                    || savedEssay === 'manual' || savedEssay === 'auto';
-                if (draftEssay === 'manual' || draftEssay === 'auto') {
+                const draftEssayModeExplicit = readReleaseMapValue(draft.assessmentEssayGradingModeExplicit);
+                const savedEssayModeExplicit = readReleaseMapValue(saved?.assessmentEssayGradingModeExplicit);
+                const hasExplicitEssayMode = draftEssayModeExplicit !== undefined
+                    ? draftEssayModeExplicit === true
+                    : savedEssayModeExplicit === true;
+                if (hasExplicitEssayMode && (draftEssay === 'manual' || draftEssay === 'auto')) {
                     initEssayGradingMode = draftEssay;
-                } else if (savedEssay === 'manual' || savedEssay === 'auto') {
+                } else if (hasExplicitEssayMode && (savedEssay === 'manual' || savedEssay === 'auto')) {
                     initEssayGradingMode = savedEssay;
                 } else {
                     initEssayGradingMode = hasWrittenQuizQuestions ? 'manual' : 'auto';
@@ -8235,7 +8241,7 @@ function initTeacherPortal() {
                 }
 
                 const savedReviewTypes = readReleaseMapValue(draft.assessmentManualReviewTypes) || readReleaseMapValue(saved?.assessmentManualReviewTypes) || null;
-                if (hasConfiguredEssayMode && savedReviewTypes && typeof savedReviewTypes === 'object') {
+                if (hasExplicitEssayMode && savedReviewTypes && typeof savedReviewTypes === 'object') {
                     initManualReviewEnumeration = Boolean(savedReviewTypes.enumeration);
                     initManualReviewShort = Boolean(savedReviewTypes.shortAnswer);
                 } else {
@@ -8243,7 +8249,7 @@ function initTeacherPortal() {
                     initManualReviewShort = quizReviewTypes.shortAnswer && initEssayGradingMode === 'manual';
                 }
 
-                if (!hasWrittenQuizQuestions) {
+                if (!hasWrittenQuizQuestions && !hasExplicitEssayMode) {
                     initEssayGradingMode = 'auto';
                     draft.assessmentEssayGradingModes[effectiveId] = 'auto';
                 }
@@ -11088,6 +11094,16 @@ function initTeacherPortal() {
         const targetMode = current === requested ? '' : requested;
         if (hiddenInp) hiddenInp.value = targetMode;
 
+        const modalOverlay = document.getElementById('teacher-topic-schedule-overlay');
+        const category = modalOverlay?.dataset?._category || 'assessments';
+        const meta = window.getUnifiedScheduleMeta?.(category);
+        const draft = meta?.draftStateKey ? window[meta.draftStateKey] : null;
+        const activeId = draft?._targetId || draft?.[meta?.pendingKey]?.[0];
+        if (draft && activeId !== undefined && activeId !== null) {
+            if (!draft.assessmentEssayGradingModeExplicit) draft.assessmentEssayGradingModeExplicit = {};
+            draft.assessmentEssayGradingModeExplicit[String(activeId)] = Boolean(targetMode);
+        }
+
         ['manual', 'auto'].forEach(m => {
             const card = document.getElementById(`teacher-essay-mode-${m}`);
             const icon = document.getElementById(`teacher-essay-mode-${m}-icon`);
@@ -11116,8 +11132,6 @@ function initTeacherPortal() {
         }
 
         window.cacheActiveAssessmentGradingSettings?.();
-        const modalOverlay = document.getElementById('teacher-topic-schedule-overlay');
-        const category = modalOverlay?.dataset?._category || 'assessments';
         window.validateTeacherScheduleInputs?.(category, false);
     };
 
@@ -12204,11 +12218,18 @@ function initTeacherPortal() {
         };
         if (category === 'assessments') {
             const essayModeNow = String(document.getElementById('teacher-schedule-essay-grading-mode')?.value || '').trim();
+            const explicitEssayModeNow = draft.assessmentEssayGradingModeExplicit?.[String(draft._targetId || '')] === true;
             if (essayModeNow === 'manual' || essayModeNow === 'auto') {
                 if (!draft.assessmentEssayGradingModes) draft.assessmentEssayGradingModes = {};
                 targetIds.forEach(id => {
                     const key = String(id);
-                    if (!draft.assessmentEssayGradingModes[key]) draft.assessmentEssayGradingModes[key] = essayModeNow;
+                    if (explicitEssayModeNow) {
+                        draft.assessmentEssayGradingModes[key] = essayModeNow;
+                        if (!draft.assessmentEssayGradingModeExplicit) draft.assessmentEssayGradingModeExplicit = {};
+                        draft.assessmentEssayGradingModeExplicit[key] = true;
+                    } else if (!draft.assessmentEssayGradingModes[key]) {
+                        draft.assessmentEssayGradingModes[key] = essayModeNow;
+                    }
                 });
             }
             targetIds.forEach(id => {
@@ -12544,6 +12565,13 @@ function initTeacherPortal() {
                     config.assessmentEssayGradingModes[idStr] = draft.assessmentEssayGradingModes[idStr];
                     if (foundAss?.id) config.assessmentEssayGradingModes[String(foundAss.id)] = draft.assessmentEssayGradingModes[idStr];
                     if (foundAss?.title) config.assessmentEssayGradingModes[foundAss.title] = draft.assessmentEssayGradingModes[idStr];
+                }
+                if (!config.assessmentEssayGradingModeExplicit) config.assessmentEssayGradingModeExplicit = { ...(saved?.assessmentEssayGradingModeExplicit || {}) };
+                if (draft.assessmentEssayGradingModeExplicit?.[idStr] !== undefined) {
+                    const isExplicit = Boolean(draft.assessmentEssayGradingModeExplicit[idStr]);
+                    config.assessmentEssayGradingModeExplicit[idStr] = isExplicit;
+                    if (foundAss?.id) config.assessmentEssayGradingModeExplicit[String(foundAss.id)] = isExplicit;
+                    if (foundAss?.title) config.assessmentEssayGradingModeExplicit[foundAss.title] = isExplicit;
                 }
                 if (!config.assessmentManualReviewTypes) config.assessmentManualReviewTypes = { ...(saved?.assessmentManualReviewTypes || {}) };
                 if (draft.assessmentManualReviewTypes?.[idStr] !== undefined) {
@@ -13107,7 +13135,7 @@ function initTeacherPortal() {
         if (category === 'assessments' && document.getElementById('teacher-topic-schedule-overlay')?.dataset?._editType === 'schedule') {
             // Editing dates must not replace grading settings that are absent from this page.
             for (const key of Object.keys(config)) {
-                if ((key.startsWith('assessment') && !/Schedules$|Dates$/.test(key)) || key.startsWith('default')) {
+                if ((key.startsWith('assessment') && !/Schedules$|Dates$/.test(key) && key !== 'assessmentEssayGradingModeExplicit') || key.startsWith('default')) {
                     if (saved && Object.prototype.hasOwnProperty.call(saved, key)) config[key] = saved[key];
                     else delete config[key];
                 }
